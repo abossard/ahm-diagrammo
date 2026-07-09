@@ -1,0 +1,178 @@
+[
+  {
+    "slug": "diagram",
+    "svg": "diagram.svg",
+    "nodes": 10,
+    "lanes": 3,
+    "w": 1896,
+    "h": 499
+  },
+  {
+    "slug": "multi-region-with-worst-of-or-minimum-count-aggregation",
+    "svg": "multi-region-with-worst-of-or-minimum-count-aggregation.svg",
+    "nodes": 7,
+    "lanes": 3,
+    "w": 1280,
+    "h": 514
+  },
+  {
+    "slug": "active-passive",
+    "svg": "active-passive.svg",
+    "nodes": 3,
+    "lanes": 2,
+    "w": 1280,
+    "h": 343
+  },
+  {
+    "slug": "circuit-breaker",
+    "svg": "circuit-breaker.svg",
+    "nodes": 6,
+    "lanes": 3,
+    "w": 1280,
+    "h": 514
+  },
+  {
+    "slug": "add-security-signals-to-your-workload-health-model",
+    "svg": "add-security-signals-to-your-workload-health-model.svg",
+    "nodes": 6,
+    "lanes": 3,
+    "w": 1280,
+    "h": 550
+  },
+  {
+    "slug": "add-security-signals-to-your-platform-health-model",
+    "svg": "add-security-signals-to-your-platform-health-model.svg",
+    "nodes": 5,
+    "lanes": 2,
+    "w": 1344,
+    "h": 423
+  },
+  {
+    "slug": "modeling-cost-concerns",
+    "svg": "modeling-cost-concerns.svg",
+    "nodes": 4,
+    "lanes": 2,
+    "w": 1280,
+    "h": 369
+  },
+  {
+    "slug": "add-operational-quality-signals-to-the-workload-model",
+    "svg": "add-operational-quality-signals-to-the-workload-model.svg",
+    "nodes": 9,
+    "lanes": 3,
+    "w": 1620,
+    "h": 550
+  },
+  {
+    "slug": "provide-a-platform-health-model-for-application-teams-to-con",
+    "svg": "provide-a-platform-health-model-for-application-teams-to-con.svg",
+    "nodes": 5,
+    "lanes": 3,
+    "w": 1280,
+    "h": 489
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models.svg",
+    "nodes": 18,
+    "lanes": 3,
+    "w": 3552,
+    "h": 463
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-2",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-2.svg",
+    "nodes": 4,
+    "lanes": 2,
+    "w": 1280,
+    "h": 343
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-3",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-3.svg",
+    "nodes": 4,
+    "lanes": 2,
+    "w": 1280,
+    "h": 343
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-4",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-4.svg",
+    "nodes": 3,
+    "lanes": 2,
+    "w": 1280,
+    "h": 343
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-5",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-5.svg",
+    "nodes": 11,
+    "lanes": 3,
+    "w": 1280,
+    "h": 482
+  },
+  {
+    "slug": "aggregate-health-across-the-workload-portfolio",
+    "svg": "aggregate-health-across-the-workload-portfolio.svg",
+    "nodes": 10,
+    "lanes": 3,
+    "w": 1620,
+    "h": 611
+  },
+  {
+    "slug": "event-driven-flow-end-to-end-latency-composition",
+    "svg": "event-driven-flow-end-to-end-latency-composition.svg",
+    "nodes": 3,
+    "lanes": 2,
+    "w": 1280,
+    "h": 361
+  },
+  {
+    "slug": "web-application-3-tier-with-caching",
+    "svg": "web-application-3-tier-with-caching.svg",
+    "nodes": 5,
+    "lanes": 2,
+    "w": 1344,
+    "h": 369
+  },
+  {
+    "slug": "event-driven-serverless-api",
+    "svg": "event-driven-serverless-api.svg",
+    "nodes": 6,
+    "lanes": 2,
+    "w": 1620,
+    "h": 361
+  },
+  {
+    "slug": "ai-document-ingestion",
+    "svg": "ai-document-ingestion.svg",
+    "nodes": 5,
+    "lanes": 2,
+    "w": 1344,
+    "h": 361
+  },
+  {
+    "slug": "ai-agent-workflow-with-microsoft-foundry",
+    "svg": "ai-agent-workflow-with-microsoft-foundry.svg",
+    "nodes": 5,
+    "lanes": 2,
+    "w": 1344,
+    "h": 361
+  },
+  {
+    "slug": "large-scale-batch-with-durable-task-scheduler",
+    "svg": "large-scale-batch-with-durable-task-scheduler.svg",
+    "nodes": 6,
+    "lanes": 2,
+    "w": 1620,
+    "h": 343
+  },
+  {
+    "slug": "queue-with-stuck-vs-dead-letter-signals",
+    "svg": "queue-with-stuck-vs-dead-letter-signals.svg",
+    "nodes": 3,
+    "lanes": 2,
+    "w": 1280,
+    "h": 361
+  }
+]

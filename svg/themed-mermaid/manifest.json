@@ -1,0 +1,90 @@
+[
+  {
+    "slug": "diagram",
+    "svg": "diagram.svg"
+  },
+  {
+    "slug": "multi-region-with-worst-of-or-minimum-count-aggregation",
+    "svg": "multi-region-with-worst-of-or-minimum-count-aggregation.svg"
+  },
+  {
+    "slug": "active-passive",
+    "svg": "active-passive.svg"
+  },
+  {
+    "slug": "circuit-breaker",
+    "svg": "circuit-breaker.svg"
+  },
+  {
+    "slug": "add-security-signals-to-your-workload-health-model",
+    "svg": "add-security-signals-to-your-workload-health-model.svg"
+  },
+  {
+    "slug": "add-security-signals-to-your-platform-health-model",
+    "svg": "add-security-signals-to-your-platform-health-model.svg"
+  },
+  {
+    "slug": "modeling-cost-concerns",
+    "svg": "modeling-cost-concerns.svg"
+  },
+  {
+    "slug": "add-operational-quality-signals-to-the-workload-model",
+    "svg": "add-operational-quality-signals-to-the-workload-model.svg"
+  },
+  {
+    "slug": "provide-a-platform-health-model-for-application-teams-to-con",
+    "svg": "provide-a-platform-health-model-for-application-teams-to-con.svg"
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models.svg"
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-2",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-2.svg"
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-3",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-3.svg"
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-4",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-4.svg"
+  },
+  {
+    "slug": "keep-the-model-navigable-one-large-model-vs-nested-models-5",
+    "svg": "keep-the-model-navigable-one-large-model-vs-nested-models-5.svg"
+  },
+  {
+    "slug": "aggregate-health-across-the-workload-portfolio",
+    "svg": "aggregate-health-across-the-workload-portfolio.svg"
+  },
+  {
+    "slug": "event-driven-flow-end-to-end-latency-composition",
+    "svg": "event-driven-flow-end-to-end-latency-composition.svg"
+  },
+  {
+    "slug": "web-application-3-tier-with-caching",
+    "svg": "web-application-3-tier-with-caching.svg"
+  },
+  {
+    "slug": "event-driven-serverless-api",
+    "svg": "event-driven-serverless-api.svg"
+  },
+  {
+    "slug": "ai-document-ingestion",
+    "svg": "ai-document-ingestion.svg"
+  },
+  {
+    "slug": "ai-agent-workflow-with-microsoft-foundry",
+    "svg": "ai-agent-workflow-with-microsoft-foundry.svg"
+  },
+  {
+    "slug": "large-scale-batch-with-durable-task-scheduler",
+    "svg": "large-scale-batch-with-durable-task-scheduler.svg"
+  },
+  {
+    "slug": "queue-with-stuck-vs-dead-letter-signals",
+    "svg": "queue-with-stuck-vs-dead-letter-signals.svg"
+  }
+]
