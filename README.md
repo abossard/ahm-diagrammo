@@ -1,28 +1,30 @@
 # ahm-diagrammo
 
 Code-based, native-SVG diagram generators for **Azure Monitor health models**. They turn Mermaid
-`flowchart BT` health models into publication-ready SVGs that look like the Azure portal health graph,
-render as `<img>` on Microsoft Learn (native `<text>`, no `foreignObject`), and stay crisp at any size.
+`flowchart BT` health models into SVGs that look like the Azure portal health graph, render as `<img>`
+on Microsoft Learn (native `<text>`, no `foreignObject`), and scale without blurring.
 
-Built to replace hand-drawn diagrams in the Well-Architected Framework health-model service guide.
+I built these to replace hand-drawn diagrams in the Well-Architected Framework health-model service guide.
 
-## Showcase
+## Examples
 
-Signals live **inside** each entity as a status table (status dot, name, metric icon, result), health
-rolls up through business flows to the workload root, and relationship labels render as pills.
+Signals live **inside** each entity as a status table (status dot, name, metric icon, result). Health
+rolls up through business flows to the workload root. Relationship labels render as pills.
 
 ![Hero](screenshots/hero.png)
 
-### Kitchen sink — every feature in one figure
-All health states (Healthy, Degraded, Unhealthy, Unknown, Standby), multi-row signal tables, dashed
-propagation edges, qualifiers (worstOf, active-active), long names, straight and elbow connectors.
+### Kitchen sink: one figure, every feature
+
+Healthy, Degraded, Unhealthy, Unknown, and Standby states. Multi-row signal tables. Dashed propagation
+edges. Qualifiers like worstOf and active-active. Long names, straight and elbow connectors.
 
 ![Kitchen sink](screenshots/kitchen-sink.png)
 
-### Pills stress test — relationship labels never overlap
-Many labeled edges converging on one parent and multiple edges from one child. Each pill anchors on its
-child's vertical drop and edges level by horizontal span, so no pill or line overlaps and every pill
-clearly belongs to one relationship.
+### Pills stress test: labels that never collide
+
+Many labeled edges converge on one parent, and one child feeds several parents. Each pill anchors on its
+child's vertical drop, and the router levels edges by horizontal span. No pill overlaps another, no line
+crosses another, and every pill belongs to one relationship.
 
 ![Pills stress test](screenshots/pills-stress.png)
 
@@ -35,18 +37,18 @@ clearly belongs to one relationship.
 | Portfolio (nested models, discovered) | Architecture diagram (declarative) |
 | ![Portfolio](screenshots/portfolio.png) | ![Architecture](screenshots/architecture.png) |
 
-Full set of 22 service-guide diagrams: [screenshots/gallery.png](screenshots/gallery.png).
+All 22 service-guide diagrams: [screenshots/gallery.png](screenshots/gallery.png).
 
 ## What's inside
 
 | Tool | What it does |
 |------|--------------|
-| `swimlane-auto.mjs` | **Main generator.** Parses each Mermaid `flowchart BT` block, folds signals into their entity as a status table, auto-layers into swimlanes (root / flows / components), and renders portal-styled SVG with roll-up connectors and pill labels. |
-| `convert.mjs` | Portal-themed Mermaid → SVG (keeps the original Mermaid node shapes, applies the portal palette). |
-| `swimlane.mjs` | Earlier hand-tuned single-diagram swimlane (kept for reference). |
-| `arch/` | Declarative Azure architecture-diagram engine (containers, orthogonal routing, pluggable icons). |
-| `ingest-demo/` | `az monitor health-models` deploy + `ingest-health-report` recipe to force live states for real portal screenshots. |
-| `EVALUATION.md` | The options analysis (Mermaid theme vs draw.io vs portal CSS vs screenshots vs layered). |
+| `swimlane-auto.mjs` | The main generator. It parses each Mermaid `flowchart BT` block, folds signals into their entity as a status table, layers the graph into swimlanes (root, flows, components), and renders portal-styled SVG with roll-up connectors and pill labels. |
+| `convert.mjs` | Portal-themed Mermaid to SVG. Keeps the original Mermaid node shapes and applies the portal palette. |
+| `swimlane.mjs` | An earlier hand-tuned single-diagram swimlane, kept for reference. |
+| `arch/` | Declarative Azure architecture-diagram engine: containers, orthogonal routing, pluggable icons. |
+| `ingest-demo/` | An `az monitor health-models` deploy plus `ingest-health-report` recipe. Force live states, then screenshot the real portal. |
+| `EVALUATION.md` | The options analysis: Mermaid theme, draw.io, portal CSS, screenshots, layered. |
 
 ## Usage
 
@@ -60,36 +62,37 @@ node swimlane-auto.mjs path/to/health-models.md out-swimlane
 node swimlane-auto.mjs kitchen-sink.md out-kitchen
 node swimlane-auto.mjs pills-stress.md out-pills
 
-# Portal-themed Mermaid -> SVG
+# Portal-themed Mermaid to SVG
 node convert.mjs path/to/health-models.md out
 
 # Architecture diagram (declarative scene)
 node arch/render.mjs scene-appservice.mjs svg/architecture/appservice-baseline.svg
 ```
 
-Generated SVGs for the reference set are checked in under [`svg/`](svg/).
+The reference set of generated SVGs lives under [`svg/`](svg/).
 
 ## Design notes
 
-- **Learn-safe SVG**: `htmlLabels:false` everywhere, so labels are native `<text>`/`<tspan>` and render
-  inside `<img>`. Never `<foreignObject>`.
-- **Portal palette** (from the health-models portal source): Healthy `#a0d8a0`, Degraded `#db7500`,
-  Unhealthy `#ba0d16`, Unknown `#c8c6c4`, signal/azure `#0078d4`.
-- **Signals are contained in the entity**, not related to it — folded into an attached 4-column table.
-- **Roll-up connectors** are colored by the child's state; a tolerated failure (active-active, worst-of)
-  keeps the parent green while the child's own line stays red.
-- **Relationship-label pills** anchor at the child's vertical drop and level by horizontal span, so they
-  never overlap and always belong to one line.
-- Preview PNGs are rendered with headless Chrome, not librsvg (librsvg drops leading `<tspan>` spaces).
+- **Learn-safe SVG.** Set `htmlLabels:false` everywhere, so labels become native `<text>`/`<tspan>` and
+  render inside `<img>`. Never `<foreignObject>`.
+- **Portal palette** from the health-models portal source: Healthy `#a0d8a0`, Degraded `#db7500`,
+  Unhealthy `#ba0d16`, Unknown `#c8c6c4`, signal and azure `#0078d4`.
+- **Signals sit in the entity**, not beside it. The generator folds each signal into an attached
+  4-column table.
+- **Roll-up connectors take the child's state color.** A tolerated failure (active-active, worst-of)
+  keeps the parent green while the failing child's own line stays red.
+- **Pills anchor at the child's vertical drop** and level by horizontal span, so they never overlap and
+  always sit on one line.
+- Render preview PNGs with headless Chrome, not librsvg. librsvg drops leading `<tspan>` spaces.
 
 ## Icons and licensing
 
-The health-model generators use only original, in-code glyphs — no external icon assets.
+The health-model generators draw only original, in-code glyphs. No external icon assets.
 
-The architecture engine (`arch/`) is icon-pluggable and can use the official Microsoft Azure architecture
-icons when you drop them into `arch/icons/`. Those icons are **not redistributed here**; the checked-in
-architecture SVG uses the original fallback glyphs. See `arch/icons/README.md`.
+The architecture engine (`arch/`) takes pluggable icons and can use the official Microsoft Azure
+architecture icons once you drop them into `arch/icons/`. This repo does not carry those icons; the
+checked-in architecture SVG uses the original fallback glyphs instead. See `arch/icons/README.md`.
 
 ## License
 
-Code is MIT (see `LICENSE`). Diagrams generated by these tools contain no third-party icon assets.
+MIT (see `LICENSE`). Diagrams generated by these tools carry no third-party icon assets.
