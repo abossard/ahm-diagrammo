@@ -41,7 +41,7 @@ Render portal-structured node markup with the exact node CSS from the portal sou
 ### C2. Swimlane technical figure (native SVG, documentation-grade)
 `swimlane-auto.mjs` parses each Mermaid block and generates a native SVG laid out in horizontal swimlanes: workload root, business and user flows, application components, and signals. Nodes are layered automatically by their distance to the root, with signal nodes pinned to the bottom lane and columns ordered by barycenter to reduce edge crossings. Each entity has an icon and a status footer, signals show their metrics, edges are colored by the child health state, dashed propagation edges carry their labels, and a legend explains the states.
 
-- Strengths: true SVG with native text (renders inside `<img>` on Learn), the layered layout matches how health rolls up, it reads like professional technical documentation, and it runs across every diagram in one command. `swimlane.mjs` is the earlier hand-tuned single-diagram version.
+- Strengths: true SVG with native text (renders inside `<img>` on Learn), the layered layout matches how health rolls up, it reads like professional technical documentation, and it runs across every diagram in one command.
 - Limits: middle-lane names use the canonical health-model vocabulary (flows, components), which is a close but not perfect fit for every model.
 - Example output: `out-swimlane/*.svg` (staged in the repo under `_images/azure-monitor-health-models/swimlane/`), contact sheet `shots/gallery-swim.png`.
 
