@@ -10,7 +10,8 @@ import { FONT } from "./font-metrics.mjs";
 const SAFETY = 1.02;
 
 function charW(ch, table) {
-  const w = table[ch];
+  const key = ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch;
+  const w = table[ch] ?? table[key];
   if (w != null) return w;
   const cp = ch.codePointAt(0);
   // CJK, emoji, and other wide scripts ≈ 1em; everything else unknown ≈ 0.62em
