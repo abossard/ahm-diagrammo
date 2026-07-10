@@ -154,9 +154,10 @@ fences, and any text that had to be clipped (which always keeps the full text as
 The swimlane engine is a Sugiyama-style layered renderer with hard no-overlap rules, each
 enforced by geometric tests:
 
-- **Everything is measured.** Text widths come from per-glyph advance tables, so cards, pills,
-  lane gutters, and the legend size to their content. Long names wrap (cards grow to a cap)
-  before anything is ever ellipsized; the rare clip keeps a tooltip and warns.
+- **Everything is measured.** Text widths come from per-glyph advance tables measured once in
+  headless Chrome against the real font stack (`scripts/measure-font.mjs` regenerates them), so
+  cards, pills, lane gutters, and the legend size to their content. Long names wrap (cards grow
+  to a cap) before anything is ever ellipsized; the rare clip keeps a tooltip and warns.
 - **Cards can't overlap.** Per-lane coordinates come from constrained 1-D projection
   (cluster-merge): nodes sit at the mean of their neighbors subject to minimum separations.
 - **Connectors can't cross cards.** Lane-skipping edges ride corridors — the verified gaps
@@ -171,9 +172,12 @@ enforced by geometric tests:
 
 `npm test` runs the suite: unit tests for the layout algorithms, parse-diagnostic tests, CLI
 end-to-end tests (real process spawns, exit codes, log format), a mermaid-cli smoke test (skipped
-without Chrome), and a geometric verifier that renders stress fixtures (lane-skipping meshes, a
+without Chrome), a geometric verifier that renders stress fixtures (lane-skipping meshes, a
 16-pill flood, 14-row tables, unicode extremes, cycles) and asserts that no card, pill,
-connector, or text box overlaps, escapes its container, or leaves the canvas.
+connector, or text box overlaps, escapes its container, or leaves the canvas — and golden-file
+tests: rendering is deterministic, so the committed SVGs under `test/golden/` pin the exact
+output, and any visual change shows up as a reviewable diff (`npm run goldens` after intended
+changes).
 
 ## What's inside
 
@@ -184,11 +188,11 @@ connector, or text box overlaps, escapes its container, or leaves the canvas.
 | `src/mermaid.mjs` | Themed Mermaid via mermaid-cli for everything else. Keeps the original node shapes, applies the theme palette, polishes corners and shadows. |
 | `src/themes.mjs` | The four themes, shared by both renderers. |
 | `src/layout.mjs` | The pure layout algorithms: constrained 1-D projection, interval-colored track assignment, corridor picking. |
-| `src/text.mjs` | Browser-free text measurement (per-glyph advance widths) and wrapping. |
+| `src/text.mjs` | Browser-free text measurement and wrapping, backed by the generated `src/font-metrics.mjs` (regenerate with `scripts/measure-font.mjs`). |
 | `src/diag.mjs` | Structured diagnostics with file:line attribution. |
 | `src/extract.mjs` | Markdown fence extraction plus the three option channels (fence info, `%%\|` directives, frontmatter), with option validation. |
 | `test/` | The suite: layout unit tests, parse-diagnostic tests, CLI e2e tests, and the geometric overlap verifier run against the stress fixtures in `test/fixtures/`. |
-| `swimlane-auto.mjs`, `convert.mjs` | Legacy entry points (`node swimlane-auto.mjs <md> <outDir>`), kept for existing workflows; both delegate to `src/`. |
+| `swimlane-auto.mjs`, `convert.mjs` | Deprecated shims — they print a note and forward to the CLI so old workflows keep working. |
 | `arch/` | Declarative Azure architecture-diagram engine: containers, orthogonal routing, pluggable icons. |
 | `ingest-demo/` | An `az monitor health-models` deploy plus `ingest-health-report` recipe. Force live states, then screenshot the real portal. |
 | `examples/showcase.md` | One file exercising every feature — render it and open the gallery. |

@@ -278,11 +278,22 @@ const { svg, W, H, nodes, lanes, debug } = renderSwimlane(blocks[0].code, {
 
 ## Legacy entry points
 
-The original commands keep their exact contracts as thin wrappers over `src/`:
+The original commands are deprecated shims: they print a deprecation note on stderr and forward
+to the CLI, so old workflows keep producing the same files in the same places:
 
 ```bash
-node swimlane-auto.mjs <article.md> <outDir>   # swimlane SVGs + manifest.json
-node convert.mjs <article.md> <outDir>         # portal-themed mermaid-cli SVGs + manifest.json
+node swimlane-auto.mjs <article.md> <outDir>   # → diagrammo <md> -o <outDir> -r swimlane --no-gallery
+node convert.mjs <article.md> <outDir>         # → diagrammo <md> -o <outDir> -r mermaid --no-gallery
 ```
 
-*Verified by:* `cli.test.mjs` — "legacy wrappers keep their contracts".
+*Verified by:* `cli.test.mjs` — "legacy wrappers forward to the CLI with a deprecation note".
+
+## Golden files
+
+Rendering is deterministic, so `test/golden/` holds the exact SVG output for every swimlane
+block of the example documents and stress fixtures. `npm test` byte-compares against them; after
+an intended visual change, `npm run goldens` regenerates them and the git diff shows exactly
+what moved.
+
+*Verified by:* `golden.test.mjs` — one test per pinned diagram; `swimlane.test.mjs` —
+"rendering is deterministic".

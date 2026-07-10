@@ -667,38 +667,41 @@ export function renderSwimlane(code, opts = {}) {
     }
     return { x: bestX, conflicts: bestC };
   }
+  // ----- pill placement, one mechanism: each pill tries its own row first, then every other
+  // pill row of its channel (row order changes which risers/trunks cross it — a purely
+  // combinatorial move), keeping the row with the fewest slide conflicts. Final xs are computed
+  // in a second sweep so every pill sees the settled row assignment.
+  const pillTs = tracked.filter((t) => t.pill);
   const pillGeom = (t) => {
     const c = t.channels.find((cc) => cc.g === t.pillChan);
     const item = itemFor(t, c);
-    return { c, item, y: rowY(c.g, item.level), segX: [Math.min(c.xBelow, c.xAbove), Math.max(c.xBelow, c.xAbove)], anchor: c.xBelow };
+    return { item, segX: [Math.min(c.xBelow, c.xAbove), Math.max(c.xBelow, c.xAbove)], anchor: c.xBelow };
   };
-
-  // ----- repair pass: if a pill still collides after sliding, try the other pill rows of its
-  // channel (row order changes which trunks/risers cross it — a purely combinatorial move)
-  const pillTs = tracked.filter((t) => t.pill);
-  for (let sweep = 0; sweep < 2; sweep++) {
-    let moved = false;
-    const verts = collectVerticals();
-    for (const t of pillTs) {
-      const pg = pillGeom(t);
-      const sim = slidePill(t.pillW, pg.anchor, pg.segX, pg.y, verts.get(t.pillChan) || [], t.e, t.pillH);
-      if (sim.conflicts === 0) continue;
-      const chan = chans.get(t.pillChan);
-      const plainRows = chan.plainLevels ?? chan.rows.filter((r) => r.h === 12).length;
-      const pillRows = chan.rows.map((r, i) => i).filter((i) => i >= plainRows && i !== pg.item.level);
-      for (const alt of pillRows) {
-        // interval-disjointness on the target row
-        const clash = chan.items.some((it) => it !== pg.item && it.level === alt && !(pg.item.xR < it.xL || pg.item.xL > it.xR));
-        if (clash) continue;
-        const old = pg.item.level;
-        pg.item.level = alt;
-        const v2 = collectVerticals();
-        const s2 = slidePill(t.pillW, pg.anchor, pg.segX, rowY(t.pillChan, alt), v2.get(t.pillChan) || [], t.e, t.pillH);
-        if (s2.conflicts === 0) { moved = true; break; }
-        pg.item.level = old;
-      }
+  for (const t of pillTs) {
+    const pg = pillGeom(t);
+    const chan = chans.get(t.pillChan);
+    const orig = pg.item.level;
+    const tryRows = [orig, ...chan.rows.map((_, i) => i).filter((i) => i >= chan.plainLevels && i !== orig)];
+    let best = null;
+    for (const row of tryRows) {
+      if (row !== orig && chan.items.some((it) => it !== pg.item && it.level === row && !(pg.item.xR < it.xL || pg.item.xL > it.xR))) continue;
+      pg.item.level = row;
+      const verts = collectVerticals().get(t.pillChan) || [];
+      const c = slidePill(t.pillW, pg.anchor, pg.segX, rowY(t.pillChan, row), verts, t.e, t.pillH).conflicts;
+      if (!best || c < best.c) best = { row, c };
+      if (c === 0) break;
     }
-    if (!moved) break;
+    pg.item.level = best.row;
+  }
+  const pills = [];
+  const settledVerts = collectVerticals();
+  for (const t of pillTs) {
+    const pg = pillGeom(t);
+    const y = rowY(t.pillChan, pg.item.level);
+    const sim = slidePill(t.pillW, pg.anchor, pg.segX, y, settledVerts.get(t.pillChan) || [], t.e, t.pillH);
+    if (sim.conflicts > 0)
+      diag.warn(`label pill "${t.e.label}" could not fully avoid crossing connectors — it may sit on one`);
+    pills.push({ t, x: sim.x, y });
   }
 
   // ----- build paths + geometry from the final assignment -----
@@ -720,7 +723,6 @@ export function renderSwimlane(code, opts = {}) {
     }
   }
 
-  const pillsOut = [];
   for (const t of tracked) {
     const st = T.state[g.nodes.get(t.e.from).state] || T.state.unknown;
     let pts;
@@ -728,7 +730,6 @@ export function renderSwimlane(code, opts = {}) {
       const cLo = box.get(t.loNode), cU = box.get(t.uNode);
       const y = rowY(t.chan, itemFor(t, t.channels[0]).level);
       pts = [{ x: t.exitLo, y: cLo.top }, { x: t.exitLo, y }, { x: t.exitU, y }, { x: t.exitU, y: cU.top }];
-      if (t.pill) pillsOut.push({ t, y, segX: [Math.min(t.exitLo, t.exitU), Math.max(t.exitLo, t.exitU)], anchor: t.exitLo, chan: t.chan });
     } else {
       const cLo = box.get(t.loNode), cU = box.get(t.uNode);
       pts = [{ x: t.exitLo, y: cLo.top }];
@@ -737,8 +738,6 @@ export function renderSwimlane(code, opts = {}) {
         const c = t.channels[i];
         const y = rowY(c.g, itemFor(t, c).level);
         pts.push({ x: prevX, y }, { x: c.xAbove, y });
-        if (t.pill && c.g === t.pillChan)
-          pillsOut.push({ t, y, segX: [Math.min(prevX, c.xAbove), Math.max(prevX, c.xAbove)], anchor: prevX, chan: c.g });
         prevX = c.xAbove;
       }
       pts.push({ x: t.entryU, y: cU.bottom });
@@ -746,15 +745,6 @@ export function renderSwimlane(code, opts = {}) {
     }
     paths.push({ d: roundedOrtho(pts, 7), stroke: st.border, width: t.e.dashed ? 1.6 : 1.7, dash: t.e.dashed ? "5 4" : null });
     debug.segs.push(...segsOf(pts, `${t.e.from}->${t.e.to}`));
-  }
-
-  // final pill positions
-  const finalVerts = collectVerticals();
-  for (const p of pillsOut) {
-    const sim = slidePill(p.t.pillW, p.anchor, p.segX, p.y, finalVerts.get(p.chan) || [], p.t.e, p.t.pillH);
-    if (sim.conflicts > 0)
-      diag.warn(`label pill "${p.t.e.label}" could not fully avoid crossing connectors — it may sit on one`);
-    p.x = sim.x;
   }
 
   // ----- lane labels / title / legend measurement -----
@@ -774,7 +764,7 @@ export function renderSwimlane(code, opts = {}) {
   const scanX = (x) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); };
   for (const b of box.values()) { scanX(b.x); scanX(b.x + b.w); }
   for (const s of debug.segs) { scanX(s.x1); scanX(s.x2); }
-  for (const p of pillsOut) { scanX(p.x - p.t.pillW / 2); scanX(p.x + p.t.pillW / 2); }
+  for (const p of pills) { scanX(p.x - p.t.pillW / 2); scanX(p.x + p.t.pillW / 2); }
   const tx = M.left - minX;
   const headW = M.left + textWidth(title, 18, 700) + 24 + (legendOn ? legendW : 0) + 40;
   const W = Math.max(maxX + tx + 24 + gutterW, headW, textWidth(subtitle, 12) + M.left + 40);
@@ -783,7 +773,7 @@ export function renderSwimlane(code, opts = {}) {
   const shift = (v) => v + tx;
   for (const b of box.values()) b.x = shift(b.x), b.cx = shift(b.cx);
   for (const s of debug.segs) s.x1 = shift(s.x1), s.x2 = shift(s.x2);
-  for (const p of pillsOut) p.x = shift(p.x);
+  for (const p of pills) p.x = shift(p.x);
   // paths carry absolute coords in their strings — rebuild them shifted instead
   // (cheap: we regenerate the d strings by shifting recorded points is complex; instead we
   //  wrap drawable content in a translate group and keep debug geometry in final coords)
@@ -836,7 +826,7 @@ export function renderSwimlane(code, opts = {}) {
   out.push(`<g fill="none" stroke-linecap="butt" stroke-linejoin="round">`);
   for (const p of paths) out.push(`<path d="${p.d}" stroke="${p.stroke}" stroke-width="${p.width}"${p.dash ? ` stroke-dasharray="${p.dash}"` : ""}/>`);
   out.push(`</g>`);
-  for (const p of pillsOut) {
+  for (const p of pills) {
     const pw = p.t.pillW, ph = p.t.pillH, lines = p.t.pillLines, x = p.x - tx; // group is translated; local coords
     const tip = p.t.pillClipped ? `<title>${esc(p.t.e.label)}</title>` : "";
     const rows = lines.map((line, k) => {

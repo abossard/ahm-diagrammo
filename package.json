@@ -39,6 +39,7 @@
     "@mermaid-js/mermaid-cli": "^11.16.0"
   },
   "scripts": {
-    "test": "node --test \"test/*.test.mjs\""
+    "test": "node --test \"test/*.test.mjs\"",
+    "goldens": "UPDATE_GOLDENS=1 node --test test/golden.test.mjs"
   }
 }
