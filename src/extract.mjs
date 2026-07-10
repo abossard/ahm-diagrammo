@@ -57,10 +57,10 @@ const RENDERERS = new Set(["auto", "swimlane", "mermaid"]);
 // fence info string after "mermaid": bare words match a renderer or theme name; key=value otherwise
 export function parseFenceInfo(info, themeNames, issues = null, line = null) {
   const opts = {};
-  for (const tok of (info || "").replace(/[{}]/g, " ").trim().split(/\s+/).filter(Boolean)) {
+  for (const tok of tokenizeFenceInfo(info)) {
     const kv = tok.match(/^([\w-]+)=(.*)$/);
     if (kv) {
-      opts[kv[1]] = scalar(kv[2].replace(/^["']|["']$/g, ""));
+      opts[kv[1]] = scalar(kv[2]);
       continue;
     }
     const w = tok.toLowerCase();
@@ -69,6 +69,26 @@ export function parseFenceInfo(info, themeNames, issues = null, line = null) {
     else if (issues) issues.push({ level: "warn", message: `fence token "${tok}" is neither a renderer (${[...RENDERERS].join("/")}) nor a theme (${themeNames.join("/")}) — ignored`, line });
   }
   return opts;
+}
+
+function tokenizeFenceInfo(info) {
+  const tokens = [];
+  let token = "", quote = null;
+  for (const char of String(info || "").replace(/[{}]/g, " ")) {
+    if (quote) {
+      token += char;
+      if (char === quote) quote = null;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      token += char;
+    } else if (/\s/.test(char)) {
+      if (token) { tokens.push(token); token = ""; }
+    } else {
+      token += char;
+    }
+  }
+  if (token) tokens.push(token);
+  return tokens;
 }
 
 // %%| directives inside the block, one `key: value` per line
@@ -126,17 +146,18 @@ export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", 
 //   line     — 1-based line number of the opening fence
 //   codeLine — 1-based line number of the first code line (fence line + 1)
 //   issues   — [{ level, message, line }] option-level problems (unknown keys, bad values)
-export function extractBlocks(md, themeNames = []) {
+export function extractBlocks(md, themeNames = [], used = new Map()) {
   const lines = md.split("\n");
   const blocks = [];
-  let heading = "diagram", inBlock = false, buf = [], info = "", openLine = 0, used = new Map();
+  let heading = "diagram", inBlock = false, buf = [], info = "", openLine = 0, openFence = "";
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
     const h = line.match(/^#{1,6}\s+(.*)/);
     if (h && !inBlock) heading = h[1].trim();
     const open = line.match(/^\s*(`{3,}|~{3,})\s*mermaid\b(.*)$/);
-    if (!inBlock && open) { inBlock = true; buf = []; info = open[2].trim(); openLine = li + 1; continue; }
-    if (inBlock && /^\s*(`{3,}|~{3,})\s*$/.test(line)) {
+    if (!inBlock && open) { inBlock = true; buf = []; info = open[2].trim(); openLine = li + 1; openFence = open[1]; continue; }
+    const close = inBlock && line.match(/^\s*(`+|~+)\s*$/);
+    if (close && close[1][0] === openFence[0] && close[1].length >= openFence.length) {
       inBlock = false;
       blocks.push(buildBlock({ heading, info, code: buf.join("\n"), line: openLine, themeNames, used }));
       continue;

@@ -53,9 +53,18 @@ function parseArgs(argv) {
     const v = argv[i];
     if (v === "-h" || v === "--help") a.help = true;
     else if (v === "-V" || v === "--version") a.version = true;
-    else if (v === "-o" || v === "--out") a.out = argv[++i];
-    else if (v === "-t" || v === "--theme") a.theme = argv[++i];
-    else if (v === "-r" || v === "--renderer") a.renderer = argv[++i];
+    else if (v === "-o" || v === "--out" || v === "-t" || v === "--theme" || v === "-r" || v === "--renderer") {
+      const value = argv[i + 1];
+      if (value == null || value.startsWith("-")) {
+        console.error(`error: option ${v} requires a value`);
+        a.help = true; a.bad = true;
+      } else {
+        if (v === "-o" || v === "--out") a.out = value;
+        else if (v === "-t" || v === "--theme") a.theme = value;
+        else a.renderer = value;
+        i++;
+      }
+    }
     else if (v === "-l" || v === "--list") a.list = true;
     else if (v === "-v" || v === "--verbose") a.verbose = true;
     else if (v === "--strict") a.strict = true;
@@ -88,12 +97,13 @@ function pickRenderer(block, cliRenderer) {
 const outDir = resolve(args.out);
 let ok = 0, total = 0, warnCount = 0;
 const manifest = [], failures = [], galleryEntries = [];
+const usedSlugs = new Map();
 
 for (const file of args.files) {
   let md;
   try { md = readFileSync(file, "utf8"); }
   catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; continue; }
-  const blocks = extractBlocks(md, THEME_NAMES);
+  const blocks = extractBlocks(md, THEME_NAMES, usedSlugs);
   console.log(`${file}: ${blocks.length} mermaid block${blocks.length === 1 ? "" : "s"}`);
   total += blocks.length;
 

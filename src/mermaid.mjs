@@ -27,7 +27,7 @@ function findMmdc() {
     return { cmd: "mmdc", args: [] };
   } catch { /* not on PATH */ }
   // last resort: let npx fetch it (one-time cost, cached afterwards)
-  return { cmd: "npx", args: ["-y", "-p", "@mermaid-js/mermaid-cli", "mmdc"] };
+  return { cmd: "npx", args: ["-y", "-p", "@mermaid-js/mermaid-cli@11.16.0", "mmdc"] };
 }
 
 function findChrome() {

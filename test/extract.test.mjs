@@ -70,6 +70,13 @@ test("extractBlocks: directives override frontmatter which overrides fence", () 
   assert.equal(b.options.theme, "candy");
 });
 
+test("extractBlocks: quoted fence values may contain spaces", () => {
+  const [b] = extractBlocks('```mermaid title="Checkout flow" subtitle=\'Live status\'\nflowchart BT\na --> b\n```', THEME_NAMES);
+  assert.equal(b.options.title, "Checkout flow");
+  assert.equal(b.options.subtitle, "Live status");
+  assert.equal(b.slug, "checkout-flow");
+});
+
 test("extractBlocks: unknown option key and bad values produce issues", () => {
   const doc = "```mermaid\n%%| renderer: sparkles\n%%| colour: red\n%%| lanes: oops\nflowchart BT\na --> b\n```";
   const [b] = extractBlocks(doc, THEME_NAMES);
@@ -114,4 +121,13 @@ test("extractBlocks: ~~~ fences and duplicate slugs", () => {
   assert.equal(blocks.length, 2);
   assert.equal(blocks[0].slug, "same");
   assert.equal(blocks[1].slug, "same-2");
+});
+
+test("extractBlocks: closing fence matches opener character and minimum length", () => {
+  const doc = "````mermaid\nflowchart BT\na --> b\n```\n~~~\n````\n\n~~~mermaid\nflowchart BT\nc --> d\n```\n~~~~";
+  const blocks = extractBlocks(doc, THEME_NAMES);
+  assert.equal(blocks.length, 2);
+  assert.match(blocks[0].code, /```\n~~~/);
+  assert.match(blocks[1].code, /```/);
+  assert.ok(!blocks.some((b) => b.issues.some((i) => i.message.includes("never closed"))));
 });

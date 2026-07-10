@@ -101,6 +101,12 @@ test("bad CLI arguments fail fast with clear messages", async () => {
   const missing = await run("does-not-exist.md");
   assert.equal(missing.code, 1);
   assert.match(missing.stderr, /cannot read does-not-exist\.md/);
+  for (const option of ["-o", "--theme", "-r"]) {
+    const missingValue = await run("x.md", option);
+    assert.equal(missingValue.code, 1);
+    assert.match(missingValue.stderr, new RegExp(`option ${option.replace("-", "\\-")} requires a value`));
+    assert.doesNotMatch(missingValue.stderr, /\n\s+at /);
+  }
 });
 
 test("--no-gallery skips gallery.html but keeps svg + manifest", async () => {
@@ -120,6 +126,17 @@ test("multiple files aggregate into one manifest with per-file sources", async (
   assert.equal(manifest.length, 2);
   assert.ok(manifest.some((m) => m.source.includes("kitchen-sink.md")));
   assert.ok(manifest.some((m) => m.source.includes("pills-stress.md")));
+});
+
+test("duplicate slugs across input files get distinct output names", async () => {
+  const out = tmp();
+  const source = join(ROOT, "kitchen-sink.md");
+  const r = await run(source, source, "-o", out);
+  assert.equal(r.code, 0, r.stderr);
+  const manifest = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8"));
+  assert.deepEqual(manifest.map((m) => m.svg), ["kitchen-sink-health-model.svg", "kitchen-sink-health-model-2.svg"]);
+  assert.ok(existsSync(join(out, manifest[0].svg)));
+  assert.ok(existsSync(join(out, manifest[1].svg)));
 });
 
 test("legacy wrappers forward to the CLI with a deprecation note", async () => {
