@@ -64,7 +64,7 @@ export function parseFenceInfo(info, themeNames, issues = null, line = null) {
   for (const tok of tokens) {
     const kv = tok.match(/^([\w-]+)=(.*)$/);
     if (kv) {
-      opts[kv[1]] = scalar(kv[2]);
+      opts[kv[1]] = scalar(kv[2].replace(/^["']|["']$/g, ""));
       continue;
     }
     const w = tok.toLowerCase();
@@ -78,7 +78,7 @@ export function parseFenceInfo(info, themeNames, issues = null, line = null) {
 function tokenizeFenceInfo(info) {
   const tokens = [];
   let token = "", quote = null;
-  for (const char of String(info || "").replace(/[{}]/g, " ")) {
+  for (const char of (info || "").replace(/[{}]/g, " ")) {
     if (quote) {
       token += char;
       if (char === quote) quote = null;

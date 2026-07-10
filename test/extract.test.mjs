@@ -71,7 +71,13 @@ test("extractBlocks: directives override frontmatter which overrides fence", () 
 });
 
 test("extractBlocks: quoted fence values may contain spaces", () => {
-  const [b] = extractBlocks('```mermaid title="Checkout flow" subtitle=\'Live status\'\nflowchart BT\na --> b\n```', THEME_NAMES);
+  const doc = [
+    '```mermaid title="Checkout flow" subtitle=\'Live status\'',
+    "flowchart BT",
+    "a --> b",
+    "```",
+  ].join("\n");
+  const [b] = extractBlocks(doc, THEME_NAMES);
   assert.equal(b.options.title, "Checkout flow");
   assert.equal(b.options.subtitle, "Live status");
   assert.equal(b.slug, "checkout-flow");
