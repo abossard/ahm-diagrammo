@@ -12,6 +12,52 @@ SVGs that look like the Azure portal health graph, render as `<img>` on Microsof
 file — sequence, state, ER, plain flowcharts — is rendered too, through mermaid-cli with the
 same theme, so a whole document stays visually consistent.
 
+## Why not just vanilla mermaid?
+
+The exact same mermaid block, rendered by vanilla mermaid and by diagrammo:
+
+| Vanilla mermaid | `npx ahm-diagrammo` |
+|---|---|
+| ![Vanilla mermaid rendering](screenshots/compare-vanilla.png) | ![diagrammo rendering](screenshots/compare-diagrammo.png) |
+
+Same source, but diagrammo understands what the diagram *means*:
+
+- **Signals fold into their entity** as a status table with per-row status dots, metric icons,
+  and right-aligned results — instead of floating as separate boxes with `=` signs in prose.
+- **States become the visual language**: Azure-portal state colors, status pills on every card,
+  a legend, and connectors colored by the child's state so a failing dependency stays traceable.
+- **Swimlanes** (Workload root / flows / components) replace an unlabeled scatter, and each
+  entity gets an icon matched from its name.
+- **Labels sit in collision-free pills** on their own routing tracks; the layout engine
+  guarantees nothing overlaps or gets truncated, no matter how dense the model gets.
+- **Title, subtitle, and theme** come from the block's own tags — nothing configured anywhere else.
+
+<details>
+<summary>The shared mermaid source of both renderings</summary>
+
+```mermaid
+flowchart BT
+    apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%<br/>Requests = 1.2k/s"] --> api["Order API<br/>degraded"]
+    qSig["Queue depth = 18<br/>Oldest message = 4 s"] --> queue["Order queue<br/>healthy"]
+    paySig["Auth failures = 7% (unhealthy)<br/>Settlement lag = 12 min (degraded)"] --> pay["Payment service<br/>unhealthy"]
+
+    api --> orders["Order intake<br/>degraded"]
+    queue --> orders
+    pay -. "limited<br/>propagation" .-> orders
+    orders --> root["Storefront<br/>(worstOf)<br/>degraded"]
+
+    classDef blue fill:#eff6fc,stroke:#0078D4;
+    classDef green fill:#f2f8f2,stroke:#a0d8a0;
+    classDef amber fill:#fbf2e7,stroke:#db7500;
+    classDef red fill:#faeceb,stroke:#ba0d16;
+    class apiSig,qSig,paySig blue;
+    class queue green;
+    class api,orders,root amber;
+    class pay red;
+```
+
+</details>
+
 ## Examples
 
 Signals live **inside** each entity as a status table (status dot, name, metric icon, result). Health
