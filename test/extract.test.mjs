@@ -77,6 +77,11 @@ test("extractBlocks: quoted fence values may contain spaces", () => {
   assert.equal(b.slug, "checkout-flow");
 });
 
+test("extractBlocks: unterminated quoted fence values produce a warning", () => {
+  const [b] = extractBlocks('```mermaid title="Checkout flow\nflowchart BT\na --> b\n```', THEME_NAMES);
+  assert.match(b.issues[0].message, /unterminated " quote/);
+});
+
 test("extractBlocks: unknown option key and bad values produce issues", () => {
   const doc = "```mermaid\n%%| renderer: sparkles\n%%| colour: red\n%%| lanes: oops\nflowchart BT\na --> b\n```";
   const [b] = extractBlocks(doc, THEME_NAMES);
@@ -124,7 +129,20 @@ test("extractBlocks: ~~~ fences and duplicate slugs", () => {
 });
 
 test("extractBlocks: closing fence matches opener character and minimum length", () => {
-  const doc = "````mermaid\nflowchart BT\na --> b\n```\n~~~\n````\n\n~~~mermaid\nflowchart BT\nc --> d\n```\n~~~~";
+  const doc = md(`
+    \`\`\`\`mermaid
+    flowchart BT
+    a --> b
+    \`\`\`
+    ~~~
+    \`\`\`\`
+
+    ~~~mermaid
+    flowchart BT
+    c --> d
+    \`\`\`
+    ~~~~
+  `);
   const blocks = extractBlocks(doc, THEME_NAMES);
   assert.equal(blocks.length, 2);
   assert.match(blocks[0].code, /```\n~~~/);

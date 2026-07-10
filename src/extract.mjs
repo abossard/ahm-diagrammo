@@ -57,7 +57,11 @@ const RENDERERS = new Set(["auto", "swimlane", "mermaid"]);
 // fence info string after "mermaid": bare words match a renderer or theme name; key=value otherwise
 export function parseFenceInfo(info, themeNames, issues = null, line = null) {
   const opts = {};
-  for (const tok of tokenizeFenceInfo(info)) {
+  const { tokens, unclosedQuote } = tokenizeFenceInfo(info);
+  if (unclosedQuote && issues) {
+    issues.push({ level: "warn", message: `unterminated ${unclosedQuote} quote in fence options`, line });
+  }
+  for (const tok of tokens) {
     const kv = tok.match(/^([\w-]+)=(.*)$/);
     if (kv) {
       opts[kv[1]] = scalar(kv[2]);
@@ -88,7 +92,7 @@ function tokenizeFenceInfo(info) {
     }
   }
   if (token) tokens.push(token);
-  return tokens;
+  return { tokens, unclosedQuote: quote };
 }
 
 // %%| directives inside the block, one `key: value` per line
@@ -140,6 +144,7 @@ export function slugify(s) {
 
 export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background"];
 
+// The optional `used` map can be shared across calls to keep slugs unique across multiple files.
 // Returns [{ slug, heading, info, code, options, line, codeLine, issues }]
 //   code     — block body with frontmatter kept (renderers decide what to strip)
 //   options  — merged per-block options (fence info < frontmatter < directives)
@@ -149,7 +154,8 @@ export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", 
 export function extractBlocks(md, themeNames = [], used = new Map()) {
   const lines = md.split("\n");
   const blocks = [];
-  let heading = "diagram", inBlock = false, buf = [], info = "", openLine = 0, openFence = "";
+  let heading = "diagram";
+  let inBlock = false, buf = [], info = "", openLine = 0, openFence = "";
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
     const h = line.match(/^#{1,6}\s+(.*)/);
