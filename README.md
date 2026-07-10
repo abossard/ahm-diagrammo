@@ -6,12 +6,11 @@ Turn the mermaid blocks in a Markdown file into good-looking SVGs — with one c
 npx ahm-diagrammo your-doc.md
 ```
 
-It grew out of replacing hand-drawn diagrams for **Azure Monitor health models** in the
-Well-Architected Framework service guide, and that is still its specialty: Mermaid `flowchart BT`
-health models become SVGs that look like the Azure portal health graph, render as `<img>` on
-Microsoft Learn (native `<text>`, no `foreignObject`), and scale without blurring. But every other
-mermaid block in the file — sequence, state, ER, plain flowcharts — is rendered too, through
-mermaid-cli with the same theme, so a whole document stays visually consistent.
+Its specialty is **Azure Monitor health models**: Mermaid `flowchart BT` health models become
+SVGs that look like the Azure portal health graph, render as `<img>` on Microsoft Learn (native
+`<text>`, no `foreignObject`), and scale without blurring. Every other mermaid block in the
+file — sequence, state, ER, plain flowcharts — is rendered too, through mermaid-cli with the
+same theme, so a whole document stays visually consistent.
 
 ## Examples
 
@@ -124,7 +123,7 @@ Signal rows can carry a real measurement and their own state, straight in the me
 apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%"] --> api[...]
 ```
 
-Rows without a value get a plausible deterministic one, so drafts still look alive.
+Rows without an explicit value get a deterministic placeholder derived from the row name.
 
 ## Diagnostics: compiler-grade parse logging
 
@@ -148,8 +147,8 @@ fences, and any text that had to be clipped (which always keeps the full text as
 
 ## Layout guarantees
 
-The swimlane engine is a Sugiyama-style layered renderer with hard no-overlap rules, and each
-rule is enforced by geometric tests, not by hope:
+The swimlane engine is a Sugiyama-style layered renderer with hard no-overlap rules, each
+enforced by geometric tests:
 
 - **Everything is measured.** Text widths come from per-glyph advance tables, so cards, pills,
   lane gutters, and the legend size to their content. Long names wrap (cards grow to a cap)
@@ -168,9 +167,9 @@ rule is enforced by geometric tests, not by hope:
 
 `npm test` runs the suite: unit tests for the layout algorithms, parse-diagnostic tests, CLI
 end-to-end tests (real process spawns, exit codes, log format), a mermaid-cli smoke test (skipped
-without Chrome), and — the heart of it — a geometric verifier that renders torture fixtures
-(lane-skipping meshes, a 16-pill flood, 14-row tables, unicode extremes, cycles) and asserts that
-no card, pill, connector, or text box overlaps, escapes its container, or leaves the canvas.
+without Chrome), and a geometric verifier that renders stress fixtures (lane-skipping meshes, a
+16-pill flood, 14-row tables, unicode extremes, cycles) and asserts that no card, pill,
+connector, or text box overlaps, escapes its container, or leaves the canvas.
 
 ## What's inside
 
@@ -184,7 +183,7 @@ no card, pill, connector, or text box overlaps, escapes its container, or leaves
 | `src/text.mjs` | Browser-free text measurement (per-glyph advance widths) and wrapping. |
 | `src/diag.mjs` | Structured diagnostics with file:line attribution. |
 | `src/extract.mjs` | Markdown fence extraction plus the three option channels (fence info, `%%\|` directives, frontmatter), with option validation. |
-| `test/` | The suite: layout unit tests, parse-diagnostic tests, CLI e2e tests, and the geometric overlap verifier run against the torture fixtures in `test/fixtures/`. |
+| `test/` | The suite: layout unit tests, parse-diagnostic tests, CLI e2e tests, and the geometric overlap verifier run against the stress fixtures in `test/fixtures/`. |
 | `swimlane-auto.mjs`, `convert.mjs` | Legacy entry points (`node swimlane-auto.mjs <md> <outDir>`), kept for existing workflows; both delegate to `src/`. |
 | `arch/` | Declarative Azure architecture-diagram engine: containers, orthogonal routing, pluggable icons. |
 | `ingest-demo/` | An `az monitor health-models` deploy plus `ingest-health-report` recipe. Force live states, then screenshot the real portal. |
