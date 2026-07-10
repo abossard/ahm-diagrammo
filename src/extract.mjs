@@ -55,26 +55,32 @@ function scalar(v) {
 const RENDERERS = new Set(["auto", "swimlane", "mermaid"]);
 
 // fence info string after "mermaid": bare words match a renderer or theme name; key=value otherwise
-export function parseFenceInfo(info, themeNames) {
+export function parseFenceInfo(info, themeNames, issues = null, line = null) {
   const opts = {};
   for (const tok of (info || "").replace(/[{}]/g, " ").trim().split(/\s+/).filter(Boolean)) {
     const kv = tok.match(/^([\w-]+)=(.*)$/);
-    if (kv) { opts[kv[1]] = scalar(kv[2]); continue; }
+    if (kv) {
+      opts[kv[1]] = scalar(kv[2].replace(/^["']|["']$/g, ""));
+      continue;
+    }
     const w = tok.toLowerCase();
     if (RENDERERS.has(w)) opts.renderer = w;
     else if (themeNames.includes(w)) opts.theme = w;
+    else if (issues) issues.push({ level: "warn", message: `fence token "${tok}" is neither a renderer (${[...RENDERERS].join("/")}) nor a theme (${themeNames.join("/")}) — ignored`, line });
   }
   return opts;
 }
 
 // %%| directives inside the block, one `key: value` per line
-export function parseDirectives(code) {
+export function parseDirectives(code, issues = null, codeLine = 0) {
   const opts = {};
-  for (const line of code.split("\n")) {
-    const m = line.match(/^\s*%%\|\s*(.+)$/);
+  const lines = code.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const m = lines[i].match(/^\s*%%\|\s*(.+)$/);
     if (!m) continue;
     const kv = m[1].match(/^([\w-]+)\s*:\s*(.*)$/);
     if (kv) opts[kv[1]] = scalar(kv[2]);
+    else if (issues) issues.push({ level: "warn", message: `malformed directive "%%| ${m[1].trim()}" — expected "%%| key: value"`, line: codeLine + i });
   }
   return opts;
 }
@@ -112,35 +118,61 @@ export function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "diagram";
 }
 
-// Returns [{ slug, heading, info, code, options }]
-//   code    — block body with frontmatter kept (renderers decide what to strip)
-//   options — merged per-block options (fence info < frontmatter < directives)
+export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background"];
+
+// Returns [{ slug, heading, info, code, options, line, codeLine, issues }]
+//   code     — block body with frontmatter kept (renderers decide what to strip)
+//   options  — merged per-block options (fence info < frontmatter < directives)
+//   line     — 1-based line number of the opening fence
+//   codeLine — 1-based line number of the first code line (fence line + 1)
+//   issues   — [{ level, message, line }] option-level problems (unknown keys, bad values)
 export function extractBlocks(md, themeNames = []) {
   const lines = md.split("\n");
   const blocks = [];
-  let heading = "diagram", inBlock = false, buf = [], info = "", used = new Map();
-  for (const line of lines) {
+  let heading = "diagram", inBlock = false, buf = [], info = "", openLine = 0, used = new Map();
+  for (let li = 0; li < lines.length; li++) {
+    const line = lines[li];
     const h = line.match(/^#{1,6}\s+(.*)/);
     if (h && !inBlock) heading = h[1].trim();
     const open = line.match(/^\s*(`{3,}|~{3,})\s*mermaid\b(.*)$/);
-    if (!inBlock && open) { inBlock = true; buf = []; info = open[2].trim(); continue; }
+    if (!inBlock && open) { inBlock = true; buf = []; info = open[2].trim(); openLine = li + 1; continue; }
     if (inBlock && /^\s*(`{3,}|~{3,})\s*$/.test(line)) {
       inBlock = false;
-      const code = buf.join("\n");
-      const { fm } = splitFrontmatter(code);
-      const options = {
-        ...parseFenceInfo(info, themeNames),
-        ...(fm && typeof fm === "object" && !Array.isArray(fm) ? extractFmOptions(fm) : {}),
-        ...parseDirectives(code),
-      };
-      const base = slugify(options.name || options.title || heading);
-      const n = (used.get(base) || 0) + 1; used.set(base, n);
-      blocks.push({ slug: n === 1 ? base : `${base}-${n}`, heading, info, code, options });
+      blocks.push(buildBlock({ heading, info, code: buf.join("\n"), line: openLine, themeNames, used }));
       continue;
     }
     if (inBlock) buf.push(line);
   }
+  if (inBlock) {
+    const blk = buildBlock({ heading, info, code: buf.join("\n"), line: openLine, themeNames, used });
+    blk.issues.push({ level: "warn", message: "mermaid fence is never closed (``` missing) — using everything up to end of file", line: openLine });
+    blocks.push(blk);
+  }
   return blocks;
+}
+
+function buildBlock({ heading, info, code, line, themeNames, used }) {
+  const issues = [];
+  const { fm } = splitFrontmatter(code);
+  const fence = parseFenceInfo(info, themeNames, issues, line);
+  const fmOpts = fm && typeof fm === "object" && !Array.isArray(fm) ? extractFmOptions(fm) : {};
+  const directives = parseDirectives(code, issues, line + 1);
+  const options = { ...fence, ...fmOpts, ...directives };
+  for (const src of [fmOpts, directives]) {
+    for (const k of Object.keys(src)) {
+      if (!KNOWN_OPTIONS.includes(k) && k !== "title")
+        issues.push({ level: "warn", message: `unknown option "${k}" (known: ${KNOWN_OPTIONS.join(", ")})`, line });
+    }
+  }
+  if (options.renderer != null && !["auto", "swimlane", "mermaid"].includes(String(options.renderer).toLowerCase()))
+    issues.push({ level: "error", message: `unknown renderer "${options.renderer}" (use auto, swimlane, or mermaid)`, line });
+  if (options.theme != null && themeNames.length && !themeNames.includes(String(options.theme).toLowerCase()))
+    issues.push({ level: "error", message: `unknown theme "${options.theme}" (themes: ${themeNames.join(", ")})`, line });
+  if (options.lanes != null && !Array.isArray(options.lanes))
+    issues.push({ level: "warn", message: `"lanes" should be a list, e.g. lanes: [Root, Flows, Services] — got ${JSON.stringify(options.lanes)}`, line });
+  const base = slugify(options.name || options.title || heading);
+  const n = (used.get(base) || 0) + 1; used.set(base, n);
+  return { slug: n === 1 ? base : `${base}-${n}`, heading, info, code, options, line, codeLine: line + 1, issues };
 }
 
 function extractFmOptions(fm) {

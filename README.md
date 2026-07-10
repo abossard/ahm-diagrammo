@@ -52,6 +52,8 @@ All 22 service-guide diagrams: [screenshots/gallery.png](screenshots/gallery.png
 npx ahm-diagrammo doc.md                       # everything into ./diagrams + gallery.html
 npx ahm-diagrammo doc.md -o out -t midnight    # pick an output dir and a default theme
 npx ahm-diagrammo doc.md --list                # show what each block would render as
+npx ahm-diagrammo doc.md --verbose             # log every parsed node/edge/fold decision
+npx ahm-diagrammo doc.md --strict              # any warning fails the run (CI-friendly)
 ```
 
 The command walks the file, and for each ` ```mermaid ` block:
@@ -124,6 +126,52 @@ apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%"] --> api[...]
 
 Rows without a value get a plausible deterministic one, so drafts still look alive.
 
+## Diagnostics: compiler-grade parse logging
+
+Every line of every block is classified. Anything the parser can't place produces a warning with
+the **absolute file line** and a hint; blocks that can't render at all fail with a reason:
+
+```text
+  FAIL doc.md:5  checkout-model: no nodes parsed — 3 unrecognized line(s), first at line 7
+       warn  doc.md:7   unrecognized line: "this is not === valid mermaid at all"
+             ↳ expected a node (id[Label]), an edge, class/classDef, or a comment
+       warn  doc.md:9   unrecognized line: "---> dangling arrow"
+             ↳ looks like an edge — supported forms: A --> B, A -->|label| B, A -- "label" --> B, ...
+```
+
+Warnings cover: unknown themes/renderers/option keys (each with the valid values), malformed
+`%%|` directives, non-BT flowchart directions, unknown `class` names, ignored `subgraph`/`style`
+statements, cycles and self-loops, same-lane or downward edges, orphan signal nodes, unclosed
+fences, and any text that had to be clipped (which always keeps the full text as an SVG tooltip).
+`--verbose` additionally logs every parsed edge, node, signal fold, and the graph summary.
+`--strict` turns warnings into a failing exit code. Progress goes to stdout, diagnostics to stderr.
+
+## Layout guarantees
+
+The swimlane engine is a Sugiyama-style layered renderer with hard no-overlap rules, and each
+rule is enforced by geometric tests, not by hope:
+
+- **Everything is measured.** Text widths come from per-glyph advance tables, so cards, pills,
+  lane gutters, and the legend size to their content. Long names wrap (cards grow to a cap)
+  before anything is ever ellipsized; the rare clip keeps a tooltip and warns.
+- **Cards can't overlap.** Per-lane coordinates come from constrained 1-D projection
+  (cluster-merge): nodes sit at the mean of their neighbors subject to minimum separations.
+- **Connectors can't cross cards.** Lane-skipping edges ride corridors — the verified gaps
+  between cards of the lanes they pass through.
+- **Horizontal runs can't collide.** Each channel between lanes reserves interval-colored
+  tracks for labeled/dashed/skipping edges and for the per-parent buses; the channel grows to
+  fit its rows, so density costs height, never legibility.
+- **Pills stay readable.** Label pills wrap to two lines when long, sit on rows nearest their
+  child (where crossing connectors are sparse), get repaired onto a different row when the
+  assignment pins them under a connector, and finally slide along their own line to a
+  verified-clear spot.
+
+`npm test` runs the suite: unit tests for the layout algorithms, parse-diagnostic tests, CLI
+end-to-end tests (real process spawns, exit codes, log format), a mermaid-cli smoke test (skipped
+without Chrome), and — the heart of it — a geometric verifier that renders torture fixtures
+(lane-skipping meshes, a 16-pill flood, 14-row tables, unicode extremes, cycles) and asserts that
+no card, pill, connector, or text box overlaps, escapes its container, or leaves the canvas.
+
 ## What's inside
 
 | Tool | What it does |
@@ -132,7 +180,11 @@ Rows without a value get a plausible deterministic one, so drafts still look ali
 | `src/swimlane.mjs` | The swimlane engine. Parses `flowchart BT` into a graph, folds signals into their entity as a status table, layers the graph into swimlanes, and renders portal-styled SVG with roll-up connectors and pill labels. |
 | `src/mermaid.mjs` | Themed Mermaid via mermaid-cli for everything else. Keeps the original node shapes, applies the theme palette, polishes corners and shadows. |
 | `src/themes.mjs` | The four themes, shared by both renderers. |
-| `src/extract.mjs` | Markdown fence extraction plus the three option channels (fence info, `%%\|` directives, frontmatter). |
+| `src/layout.mjs` | The pure layout algorithms: constrained 1-D projection, interval-colored track assignment, corridor picking. |
+| `src/text.mjs` | Browser-free text measurement (per-glyph advance widths) and wrapping. |
+| `src/diag.mjs` | Structured diagnostics with file:line attribution. |
+| `src/extract.mjs` | Markdown fence extraction plus the three option channels (fence info, `%%\|` directives, frontmatter), with option validation. |
+| `test/` | The suite: layout unit tests, parse-diagnostic tests, CLI e2e tests, and the geometric overlap verifier run against the torture fixtures in `test/fixtures/`. |
 | `swimlane-auto.mjs`, `convert.mjs` | Legacy entry points (`node swimlane-auto.mjs <md> <outDir>`), kept for existing workflows; both delegate to `src/`. |
 | `arch/` | Declarative Azure architecture-diagram engine: containers, orthogonal routing, pluggable icons. |
 | `ingest-demo/` | An `az monitor health-models` deploy plus `ingest-health-report` recipe. Force live states, then screenshot the real portal. |
