@@ -1,7 +1,7 @@
 // Tests for markdown extraction, option channels, and the YAML subset parser.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { extractBlocks, parseYamlite } from "../src/extract.mjs";
+import { extractBlocks, parseYamlite, splitFrontmatter, stripDiagrammoKey } from "../src/extract.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
 
 const md = (s) => s.replace(/^ {4}/gm, "");
@@ -93,6 +93,19 @@ test("extractBlocks: unclosed fence is flagged but still returned", () => {
   const [b] = extractBlocks(doc, THEME_NAMES);
   assert.ok(b);
   assert.match(b.issues[0].message, /never closed/);
+});
+
+test("stripDiagrammoKey keeps mermaid-native frontmatter, drops only the diagrammo key", () => {
+  const code = "---\ntitle: Kept\nconfig:\n  theme: forest\ndiagrammo:\n  theme: candy\n  legend: false\n---\nflowchart BT\na --> b\n";
+  const { raw } = splitFrontmatter(code);
+  const stripped = stripDiagrammoKey(raw);
+  assert.match(stripped, /title: Kept/);
+  assert.match(stripped, /theme: forest/);
+  assert.doesNotMatch(stripped, /diagrammo/);
+  assert.doesNotMatch(stripped, /candy/);
+  // frontmatter with ONLY a diagrammo key vanishes entirely
+  const only = splitFrontmatter("---\ndiagrammo:\n  theme: slate\n---\nflowchart BT\n").raw;
+  assert.equal(stripDiagrammoKey(only), "");
 });
 
 test("extractBlocks: ~~~ fences and duplicate slugs", () => {

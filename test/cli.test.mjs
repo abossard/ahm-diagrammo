@@ -103,6 +103,15 @@ test("bad CLI arguments fail fast with clear messages", async () => {
   assert.match(missing.stderr, /cannot read does-not-exist\.md/);
 });
 
+test("--no-gallery skips gallery.html but keeps svg + manifest", async () => {
+  const out = tmp();
+  const r = await run(join(ROOT, "kitchen-sink.md"), "-o", out, "--no-gallery");
+  assert.equal(r.code, 0, r.stderr);
+  assert.ok(existsSync(join(out, "kitchen-sink-health-model.svg")));
+  assert.ok(existsSync(join(out, "manifest.json")));
+  assert.ok(!existsSync(join(out, "gallery.html")));
+});
+
 test("multiple files aggregate into one manifest with per-file sources", async () => {
   const out = tmp();
   const r = await run(join(ROOT, "kitchen-sink.md"), join(ROOT, "pills-stress.md"), "-o", out);

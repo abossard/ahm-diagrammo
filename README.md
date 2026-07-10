@@ -125,6 +125,10 @@ apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%"] --> api[...]
 
 Rows without an explicit value get a deterministic placeholder derived from the row name.
 
+The complete feature reference — every CLI flag, option key, theme, diagnostic message, and
+layout guarantee, each mapped to the test that verifies it — is in
+[docs/FEATURES.md](docs/FEATURES.md).
+
 ## Diagnostics: compiler-grade parse logging
 
 Every line of every block is classified. Anything the parser can't place produces a warning with
