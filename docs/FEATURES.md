@@ -220,7 +220,7 @@ Non-health blocks render through mermaid-cli (`mmdc`) with the block's theme map
 mermaid's `themeVariables`, and `classDef blue/green/amber/red/purple` remapped to the theme's
 state palette. Output is Learn-safe: `htmlLabels:false`, native `<text>` only, no
 `foreignObject`. Cards get rounded corners and a soft shadow. `mmdc` is resolved from the
-package, the project, the PATH, or fetched once via `npx`; Chrome is found via
+package, the project, the PATH, or fetched once via `npx` (pinned to 11.16.0 for reproducibility); Chrome is found via
 `PUPPETEER_EXECUTABLE_PATH`, `CHROME_PATH`, or common install locations. Failures retry 3× and
 then surface the underlying mmdc error.
 
