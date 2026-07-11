@@ -31,8 +31,10 @@ npx ahm-diagrammo <file.md> [more.md ...] [options]
 Each run writes one `<slug>.svg` per mermaid block, a `manifest.json` (slug, file, source,
 fence line, renderer, theme, title, node/lane counts, dimensions), and a `gallery.html` that
 shows every diagram with its title, renderer, and theme. Multiple input files aggregate into one
-output directory and one manifest. Progress goes to **stdout**; warnings and errors go to
-**stderr**, prefixed with `file:line`.
+output directory and one manifest, and slugs stay unique **across files** (a duplicate becomes
+`-2`, `-3`, … instead of overwriting). Options that take a value fail fast with
+`option -o requires a value` when it's missing. Progress goes to **stdout**; warnings and errors
+go to **stderr**, prefixed with `file:line`.
 
 `--list` is a dry run — it prints what each block would become and writes nothing:
 
@@ -46,7 +48,7 @@ examples/showcase.md: 6 mermaid blocks
 
 *Verified by:* `cli.test.mjs` — "renders a healthy file", "--list explains detection without
 writing files", "--no-gallery skips gallery.html", "multiple files aggregate into one manifest",
-"bad CLI arguments fail fast".
+"duplicate slugs across input files get distinct output names", "bad CLI arguments fail fast".
 
 ## Renderer selection
 
@@ -74,8 +76,9 @@ Three channels, all invisible to GitHub's and VS Code's mermaid preview. Later c
 ```mermaid swimlane theme=candy title="Checkout"
 ````
 
-Bare tokens match a renderer or theme name; `key=value` sets any option; unknown bare tokens are
-warned about and ignored.
+Bare tokens match a renderer or theme name; `key=value` sets any option, and quoted values may
+contain spaces (`title="Checkout flow"`, single or double quotes; an unterminated quote warns).
+Unknown bare tokens are warned about and ignored.
 
 **2. YAML frontmatter** — mermaid understands the block natively (`title:` even shows in
 previews); diagrammo reads the `diagrammo:` key and strips *only that key* before handing the
@@ -119,9 +122,13 @@ Unknown keys warn (listing the valid ones); unknown `renderer`/`theme` values ar
 fail the block with its fence line; a non-list `lanes` warns and is ignored. Values parse as
 YAML-ish scalars: quotes, numbers, `true/false/on/off/yes/no`, `[inline, lists]`.
 
+Fences follow CommonMark closing rules: the closing fence must use the opener's character and
+be at least as long, so a ` ``` ` line inside a `~~~mermaid` block stays part of the block.
+
 *Verified by:* `extract.test.mjs` — option merge/precedence, line numbers, unknown-key/value
-issues, `stripDiagrammoKey`, yamlite scalars/nesting/lists, `~~~` fences, duplicate slugs,
-unclosed fences; `docs.test.mjs` — all three channels live in `examples/showcase.md`.
+issues, quoted fence values, unterminated-quote warning, fence-closing rules,
+`stripDiagrammoKey`, yamlite scalars/nesting/lists, `~~~` fences, duplicate slugs, unclosed
+fences; `docs.test.mjs` — all three channels live in `examples/showcase.md`.
 
 ## Themes
 
@@ -236,6 +243,7 @@ only with `--verbose`.
 | warn | `unknown option "x" (known: renderer, theme, …)` / `"lanes" should be a list …` |
 | warn | `fence token "x" is neither a renderer nor a theme — ignored` |
 | warn | `malformed directive "%%\| …" — expected "%%\| key: value"` |
+| warn | `unterminated " quote in fence options` |
 | warn | `mermaid fence is never closed (\`\`\` missing)…` |
 | warn | `cycle detected — the roll-up hierarchy is ambiguous…` / `self-loop on "x" is not drawn` |
 | warn | `edge a → b connects nodes in the same lane…` / `…points downward (child sits above its parent)…` |
