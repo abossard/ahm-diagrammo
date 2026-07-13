@@ -122,6 +122,30 @@ test("torture-text: long content wraps instead of vanishing", () => {
   assert.doesNotMatch(r.svg, /<entities>/);
 });
 
+test("entity titles remain complete beyond the card width cap", () => {
+  const multiWord = "Payment gateway with a very long descriptive name that remains visible across every wrapped line in the entity header";
+  const singleToken = "QueueProcessorWithoutBreaks".repeat(8);
+  const diag = new Diagnostics();
+  const r = renderSwimlane([
+    "flowchart BT",
+    `a["${multiWord}"] --> root[Root]`,
+    `b["${singleToken}"] --> root`,
+    "class a,b,root green;",
+  ].join("\n"), { theme: "portal", title: "Long entity titles", diag });
+
+  const visibleText = [...r.svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
+    .map((m) => m[1].replace(/<title>[\s\S]*?<\/title>/g, "").replace(/<[^>]+>/g, ""))
+    .join("")
+    .replace(/\s/g, "");
+
+  assert.ok(visibleText.includes(multiWord.replace(/\s/g, "")));
+  assert.ok(visibleText.includes(singleToken));
+  assert.doesNotMatch(r.svg, /…/);
+  assert.ok(!diag.warnings.some((w) => w.message.includes("entity name")));
+  assert.deepEqual(verifyGeometry(r), []);
+  assert.deepEqual(verifySvgString(r.svg), []);
+});
+
 test("torture-weird: cycles, self-loops, orphan signals render with warnings, verify clean", () => {
   const blocks = extractBlocks(read("torture-weird.md"), THEME_NAMES);
   assert.equal(blocks.length, 4);

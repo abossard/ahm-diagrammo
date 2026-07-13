@@ -3,6 +3,9 @@
 Every feature below is exercised by the automated test suite (`npm test`); the **Verified by**
 notes name the test that pins the behavior. If a statement here stops being true, a test fails.
 
+For a visual overview, see [how-it-works.md](how-it-works.md), a health model that ahm-diagrammo
+renders of its own pipeline, mapping each lane to the code and test behind it.
+
 Quick links: [CLI](#command-line) · [Renderer selection](#renderer-selection) ·
 [Per-block options](#per-block-options) · [Themes](#themes) ·
 [Health-model swimlanes](#health-model-swimlanes) · [Signal rows](#signal-rows) ·
@@ -195,16 +198,18 @@ model, on every stress fixture:
 3. No two horizontal or vertical connector segments of different edges are ever collinear.
 4. Label pills never overlap other pills, cards, or any other edge's connector; long labels wrap
    to two lines.
-5. Text never leaves the canvas or its container (card, pill). Long names wrap, then the card
-   widens (to 480px); only past that is text ellipsized — and then it keeps the full text as an
-   SVG `<title>` tooltip *and* emits a warning.
+5. Text never leaves the canvas or its container (card, pill). Entity names widen their card up to
+   480px, then add as many wrapped header lines as needed. Entity names are never ellipsized.
+   Qualifiers and signal rows keep their bounded two-line policy, with an SVG `<title>` tooltip and
+   warning if they exceed it.
 6. The SVG contains no `NaN`/`Infinity`, is well-formed, and rendering is deterministic
    (same input → byte-identical output).
 
 Density costs height, not legibility: channels between lanes grow rows to fit their edges.
 
 *Verified by:* `swimlane.test.mjs` — every `geometry:` test, "torture-text: long content wraps
-instead of vanishing", "rendering is deterministic"; `layout.test.mjs` — projection separations,
+instead of vanishing", "entity titles remain complete beyond the card width cap", "rendering is
+deterministic"; `layout.test.mjs` — projection separations,
 track disjointness, corridor picking.
 
 ## Plain mermaid blocks

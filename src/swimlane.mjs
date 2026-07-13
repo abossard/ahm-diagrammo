@@ -280,8 +280,9 @@ function measureNode(n, diag) {
 
   // wrap into the final width
   const nameAvail = w - headerFixed;
-  const nameWrap = wrapText(name, nameAvail, NAME_FS, { weight: 600, maxLines: 2 });
-  if (nameWrap.clipped) diag.warn(`entity name "${name.slice(0, 40)}…" does not fit even wrapped at ${CARD_MAX_W}px — clipped (full text kept as tooltip)`);
+  // Entity titles are never truncated. Past the width cap they add header lines, preserving the
+  // complete title while keeping the diagram horizontally compact.
+  const nameWrap = wrapText(name, nameAvail, NAME_FS, { weight: 600, maxLines: Infinity });
   let qualWrap = null;
   if (qualifierRaw) {
     qualWrap = wrapText(qualifierRaw, nameAvail, QUAL_FS, { maxLines: 2 });

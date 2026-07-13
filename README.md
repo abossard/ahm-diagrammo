@@ -111,6 +111,25 @@ The command walks the file, and for each ` ```mermaid ` block:
 Each run writes the SVGs, a `manifest.json`, and a `gallery.html` you can open to browse everything at
 once. Try the demo: `npx ahm-diagrammo examples/showcase.md -o out-showcase`.
 
+## How it works
+
+ahm-diagrammo reads the Markdown file, extracts every mermaid block, merges each block's options,
+picks a renderer, and writes the SVGs. The figure below is that pipeline, drawn by ahm-diagrammo from
+its own health model in [docs/how-it-works.md](docs/how-it-works.md):
+
+![How ahm-diagrammo renders one Markdown file](docs/assets/how-it-works-pipeline.svg)
+
+Regenerate it from the source:
+
+```bash
+npx ahm-diagrammo docs/how-it-works.md -o docs/assets
+```
+
+Read it bottom-up: a Markdown file enters at the bottom and the output bundle rolls up at the top.
+Signal tables show where options, runtime requirements, render stages, and output artifacts enter
+the pipeline. The
+[lane-by-lane reference](docs/how-it-works.md) maps each stage to its code and test.
+
 ## Tags & YAML: per-block options
 
 Every block can override the CLI defaults, three ways — all invisible to GitHub's and VS Code's
@@ -162,6 +181,7 @@ flowchart BT
 | `lanes` | custom swimlane labels, top to bottom: `[Root, Flows, Services]` |
 | `legend` | `false` hides the legend |
 | `name` | output file name (defaults to a slug of the title/heading) |
+| `background` | canvas background color (mermaid renderer only) |
 
 Signal rows can carry a real measurement and their own state, straight in the mermaid label:
 
