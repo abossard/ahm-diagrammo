@@ -63,6 +63,9 @@ flowchart BT
 Signals live **inside** each entity as a status table (status dot, name, metric icon, result). Health
 rolls up through business flows to the workload root. Relationship labels render as pills.
 
+Feature-by-feature source documentation (Mermaid source + vanilla + ahm render for each feature):
+[docs/feature-gallery.md](docs/feature-gallery.md).
+
 ![Hero](screenshots/hero.png)
 
 ### Kitchen sink: one figure, every feature

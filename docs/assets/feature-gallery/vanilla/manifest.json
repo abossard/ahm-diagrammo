@@ -1,0 +1,92 @@
+[
+  {
+    "slug": "auto-health-model-detection",
+    "svg": "auto-health-model-detection.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 16,
+    "renderer": "mermaid",
+    "theme": "portal",
+    "title": "1. Auto health-model detection (`flowchart BT` + health classes)"
+  },
+  {
+    "slug": "fence-info-theme",
+    "svg": "fence-info-theme.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 42,
+    "renderer": "mermaid",
+    "theme": "midnight",
+    "title": "2. Fence-info options (`mermaid midnight`)"
+  },
+  {
+    "slug": "yaml-frontmatter-options",
+    "svg": "yaml-frontmatter-options.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 65,
+    "renderer": "mermaid",
+    "theme": "candy",
+    "title": "Order pipeline health"
+  },
+  {
+    "slug": "directive-comments-options",
+    "svg": "directive-comments-options.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 100,
+    "renderer": "mermaid",
+    "theme": "slate",
+    "title": "Ingestion path"
+  },
+  {
+    "slug": "signal-values-and-states",
+    "svg": "signal-values-and-states.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 127,
+    "renderer": "mermaid",
+    "theme": "portal",
+    "title": "5. Signal-row values and row states"
+  },
+  {
+    "slug": "dashed-propagation-edge",
+    "svg": "dashed-propagation-edge.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 145,
+    "renderer": "mermaid",
+    "theme": "portal",
+    "title": "6. Dashed propagation edges and relationship pills"
+  },
+  {
+    "slug": "non-health-sequence",
+    "svg": "non-health-sequence.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 171,
+    "renderer": "mermaid",
+    "theme": "portal",
+    "title": "7. Non-health Mermaid blocks (sequence)"
+  },
+  {
+    "slug": "forced-renderer-mermaid",
+    "svg": "forced-renderer-mermaid.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 191,
+    "renderer": "mermaid",
+    "theme": "portal",
+    "title": "8. Forcing a renderer (`renderer: mermaid` on a health model)"
+  },
+  {
+    "slug": "custom-name-and-background",
+    "svg": "custom-name-and-background.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 210,
+    "renderer": "mermaid",
+    "theme": "portal",
+    "title": "9. `name` and `background` options on plain Mermaid"
+  },
+  {
+    "slug": "plain-flowchart-theme",
+    "svg": "plain-flowchart-theme.svg",
+    "source": "docs/feature-gallery.md",
+    "line": 226,
+    "renderer": "mermaid",
+    "theme": "slate",
+    "title": "10. Theme override on plain flowchart"
+  }
+]

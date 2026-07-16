@@ -3,6 +3,9 @@
 Every feature below is exercised by the automated test suite (`npm test`); the **Verified by**
 notes name the test that pins the behavior. If a statement here stops being true, a test fails.
 
+For the visual, source-first version of this reference (Mermaid code plus vanilla and
+`ahm-diagrammo` renderings for each feature), see [feature-gallery.md](feature-gallery.md).
+
 For a visual overview, see [how-it-works.md](how-it-works.md), a health model that ahm-diagrammo
 renders of its own pipeline, mapping each lane to the code and test behind it.
 
