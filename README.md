@@ -111,6 +111,31 @@ The command walks the file, and for each ` ```mermaid ` block:
 Each run writes the SVGs, a `manifest.json`, and a `gallery.html` you can open to browse everything at
 once. Try the demo: `npx ahm-diagrammo examples/showcase.md -o out-showcase`.
 
+## Document an existing Azure Monitor Health Model
+
+The package also includes `ahm-health-docs`, a read-only CLI for the installed Azure CLI
+`health-models` extension. It uses the exact plural `az monitor health-models` namespace to read the
+model plus its current entities, relationships, signal definitions, authentication settings, and
+discovery rules:
+
+```bash
+npx --package ahm-diagrammo ahm-health-docs \
+  --resource-group <resource-group> \
+  --model <health-model-name> \
+  --subscription <optional-subscription> \
+  --out ./health-model-docs \
+  --theme portal
+```
+
+`--resource-group` and `--model` are required. `--subscription`, `--out`, and `--theme` are optional;
+run `--help` for the complete command reference.
+Each successful run deterministically replaces only `<model-slug>.json`, `<model-slug>.md`, and
+`<model-slug>.svg` in the output directory. The snapshot covers current configuration and status,
+not health history or time-series data.
+
+The generated `.json` and `.md` files can contain Azure resource IDs, tags, identity details, and
+operational status. Keep the output local and review all generated files before publishing them.
+
 ## Agent plugin
 
 The repository exposes one shared `diagrammo` skill to GitHub Copilot CLI and Claude Code. Copilot can

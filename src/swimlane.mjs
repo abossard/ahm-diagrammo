@@ -154,6 +154,48 @@ export function parseGraph(code, { diag = new Diagnostics(), lineOffset = 0 } = 
 // A metric line can carry its own result and state: "P95 latency = 230 ms (degraded)"
 const SIGNAL_WORDS = new Set(["signal", "signals"]);
 const ROW_RE = /^(.*?)(?:\s*=\s*([^()]+?))?\s*(?:\((healthy|degraded|unhealthy|unknown)\))?$/;
+const SIGNAL_ERROR_MARKER = "; error: ";
+const DIAGNOSTIC_ESCAPE = "␛";
+const DIAGNOSTIC_CHARACTERS = {
+  e: DIAGNOSTIC_ESCAPE,
+  s: " ",
+  t: "\t",
+  r: "\r",
+  n: "\n",
+  p: "%",
+  o: "[",
+  c: "]",
+  q: '"',
+  l: "<",
+  g: ">",
+  a: "(",
+  z: ")"
+};
+
+function decodeDiagnostic(value) {
+  if (!value.startsWith(`${DIAGNOSTIC_ESCAPE}0`)) return value;
+  let decoded = "";
+  for (let index = 2; index < value.length; index++) {
+    if (value[index] !== DIAGNOSTIC_ESCAPE || index + 1 >= value.length) {
+      decoded += value[index];
+      continue;
+    }
+    const code = value[++index];
+    decoded += DIAGNOSTIC_CHARACTERS[code] ?? `${DIAGNOSTIC_ESCAPE}${code}`;
+  }
+  return decoded;
+}
+
+function parseSignalResult(value) {
+  if (value == null) return { result: null, error: null };
+  const marker = value.indexOf(SIGNAL_ERROR_MARKER);
+  if (marker < 0) return { result: value.trim() || null, error: null };
+  return {
+    result: value.slice(0, marker).trim() || null,
+    error: decodeDiagnostic(value.slice(marker + SIGNAL_ERROR_MARKER.length).trim())
+  };
+}
+
 export function foldSignals(g, diag = new Diagnostics()) {
   const remove = new Set();
   const isSig = (id) => g.nodes.get(id)?.state === "signal";
@@ -177,7 +219,11 @@ export function foldSignals(g, diag = new Diagnostics()) {
       owner.signals = owner.signals || [];
       for (const m of metrics) {
         const [, name, result, state] = m.match(ROW_RE);
-        owner.signals.push({ name: name.trim() || m, state: state || "healthy", result: result?.trim() || null });
+        owner.signals.push({
+          name: name.trim() || m,
+          state: state || "healthy",
+          ...parseSignalResult(result)
+        });
       }
     }
     diag.info(`folded signal "${sigId}" (${metrics.length} row${metrics.length === 1 ? "" : "s"}) into ${owners.join(", ")}`);
@@ -261,7 +307,33 @@ export function layout(g, diag = new Diagnostics()) {
 
 // ---------- measure ----------
 const CARD_MIN_W = 168, CARD_MAX_W = 480, GAP = 30, TOPPAD = 18;
-const NAME_FS = 12.5, QUAL_FS = 9, ROW_FS = 10.5, PILL_FS = 10.5;
+const NAME_FS = 12.5, QUAL_FS = 9, ROW_FS = 10.5, PILL_FS = 10.5, ERROR_FS = 9.5;
+
+function wrapPreservingText(text, maxW, fontSize, weight = 400) {
+  const characters = [...String(text)];
+  const lines = [];
+  let start = 0;
+  while (start < characters.length) {
+    let end = start;
+    let lastBreak = -1;
+    while (end < characters.length) {
+      const character = characters[end];
+      if (character === "\n") {
+        end++;
+        break;
+      }
+      const candidate = characters.slice(start, end + 1).join("").replace(/[\r\n]/g, "");
+      if (end > start && textWidth(candidate, fontSize, weight) > maxW) break;
+      end++;
+      if (/\s/.test(character)) lastBreak = end;
+    }
+    if (end < characters.length && characters[end - 1] !== "\n" && lastBreak > start) end = lastBreak;
+    if (end === start) end++;
+    lines.push(characters.slice(start, end).join(""));
+    start = end;
+  }
+  return lines.length ? lines : [""];
+}
 
 function measureNode(n, diag) {
   const rawLines = n.lines.filter((l) => !STATE_WORDS.has(l.toLowerCase()));
@@ -289,11 +361,34 @@ function measureNode(n, diag) {
     if (qualWrap.clipped) diag.warn(`qualifier "${qualifierRaw.slice(0, 40)}…" on "${n.id}" clipped (full text kept as tooltip)`);
   }
   const rows = sigs.map((r) => {
-    const resultW = textWidth(r.result ?? "", ROW_FS, 600);
-    const avail = w - rowFixed - resultW;
+    const result = String(r.result ?? "");
+    const contentW = w - rowFixed;
+    const naturalResultW = textWidth(result, ROW_FS, 600);
+    const resultColumnW = Math.min(naturalResultW, Math.max(40, Math.floor(contentW / 2)));
+    const resultWrap = result
+      ? wrapText(result, resultColumnW, ROW_FS, { weight: 600, maxLines: Infinity })
+      : { lines: [""], clipped: false };
+    const resultW = Math.max(...resultWrap.lines.map((line) => textWidth(line, ROW_FS, 600)));
+    const avail = contentW - resultColumnW;
     const wrap = wrapText(r.name, avail, ROW_FS, { maxLines: 2 });
     if (wrap.clipped) diag.warn(`signal row "${r.name.slice(0, 40)}…" on "${n.id}" clipped (full text kept as tooltip)`);
-    return { ...r, lines: wrap.lines, clipped: wrap.clipped, rowH: 18 + 13 * (wrap.lines.length - 1), resultW };
+    const lineCount = Math.max(wrap.lines.length, resultWrap.lines.length);
+    const mainH = 18 + 13 * (lineCount - 1);
+    const errorLines = r.error == null
+      ? null
+      : wrapPreservingText(r.error, w - 44, ERROR_FS);
+    const errorPanelH = errorLines ? 40 + 13 * (errorLines.length - 1) : 0;
+    return {
+      ...r,
+      lines: wrap.lines,
+      clipped: wrap.clipped,
+      resultLines: resultWrap.lines,
+      mainH,
+      errorLines,
+      errorPanelH,
+      rowH: mainH + (errorLines ? 8 + errorPanelH : 0),
+      resultW
+    };
   });
 
   const headerContentH = nameWrap.lines.length * 14 + (qualWrap ? qualWrap.lines.length * 11 : 0);
@@ -370,7 +465,7 @@ export function looksLikeHealthModel(code) {
 }
 
 // ---------- main render ----------
-// opts: { theme, title, subtitle, lanes, legend, diag, baseLine, debug }
+// opts: { theme, title, subtitle, lanes, legend, minHeaderGap, diag, baseLine, debug }
 export function renderSwimlane(code, opts = {}) {
   const diag = opts.diag || new Diagnostics();
   const T = typeof opts.theme === "object" && opts.theme !== null ? opts.theme : getTheme(opts.theme);
@@ -706,7 +801,7 @@ export function renderSwimlane(code, opts = {}) {
   }
 
   // ----- build paths + geometry from the final assignment -----
-  const debug = { cards: [], pills: [], segs: [], texts: [], lanes: [] };
+  const debug = { cards: [], errorPanels: [], pills: [], segs: [], texts: [], lanes: [] };
   const paths = []; // { d, stroke, width, dash }
   const stateRank = { healthy: 0, unknown: 1, degraded: 2, unhealthy: 3, alt: 1, signal: 1 };
 
@@ -768,7 +863,11 @@ export function renderSwimlane(code, opts = {}) {
   for (const p of pills) { scanX(p.x - p.t.pillW / 2); scanX(p.x + p.t.pillW / 2); }
   const tx = M.left - minX;
   const headW = M.left + textWidth(title, 18, 700) + 24 + (legendOn ? legendW : 0) + 40;
-  const W = Math.max(maxX + tx + 24 + gutterW, headW, textWidth(subtitle, 12) + M.left + 40);
+  const minHeaderGap = Number.isFinite(opts.minHeaderGap) ? Math.max(0, opts.minHeaderGap) : null;
+  const separatedHeaderW = minHeaderGap == null || !legendOn
+    ? 0
+    : M.left + textWidth(subtitle, 12) + minHeaderGap + legendW + 40;
+  const W = Math.max(maxX + tx + 24 + gutterW, headW, textWidth(subtitle, 12) + M.left + 40, separatedHeaderW);
   const H = totalH;
 
   const shift = (v) => v + tx;
@@ -871,8 +970,10 @@ function entityCard(T, n, b, s, debug, absB) {
   const st = T.state[n.state] || T.state.unknown;
   const dash = st.dash ? ` stroke-dasharray="${st.dash}"` : "";
   const p = [];
-  const dbgText = (localX, topY, w, h, text) =>
-    debug.texts.push({ x: localX + (absB.x - b.x), y: topY, w, h, text, container: { x: absB.x, y: absB.y, w: absB.w, h: absB.h } });
+  const offsetX = absB.x - b.x;
+  const cardContainer = { x: absB.x, y: absB.y, w: absB.w, h: absB.h };
+  const dbgText = (localX, topY, w, h, text, role, container = cardContainer) =>
+    debug.texts.push({ x: localX + offsetX, y: topY, w, h, text, role, container });
 
   p.push(`<g filter="url(#cs)"><rect x="${b.x.toFixed(1)}" y="${b.y.toFixed(1)}" width="${b.w}" height="${b.h}" rx="10" fill="${st.fill}" stroke="${st.border}" stroke-width="2"${dash}/></g>`);
 
@@ -917,11 +1018,34 @@ function entityCard(T, n, b, s, debug, absB) {
       const rowTitle = r.clipped ? `<title>${esc(r.name)}</title>` : "";
       r.lines.forEach((line, k) => {
         p.push(`<text x="${nameX2.toFixed(1)}" y="${(ry + 3.5 + k * 13).toFixed(1)}" font-size="${ROW_FS}" fill="${T.ink}">${esc(line)}${k === 0 ? rowTitle : ""}</text>`);
-        dbgText(nameX2, ry + 3.5 + k * 13 - 9, textWidth(line, ROW_FS), 11, line);
+        dbgText(nameX2, ry + 3.5 + k * 13 - 9, textWidth(line, ROW_FS), 11, line, "signal-name");
       });
       const rs = T.state[r.state] || T.state.healthy;
-      p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.dot}" text-anchor="end">${esc(r.result ?? "")}</text>`);
-      dbgText(resX - r.resultW, ry - 5.5, r.resultW, 11, r.result ?? "");
+      r.resultLines.forEach((line, k) => {
+        const lineW = textWidth(line, ROW_FS, 600);
+        p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5 + k * 13).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.dot}" text-anchor="end">${esc(line)}</text>`);
+        dbgText(resX - lineW, ry + k * 13 - 5.5, lineW, 11, line, "signal-result");
+      });
+      if (r.errorLines) {
+        const errorState = T.state.unhealthy;
+        const panel = {
+          x: b.x + 12,
+          y: top + r.mainH + 4,
+          w: b.w - 24,
+          h: r.errorPanelH
+        };
+        const absolutePanel = { ...panel, x: panel.x + offsetX };
+        p.push(`<rect data-role="signal-error-panel" x="${panel.x.toFixed(1)}" y="${panel.y.toFixed(1)}" width="${panel.w.toFixed(1)}" height="${panel.h.toFixed(1)}" rx="6" fill="${errorState.fill}" stroke="${errorState.border}" stroke-width="1"/>`);
+        p.push(`<text data-role="signal-error-label" x="${(panel.x + 10).toFixed(1)}" y="${(panel.y + 16).toFixed(1)}" font-size="${ERROR_FS}" font-weight="700" fill="${T.ink}">Error</text>`);
+        dbgText(panel.x + 10, panel.y + 6, textWidth("Error", ERROR_FS, 700), 11, "Error", "signal-error-label", absolutePanel);
+        r.errorLines.forEach((line, k) => {
+          const visible = line.replace(/[\r\n]/g, "");
+          const y = panel.y + 32 + k * 13;
+          p.push(`<text data-role="signal-error-line" x="${(panel.x + 10).toFixed(1)}" y="${y.toFixed(1)}" font-size="${ERROR_FS}" fill="${T.ink}">${esc(line)}</text>`);
+          dbgText(panel.x + 10, y - 9, textWidth(visible, ERROR_FS), 11, line, "signal-error-line", absolutePanel);
+        });
+        debug.errorPanels.push({ ...absolutePanel, id: `${n.id}:${i}` });
+      }
       top += r.rowH;
     });
   }

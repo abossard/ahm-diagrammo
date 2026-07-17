@@ -6,7 +6,8 @@
   "license": "MIT",
   "bin": {
     "diagrammo": "bin/diagrammo.mjs",
-    "ahm-diagrammo": "bin/diagrammo.mjs"
+    "ahm-diagrammo": "bin/diagrammo.mjs",
+    "ahm-health-docs": "bin/health-model-docs.mjs"
   },
   "main": "src/index.mjs",
   "exports": {

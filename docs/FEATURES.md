@@ -51,6 +51,34 @@ examples/showcase.md: 6 mermaid blocks
 writing files", "--no-gallery skips gallery.html", "multiple files aggregate into one manifest",
 "bad CLI arguments fail fast".
 
+### Existing Health Model documentation CLI
+
+`ahm-health-docs` reads an existing model through the installed extension's exact plural
+`az monitor health-models` namespace and emits a current documentation bundle:
+
+```
+ahm-health-docs --resource-group <name> --model <name> [options]
+
+  -g, --resource-group <name>  Azure resource group
+  -m, --model <name>           Azure Monitor Health Model name
+  -s, --subscription <id>      Azure subscription name or ID
+  -o, --out <dir>              output directory (default: ./health-model-docs)
+  -t, --theme <name>           portal | midnight | candy | slate
+  -h, --help                   show help
+```
+
+It writes deterministic `<model-slug>.json`, `<model-slug>.md`, and `<model-slug>.svg` artifacts.
+The JSON is the complete current-data snapshot; Markdown presents the same model and collections in
+readable tables; SVG visualizes entities, signal status rows, and stored relationships through the
+pure-Node swimlane renderer. Reruns replace only that model's three files.
+
+These local files can include Azure resource IDs, tags, identity details, and operational status.
+Review all generated files before publishing them. The command does not read health history or
+time-series data and does not create or update Azure resources.
+
+*Verified by:* `health-model-docs.test.mjs` — acquisition argv, deterministic artifacts, full
+content, safe text, empty/dangling models, provider failures, help text, and overwrite isolation.
+
 ## Renderer selection
 
 Per block, in this order:

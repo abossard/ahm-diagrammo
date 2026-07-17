@@ -35,7 +35,17 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
       problems.push(`card ${fmtRect(c)} leaves the canvas ${W}×${H}`);
   }
 
-  // 3. pills: inside canvas, disjoint from each other, from every card, and from every
+  // 3. error panels remain inside their entity cards and the canvas
+  for (const panel of debug.errorPanels ?? []) {
+    const owner = debug.cards.find((card) =>
+      panel.x >= card.x - EPS && panel.x + panel.w <= card.x + card.w + EPS &&
+      panel.y >= card.y - EPS && panel.y + panel.h <= card.y + card.h + EPS);
+    if (!owner) problems.push(`error panel ${fmtRect(panel)} leaves its entity card`);
+    if (panel.x < -EPS || panel.x + panel.w > W + EPS || panel.y < -EPS || panel.y + panel.h > H + EPS)
+      problems.push(`error panel ${fmtRect(panel)} leaves the canvas ${W}×${H}`);
+  }
+
+  // 4. pills: inside canvas, disjoint from each other, from every card, and from every
   //    connector segment that isn't their own edge
   for (let i = 0; i < debug.pills.length; i++) {
     const p = debug.pills[i];
@@ -55,7 +65,7 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
     }
   }
 
-  // 4. connector segments never pass through a card's interior. Verticals may touch a card at
+  // 5. connector segments never pass through a card's interior. Verticals may touch a card at
   //    its top/bottom edge (that's how they connect); shrink each card by the connection slack.
   for (const s of debug.segs) {
     for (const c of debug.cards) {
@@ -66,7 +76,7 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
     }
   }
 
-  // 5. horizontal segments of different edges never overlap collinearly (share a y and an x-range)
+  // 6. horizontal segments of different edges never overlap collinearly (share a y and an x-range)
   const hs = debug.segs.filter((s) => s.kind === "h");
   for (let i = 0; i < hs.length; i++)
     for (let j = i + 1; j < hs.length; j++) {
@@ -76,7 +86,7 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
         problems.push(`collinear horizontal overlap between ${a.edge} and ${b.edge} at y≈${a.y1.toFixed(0)}`);
     }
 
-  // 6. vertical segments of different edges never overlap collinearly
+  // 7. vertical segments of different edges never overlap collinearly
   const vs = debug.segs.filter((s) => s.kind === "v");
   for (let i = 0; i < vs.length; i++)
     for (let j = i + 1; j < vs.length; j++) {
@@ -86,7 +96,7 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
         problems.push(`collinear vertical overlap between ${a.edge} and ${b.edge} at x≈${a.x1.toFixed(0)}`);
     }
 
-  // 7. every text box stays inside the canvas and inside its declared container
+  // 8. every text box stays inside the canvas and inside its declared container
   if (checkTexts) {
     for (const t of debug.texts) {
       if (t.x < -EPS || t.x + t.w > W + EPS || t.y < -EPS || t.y + t.h > H + EPS)
@@ -95,6 +105,25 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
         const c = t.container;
         if (t.x < c.x - EPS || t.x + t.w > c.x + c.w + EPS || t.y < c.y - EPS || t.y + t.h > c.y + c.h + EPS)
           problems.push(`text ${fmtRect(t)} overflows its container ${fmtRect(c)}`);
+      }
+    }
+
+    const cardContainers = [...debug.cards, ...(debug.errorPanels ?? [])];
+    const containerIndex = (container) => cardContainers.findIndex((candidate) =>
+      Math.abs(container.x - candidate.x) < EPS &&
+      Math.abs(container.y - candidate.y) < EPS &&
+      Math.abs(container.w - candidate.w) < EPS &&
+      Math.abs(container.h - candidate.h) < EPS);
+    for (let left = 0; left < debug.texts.length; left++) {
+      const a = debug.texts[left];
+      if (!a.container) continue;
+      const owner = containerIndex(a.container);
+      if (owner < 0) continue;
+      for (let right = left + 1; right < debug.texts.length; right++) {
+        const b = debug.texts[right];
+        if (!b.container || containerIndex(b.container) !== owner) continue;
+        if (rectsOverlap(a, b))
+          problems.push(`texts overlap in one container: ${fmtRect(a)} ∩ ${fmtRect(b)}`);
       }
     }
   }
