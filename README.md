@@ -111,6 +111,27 @@ The command walks the file, and for each ` ```mermaid ` block:
 Each run writes the SVGs, a `manifest.json`, and a `gallery.html` you can open to browse everything at
 once. Try the demo: `npx ahm-diagrammo examples/showcase.md -o out-showcase`.
 
+## Agent plugin
+
+The repository exposes one shared `diagrammo` skill to GitHub Copilot CLI and Claude Code. Copilot can
+install it directly:
+
+```bash
+copilot plugin install abossard/ahm-diagrammo
+```
+
+Or add this repository as a marketplace and install the same plugin:
+
+```bash
+copilot plugin marketplace add abossard/ahm-diagrammo
+copilot plugin install ahm-diagrammo@ahm-diagrammo
+```
+
+In Claude Code, run `/plugin marketplace add abossard/ahm-diagrammo`, then
+`/plugin install ahm-diagrammo@ahm-diagrammo`. Invoke `/ahm-diagrammo:diagrammo` for a rendering task.
+In Copilot CLI, `/skills list` confirms discovery; ask Copilot to use the `diagrammo` skill. Both hosts
+load [`skills/diagrammo/SKILL.md`](skills/diagrammo/SKILL.md).
+
 ## How it works
 
 ahm-diagrammo reads the Markdown file, extracts every mermaid block, merges each block's options,
@@ -244,6 +265,20 @@ connector, or text box overlaps, escapes its container, or leaves the canvas —
 tests: rendering is deterministic, so the committed SVGs under `test/golden/` pin the exact
 output, and any visual change shows up as a reviewable diff (`npm run goldens` after intended
 changes).
+
+### Publishing
+
+CI runs `npm ci` and the complete suite on Node 18, 22, and 24, then packs the package and executes
+both CLI aliases from the tarball. Publishing is triggered only by a GitHub Release tagged exactly
+`v<package.json version>`; the release workflow repeats those checks before publishing publicly to
+npm with provenance.
+
+For the first publication, create a temporary granular npm token that can publish the new public
+package and save it as the `NPM_TOKEN` Actions secret. After that succeeds, open the package's
+**Trusted Publisher** settings on npm, select GitHub Actions, and set the owner to `abossard`, the
+repository to `ahm-diagrammo`, and the workflow filename to `release.yml`. No GitHub environment is
+used. Then remove the Actions secret and revoke the bootstrap token; subsequent releases
+authenticate through GitHub OIDC.
 
 ## What's inside
 

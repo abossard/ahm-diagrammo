@@ -1,0 +1,20 @@
+{
+  "name": "ahm-diagrammo",
+  "version": "2.0.0",
+  "description": "Inspect and render Mermaid blocks in Markdown with the ahm-diagrammo CLI.",
+  "author": {
+    "name": "abossard"
+  },
+  "homepage": "https://github.com/abossard/ahm-diagrammo",
+  "repository": "https://github.com/abossard/ahm-diagrammo",
+  "license": "MIT",
+  "keywords": [
+    "mermaid",
+    "diagram",
+    "svg",
+    "markdown"
+  ],
+  "skills": [
+    "./skills/"
+  ]
+}
