@@ -3,14 +3,14 @@
 <rect width="882" height="393" fill="#1b1a19"/>
 <rect x="0" y="78.0" width="882" height="90.0" fill="#1b1a19"/>
 <line x1="0" y1="78.0" x2="882" y2="78.0" stroke="#3b3a39"/>
-<text x="717.9" y="127.5" font-size="13" font-weight="700" fill="#d2d0ce">Workload root</text>
+<text x="716.5" y="127.5" font-size="13" font-weight="700" fill="#d2d0ce">Workload root</text>
 <rect x="0" y="168.0" width="882" height="90.0" fill="#232120"/>
 <line x1="0" y1="168.0" x2="882" y2="168.0" stroke="#3b3a39"/>
-<text x="717.9" y="217.5" font-size="13" font-weight="700" fill="#d2d0ce">Business &amp; user flows</text>
+<text x="716.5" y="217.5" font-size="13" font-weight="700" fill="#d2d0ce">Business &amp; user flows</text>
 <rect x="0" y="258.0" width="882" height="117.0" fill="#1b1a19"/>
 <line x1="0" y1="258.0" x2="882" y2="258.0" stroke="#3b3a39"/>
-<text x="717.9" y="312.5" font-size="13" font-weight="700" fill="#d2d0ce">Application</text>
-<text x="717.9" y="329.5" font-size="13" font-weight="700" fill="#d2d0ce">components</text>
+<text x="716.5" y="312.5" font-size="13" font-weight="700" fill="#d2d0ce">Application</text>
+<text x="716.5" y="329.5" font-size="13" font-weight="700" fill="#d2d0ce">components</text>
 <line x1="0" y1="392.5" x2="882" y2="392.5" stroke="#3b3a39"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#f3f2f1">Fence-info options: theme in the fence line</text>
 <text x="40" y="52" font-size="12" fill="#a19f9d">Signals live inside each entity; health rolls up to the workload root.</text>

@@ -1,0 +1,181 @@
+name: Release
+
+on:
+  release:
+    types:
+      - published
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    name: Verify and publish to npm
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org/
+      - name: Validate release tag and npm version
+        shell: bash
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          package_version="$(node -p "require('./package.json').version")"
+          expected_tag="v${package_version}"
+          if [[ "${RELEASE_TAG}" != "${expected_tag}" ]]; then
+            echo "release tag ${RELEASE_TAG} must exactly equal ${expected_tag}" >&2
+            exit 1
+          fi
+
+          npm_version="$(npm --version)"
+          node -e '
+            const actual = process.argv[1].split(".").map(Number);
+            const minimum = [11, 5, 1];
+            for (let i = 0; i < minimum.length; i++) {
+              if (actual[i] > minimum[i]) break;
+              if (actual[i] < minimum[i]) {
+                console.error(`npm ${process.argv[1]} is older than 11.5.1`);
+                process.exit(1);
+              }
+            }
+          ' "${npm_version}"
+          printf 'release tag %s; npm %s\n' "${RELEASE_TAG}" "${npm_version}"
+      - name: Install dependencies
+        run: npm ci
+      - name: Run complete test suite
+        run: npm test
+      - name: Pack npm artifact
+        id: pack
+        shell: bash
+        run: |
+          set -euo pipefail
+          pack_dir="${RUNNER_TEMP}/diagrammo-pack"
+          consumer_dir="${RUNNER_TEMP}/diagrammo-consumer"
+          rm -rf "${pack_dir}" "${consumer_dir}"
+          mkdir -p "${pack_dir}" "${consumer_dir}"
+
+          package_name="$(node -p "require('${GITHUB_WORKSPACE}/package.json').name")"
+          package_version="$(node -p "require('${GITHUB_WORKSPACE}/package.json').version")"
+          pack_json="$(npm pack --json --pack-destination "${pack_dir}")"
+          filename="$(node -e '
+            const [entry] = JSON.parse(process.argv[1]);
+            if (!entry || entry.name !== process.argv[2] || entry.version !== process.argv[3] || !entry.filename) {
+              console.error("packed metadata does not match package.json");
+              process.exit(1);
+            }
+            process.stdout.write(entry.filename);
+          ' "${pack_json}" "${package_name}" "${package_version}")"
+
+          echo "tarball=${pack_dir}/${filename}" >> "${GITHUB_OUTPUT}"
+          echo "consumer=${consumer_dir}" >> "${GITHUB_OUTPUT}"
+      - name: Execute both packed CLI aliases
+        shell: bash
+        working-directory: ${{ steps.pack.outputs.consumer }}
+        env:
+          TARBALL: ${{ steps.pack.outputs.tarball }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$(find . -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
+            echo "consumer directory is not empty" >&2
+            exit 1
+          fi
+
+          expected="$(node -p "require('${GITHUB_WORKSPACE}/package.json').version")"
+          diagrammo_version="$(npx --yes --package="${TARBALL}" diagrammo --version)"
+          ahm_version="$(npx --yes --package="${TARBALL}" ahm-diagrammo --version)"
+          [[ "${diagrammo_version}" == "${expected}" ]]
+          [[ "${ahm_version}" == "${expected}" ]]
+
+          cat > smoke.md <<'MARKDOWN'
+          # Packed artifact smoke test
+
+          ```mermaid
+          flowchart BT
+              child["Child"] --> root["Root"]
+          ```
+          MARKDOWN
+          list_output="$(npx --yes --package="${TARBALL}" diagrammo smoke.md --list)"
+          case "${list_output}" in
+            *"1 mermaid block"*) ;;
+            *)
+              echo "packed CLI did not list the smoke-test block" >&2
+              exit 1
+              ;;
+          esac
+          printf 'diagrammo %s\nahm-diagrammo %s\n%s\n' \
+            "${diagrammo_version}" "${ahm_version}" "${list_output}"
+      - name: Select npm authentication
+        id: npm-auth
+        shell: bash
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -n "${NPM_TOKEN}" ]]; then
+            echo "bootstrap=true" >> "${GITHUB_OUTPUT}"
+            echo "Using the bootstrap NPM_TOKEN for this publication."
+          else
+            echo "bootstrap=false" >> "${GITHUB_OUTPUT}"
+            echo "Using npm trusted publishing."
+          fi
+      - name: Publish with npm trusted publishing
+        if: ${{ steps.npm-auth.outputs.bootstrap == 'false' }}
+        run: npm publish --access public --provenance --registry=https://registry.npmjs.org/
+      - name: Publish first version with bootstrap token
+        if: ${{ steps.npm-auth.outputs.bootstrap == 'true' }}
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance --registry=https://registry.npmjs.org/
+      - name: Verify public npx consumption
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_name="$(node -p "require('./package.json').name")"
+          package_version="$(node -p "require('./package.json').version")"
+          consumer_dir="${RUNNER_TEMP}/diagrammo-registry-consumer"
+          cache_dir="${RUNNER_TEMP}/diagrammo-registry-cache"
+          rm -rf "${consumer_dir}" "${cache_dir}"
+          mkdir -p "${consumer_dir}" "${cache_dir}"
+          cd "${consumer_dir}"
+
+          published_version=""
+          for attempt in {1..12}; do
+            published_version="$(npm view "${package_name}@${package_version}" version --registry=https://registry.npmjs.org/ 2>/dev/null || true)"
+            if [[ "${published_version}" == "${package_version}" ]]; then
+              break
+            fi
+            if [[ "${attempt}" == "12" ]]; then
+              echo "${package_name}@${package_version} did not appear on npm" >&2
+              exit 1
+            fi
+            sleep 10
+          done
+
+          actual_version="$(npx --yes --cache="${cache_dir}" "${package_name}@${package_version}" --version)"
+          [[ "${actual_version}" == "${package_version}" ]]
+
+          cat > smoke.md <<'MARKDOWN'
+          # Registry smoke test
+
+          ```mermaid
+          flowchart BT
+              child["Child"] --> root["Root"]
+          ```
+          MARKDOWN
+          list_output="$(npx --yes --cache="${cache_dir}" "${package_name}@${package_version}" smoke.md --list)"
+          case "${list_output}" in
+            *"1 mermaid block"*) ;;
+            *)
+              echo "registry CLI did not list the smoke-test block" >&2
+              exit 1
+              ;;
+          esac
+          printf '%s %s\n%s\n' "${package_name}" "${actual_version}" "${list_output}"

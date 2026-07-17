@@ -3,14 +3,14 @@
 <rect width="677" height="422" fill="#ffffff"/>
 <rect x="0" y="78.0" width="677" height="118.0" fill="#ffffff"/>
 <line x1="0" y1="78.0" x2="677" y2="78.0" stroke="#e6e4e2"/>
-<text x="512.8" y="141.5" font-size="13" font-weight="700" fill="#323130">Workload root</text>
+<text x="511.5" y="141.5" font-size="13" font-weight="700" fill="#323130">Workload root</text>
 <rect x="0" y="196.0" width="677" height="118.0" fill="#faf9f8"/>
 <line x1="0" y1="196.0" x2="677" y2="196.0" stroke="#e6e4e2"/>
-<text x="512.8" y="259.5" font-size="13" font-weight="700" fill="#323130">Business &amp; user flows</text>
+<text x="511.5" y="259.5" font-size="13" font-weight="700" fill="#323130">Business &amp; user flows</text>
 <rect x="0" y="314.0" width="677" height="90.0" fill="#ffffff"/>
 <line x1="0" y1="314.0" x2="677" y2="314.0" stroke="#e6e4e2"/>
-<text x="512.8" y="355.0" font-size="13" font-weight="700" fill="#323130">Application</text>
-<text x="512.8" y="372.0" font-size="13" font-weight="700" fill="#323130">components</text>
+<text x="511.5" y="355.0" font-size="13" font-weight="700" fill="#323130">Application</text>
+<text x="511.5" y="372.0" font-size="13" font-weight="700" fill="#323130">components</text>
 <line x1="0" y1="421.5" x2="677" y2="421.5" stroke="#e6e4e2"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#242424">Cycle and self-loop</text>
 <text x="40" y="52" font-size="12" fill="#605e5c">Signals live inside each entity; health rolls up to the workload root.</text>

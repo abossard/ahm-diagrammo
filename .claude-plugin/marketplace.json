@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "ahm-diagrammo",
+  "owner": {
+    "name": "abossard"
+  },
+  "metadata": {
+    "description": "Agent skills for the ahm-diagrammo CLI.",
+    "version": "2.0.0"
+  },
+  "plugins": [
+    {
+      "name": "ahm-diagrammo",
+      "version": "2.0.0",
+      "description": "Inspect and render Mermaid blocks in Markdown with the ahm-diagrammo CLI.",
+      "source": "./",
+      "author": {
+        "name": "abossard"
+      },
+      "homepage": "https://github.com/abossard/ahm-diagrammo",
+      "repository": "https://github.com/abossard/ahm-diagrammo",
+      "license": "MIT",
+      "keywords": [
+        "mermaid",
+        "diagram",
+        "svg",
+        "markdown"
+      ]
+    }
+  ]
+}

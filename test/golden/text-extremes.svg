@@ -1,30 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1331" height="638" viewBox="0 0 1331 638" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1332" height="638" viewBox="0 0 1332 638" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
 <defs><filter id="cs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.3" flood-color="#000" flood-opacity="0.1"/></filter></defs>
-<rect width="1331" height="638" fill="#ffffff"/>
-<rect x="0" y="78.0" width="1331" height="90.0" fill="#ffffff"/>
-<line x1="0" y1="78.0" x2="1331" y2="78.0" stroke="#e6e4e2"/>
+<rect width="1332" height="638" fill="#ffffff"/>
+<rect x="0" y="78.0" width="1332" height="90.0" fill="#ffffff"/>
+<line x1="0" y1="78.0" x2="1332" y2="78.0" stroke="#e6e4e2"/>
 <text x="1166.0" y="127.5" font-size="13" font-weight="700" fill="#323130">Workload root</text>
-<rect x="0" y="168.0" width="1331" height="111.0" fill="#faf9f8"/>
-<line x1="0" y1="168.0" x2="1331" y2="168.0" stroke="#e6e4e2"/>
+<rect x="0" y="168.0" width="1332" height="111.0" fill="#faf9f8"/>
+<line x1="0" y1="168.0" x2="1332" y2="168.0" stroke="#e6e4e2"/>
 <text x="1166.0" y="228.0" font-size="13" font-weight="700" fill="#323130">Business &amp; user flows</text>
-<rect x="0" y="279.0" width="1331" height="341.0" fill="#ffffff"/>
-<line x1="0" y1="279.0" x2="1331" y2="279.0" stroke="#e6e4e2"/>
+<rect x="0" y="279.0" width="1332" height="341.0" fill="#ffffff"/>
+<line x1="0" y1="279.0" x2="1332" y2="279.0" stroke="#e6e4e2"/>
 <text x="1166.0" y="445.5" font-size="13" font-weight="700" fill="#323130">Application</text>
 <text x="1166.0" y="462.5" font-size="13" font-weight="700" fill="#323130">components</text>
-<line x1="0" y1="637.5" x2="1331" y2="637.5" stroke="#e6e4e2"/>
+<line x1="0" y1="637.5" x2="1332" y2="637.5" stroke="#e6e4e2"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#242424">Text extremes</text>
 <text x="40" y="52" font-size="12" fill="#605e5c">Signals live inside each entity; health rolls up to the workload root.</text>
-<text x="927.2" y="48" font-size="11.5" font-weight="600" fill="#605e5c" text-anchor="end">Legend</text>
-<circle cx="945.2" cy="44" r="4.5" fill="#4c9a2a"/>
-<text x="955.2" y="48" font-size="11.5" fill="#323130">Healthy</text>
-<circle cx="1011.0" cy="44" r="4.5" fill="#c26a00"/>
-<text x="1021.0" y="48" font-size="11.5" fill="#323130">Degraded</text>
-<circle cx="1088.5" cy="44" r="4.5" fill="#c50f18"/>
-<text x="1098.5" y="48" font-size="11.5" fill="#323130">Unhealthy</text>
-<circle cx="1167.3" cy="44" r="4.5" fill="#8a8886"/>
-<text x="1177.3" y="48" font-size="11.5" fill="#323130">Unknown</text>
-<g transform="translate(1236.2,37.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
-<text x="1254.2" y="48" font-size="11.5" fill="#323130">Metric</text>
+<text x="928.6" y="48" font-size="11.5" font-weight="600" fill="#605e5c" text-anchor="end">Legend</text>
+<circle cx="946.6" cy="44" r="4.5" fill="#4c9a2a"/>
+<text x="956.6" y="48" font-size="11.5" fill="#323130">Healthy</text>
+<circle cx="1012.3" cy="44" r="4.5" fill="#c26a00"/>
+<text x="1022.3" y="48" font-size="11.5" fill="#323130">Degraded</text>
+<circle cx="1089.9" cy="44" r="4.5" fill="#c50f18"/>
+<text x="1099.9" y="48" font-size="11.5" fill="#323130">Unhealthy</text>
+<circle cx="1168.7" cy="44" r="4.5" fill="#8a8886"/>
+<text x="1178.7" y="48" font-size="11.5" fill="#323130">Unknown</text>
+<g transform="translate(1237.6,37.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
+<text x="1255.6" y="48" font-size="11.5" fill="#323130">Metric</text>
 <g transform="translate(40.0,0)">
 <g fill="none" stroke-linecap="butt" stroke-linejoin="round">
 <path d="M575.7 297.0 L575.7 265.0" stroke="#a0d8a0" stroke-width="1.7"/>
