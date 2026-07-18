@@ -1,0 +1,197 @@
+/* style.css — restrained, task-focused editor UI. Reuses the swimlane renderer's own portal
+   palette (applied as CSS custom properties from src/themes.mjs at runtime; see web/app.mjs).
+   No gradients, glassmorphism, decorative motion, or custom controls — standard HTML elements
+   styled for legibility and keyboard focus. */
+
+:root {
+  color-scheme: light dark;
+  --bg: #ffffff;
+  --band: #faf9f8;
+  --ink: #242424;
+  --muted: #605e5c;
+  --hair: #e6e4e2;
+  --accent: #0078d4;
+  --unhealthy: #c50f18;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--hair);
+  background: var(--band);
+}
+
+header h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+
+header p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  max-width: 60ch;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.toolbar label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.toolbar select {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  min-width: 22rem;
+  max-width: 100%;
+}
+
+#status {
+  margin-left: auto;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+#status.error {
+  color: var(--unhealthy);
+  font-weight: 600;
+}
+
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: var(--hair);
+  min-height: 0;
+}
+
+.pane {
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.pane > h2 {
+  margin: 0;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  border-bottom: 1px solid var(--hair);
+}
+
+#editor {
+  flex: 1;
+  border: 0;
+  resize: none;
+  padding: 1rem;
+  font-family: ui-monospace, SFMono-Regular, "Cascadia Code", Consolas, monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--bg);
+}
+
+#output {
+  flex: 1;
+  overflow: auto;
+  padding: 1rem;
+}
+
+.block {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--hair);
+}
+
+.block:last-child {
+  border-bottom: 0;
+}
+
+.block h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+
+.svg-wrap svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+.message {
+  margin: 0;
+  padding: 0.75rem;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.message.unsupported {
+  background: var(--band);
+  border: 1px solid var(--hair);
+  color: var(--muted);
+}
+
+.message.error {
+  background: var(--band);
+  border: 1px solid var(--unhealthy);
+  color: var(--ink);
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Standard, visible keyboard focus on every interactive control — never removed. */
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Structural responsive behavior: stack panes below tablet width. */
+@media (max-width: 800px) {
+  main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 1fr;
+  }
+  .toolbar select {
+    min-width: 0;
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
