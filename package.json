@@ -35,11 +35,17 @@
     "type": "git",
     "url": "git+https://github.com/abossard/ahm-diagrammo.git"
   },
+  "dependencies": {
+    "dompurify": "3.4.12",
+    "fflate": "0.8.3",
+    "marked": "15.0.12"
+  },
   "devDependencies": {
     "@mermaid-js/mermaid-cli": "^11.16.0"
   },
   "scripts": {
     "test": "node scripts/test.mjs",
-    "goldens": "UPDATE_GOLDENS=1 node --test test/golden.test.mjs"
+    "goldens": "UPDATE_GOLDENS=1 node --test test/golden.test.mjs",
+    "build:pages": "node scripts/build-pages.mjs"
   }
 }

@@ -73,6 +73,22 @@ header p {
   max-width: 100%;
 }
 
+.toolbar button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.toolbar button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
 #status {
   margin-left: auto;
   font-size: 0.85rem;
@@ -127,19 +143,8 @@ main {
   padding: 1rem;
 }
 
-.block {
-  margin-bottom: 1.5rem;
-  padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--hair);
-}
-
-.block:last-child {
-  border-bottom: 0;
-}
-
-.block h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.95rem;
+.svg-wrap {
+  margin: 1rem 0;
 }
 
 .svg-wrap svg {
@@ -149,7 +154,7 @@ main {
 }
 
 .message {
-  margin: 0;
+  margin: 1rem 0;
   padding: 0.75rem;
   border-radius: 4px;
   font-size: 0.9rem;
@@ -168,14 +173,10 @@ main {
   color: var(--ink);
 }
 
-.empty {
-  color: var(--muted);
-  font-size: 0.9rem;
-}
-
 /* Standard, visible keyboard focus on every interactive control — never removed. */
 select:focus-visible,
-textarea:focus-visible {
+textarea:focus-visible,
+button:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }

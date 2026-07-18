@@ -1,13 +1,20 @@
-// app.mjs — DOM wiring for the editor: dropdown, textarea, and live-render output. Contains no
-// parsing/rendering logic of its own; delegates everything to convert.mjs and examples.mjs.
+// app.mjs — DOM wiring for the editor: dropdown, textarea, live preview, and ZIP export. Contains
+// no parsing/rendering/export logic of its own; delegates to convert.mjs, examples.mjs,
+// markdown-preview.mjs, and export-zip.mjs.
 import { EXAMPLES, loadExample } from "./examples.mjs";
 import { convertMarkdown } from "./convert.mjs";
+import { renderMarkdownPreview } from "./markdown-preview.mjs";
+import { buildDiagramZip } from "./export-zip.mjs";
 import { getTheme } from "../src/themes.mjs";
 
 const select = document.getElementById("example-select");
 const editor = document.getElementById("editor");
 const output = document.getElementById("output");
 const status = document.getElementById("status");
+const exportButton = document.getElementById("export-zip");
+
+let latestResults = [];
+let exportInFlight = false;
 
 applyThemeVariables(getTheme("portal"));
 populateExamples();
@@ -16,6 +23,7 @@ loadSelected(); // show a non-empty starting point without changing the dropdown
 
 select.addEventListener("change", loadSelected);
 editor.addEventListener("input", render);
+exportButton.addEventListener("click", handleExportClick);
 
 function populateExamples() {
   for (const ex of EXAMPLES) {
@@ -40,44 +48,47 @@ async function loadSelected() {
 }
 
 function render() {
-  output.textContent = "";
-  const results = convertMarkdown(editor.value);
-  if (results.length === 0) {
-    const p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = "No mermaid blocks found in this Markdown yet.";
-    output.appendChild(p);
-    return;
-  }
-  for (const r of results) output.appendChild(renderBlock(r));
+  latestResults = convertMarkdown(editor.value);
+  renderMarkdownPreview(editor.value, latestResults, output);
+  updateExportButton();
 }
 
-function renderBlock(r) {
-  const section = document.createElement("section");
-  section.className = `block block-${r.kind}`;
+async function handleExportClick() {
+  if (exportInFlight) return; // re-entrancy guard: one export at a time
+  const healthCount = latestResults.filter((r) => r.kind === "health").length;
+  if (healthCount === 0) return; // nothing to export; the control is already disabled
 
-  const h = document.createElement("h3");
-  h.textContent = r.title;
-  section.appendChild(h);
-
-  if (r.kind === "health") {
-    const wrap = document.createElement("div");
-    wrap.className = "svg-wrap";
-    // Trusted: r.svg is emitted by renderSwimlane (existing library code), not raw user HTML.
-    wrap.innerHTML = r.svg;
-    section.appendChild(wrap);
-  } else if (r.kind === "unsupported") {
-    const p = document.createElement("p");
-    p.className = "message unsupported";
-    p.textContent = r.message;
-    section.appendChild(p);
-  } else {
-    const p = document.createElement("p");
-    p.className = "message error";
-    p.textContent = `Render error: ${r.message}`;
-    section.appendChild(p);
+  exportInFlight = true;
+  updateExportButton();
+  setStatus("Exporting ZIP…");
+  try {
+    const { bytes, count, skipped } = await buildDiagramZip(latestResults);
+    downloadZip(bytes);
+    const skippedNote = skipped > 0 ? ` (${skipped} unsupported/error block${skipped === 1 ? "" : "s"} skipped)` : "";
+    setStatus(`Exported ${count} diagram${count === 1 ? "" : "s"} as ZIP${skippedNote}`);
+  } catch (e) {
+    setStatus(`Export failed: ${e.message}`, true);
+  } finally {
+    exportInFlight = false;
+    updateExportButton();
   }
-  return section;
+}
+
+function downloadZip(bytes) {
+  const blob = new Blob([bytes], { type: "application/zip" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "diagrams.zip";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function updateExportButton() {
+  const healthCount = latestResults.filter((r) => r.kind === "health").length;
+  exportButton.disabled = exportInFlight || healthCount === 0;
+  exportButton.textContent =
+    healthCount === 0 ? "Export ZIP (nothing to export)" : `Export ZIP (${healthCount} diagram${healthCount === 1 ? "" : "s"})`;
 }
 
 function setStatus(text, isError = false) {

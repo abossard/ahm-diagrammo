@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ahm-diagrammo — Markdown diagram editor</title>
   <link rel="stylesheet" href="web/style.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "marked": "./web/vendor/marked.esm.js",
+      "dompurify": "./web/vendor/purify.es.mjs",
+      "fflate": "./web/vendor/fflate.esm.js"
+    }
+  }
+  </script>
 </head>
 <body>
   <header>
@@ -13,6 +22,7 @@
     <div class="toolbar">
       <label for="example-select">Example</label>
       <select id="example-select"></select>
+      <button id="export-zip" type="button">Export ZIP</button>
       <span id="status" role="status" aria-live="polite"></span>
     </div>
   </header>
