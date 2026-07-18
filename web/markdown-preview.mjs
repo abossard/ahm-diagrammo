@@ -25,12 +25,31 @@ class SlotRenderer extends Renderer {
   }
 }
 
-// Pure, Node-safe: runs marked once with a fresh unpredictable per-call nonce
-// (crypto.randomUUID(), never a static string) so source-authored text cannot forge or collide
-// with a slot from another render call. Returns the rendered HTML (pre-sanitize) plus the nonce
-// and the number of mermaid slots emitted, in document order.
-export function renderMarkdownSlots(markdown) {
-  const nonce = crypto.randomUUID();
+// Default nonce factory: mints a fresh, unpredictable per-render nonce from the browser's Web
+// Crypto (globalThis.crypto.randomUUID). It throws loud when secure Web Crypto is unavailable
+// rather than silently minting a weak/predictable nonce (Math.random, a timestamp, a counter, or a
+// static token would let source-authored text forge or collide with a slot). The Web Crypto source
+// is a defaulted parameter purely so Node tests can prove this guard without mutating any global —
+// this module never imports node:crypto and stays browser-safe. Note: Node 18 ESM does not expose a
+// Web Crypto global, so Node callers inject their own fresh crypto-backed factory instead (see
+// renderMarkdownSlots); the browser and Node 20+ resolve globalThis.crypto here.
+export function secureNonce(webcrypto = globalThis.crypto) {
+  if (!webcrypto || typeof webcrypto.randomUUID !== "function") {
+    throw new Error(
+      "markdown-preview: secure Web Crypto (globalThis.crypto.randomUUID) is required to mint a render nonce",
+    );
+  }
+  return webcrypto.randomUUID();
+}
+
+// Pure, Node-safe: runs marked once with a fresh unpredictable per-call nonce so source-authored
+// text cannot forge or collide with a slot from another render call. The nonce factory is injected
+// (default: secureNonce, i.e. the browser's Web Crypto) so Node tests — whose ESM has no Web Crypto
+// global on v18 — can pass a fresh crypto-backed factory without this module importing node:crypto.
+// Returns the rendered HTML (pre-sanitize) plus the nonce and the number of mermaid slots emitted,
+// in document order.
+export function renderMarkdownSlots(markdown, nonceFactory = secureNonce) {
+  const nonce = nonceFactory();
   const renderer = new SlotRenderer(nonce);
   const html = marked.parse(markdown, { renderer });
   return { html, nonce, slotCount: renderer.slotCount };

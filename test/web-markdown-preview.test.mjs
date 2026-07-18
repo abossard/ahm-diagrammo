@@ -8,11 +8,19 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderMarkdownSlots, mapSlotsToOutcomes } from "../web/markdown-preview.mjs";
+import { randomUUID } from "node:crypto";
+import { renderMarkdownSlots, mapSlotsToOutcomes, secureNonce } from "../web/markdown-preview.mjs";
 import { convertMarkdown } from "../web/convert.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const SHOWCASE = readFileSync(join(ROOT, "examples", "showcase.md"), "utf8");
+
+// Node 18 ESM exposes no Web Crypto global, so web/markdown-preview.mjs's default secureNonce()
+// (globalThis.crypto.randomUUID) cannot run here. Inject a fresh, genuinely unpredictable nonce per
+// call — backed by Node's own crypto.randomUUID — mirroring the browser's secure default without
+// making the browser module import node:crypto. Freshness per call is what keeps the anti-forgery
+// test below meaningful (each render mints a distinct, unguessable nonce).
+const freshNonce = () => randomUUID();
 
 // Reused verbatim from test/web-convert.test.mjs rather than inventing new fixtures.
 const HEALTH_BLOCK = `## Checkout
@@ -50,6 +58,19 @@ const x = 1;
 \`\`\`
 `;
 
+test("secureNonce: delegates to the injected Web Crypto's randomUUID, and fails loud (never a weak fallback) when secure Web Crypto is unavailable", () => {
+  // Happy path: the browser default reads globalThis.crypto; here we inject the crypto source so the
+  // assertion is deterministic and version-independent (Node 18 ESM has no Web Crypto global at all).
+  assert.equal(secureNonce({ randomUUID: () => "11111111-1111-4111-8111-111111111111" }), "11111111-1111-4111-8111-111111111111");
+  // Production-default failure: a missing or incomplete Web Crypto must throw explicitly rather than
+  // silently mint a predictable nonce. Proven by injecting the source (no global state mutated).
+  // `null`/`{}` are used instead of `undefined` because passing `undefined` would re-trigger the
+  // `globalThis.crypto` default parameter (present on Node 20+, browsers), masking the guard.
+  assert.throws(() => secureNonce(null), /secure Web Crypto/);
+  assert.throws(() => secureNonce({}), /secure Web Crypto/);
+  assert.throws(() => secureNonce({ randomUUID: "not-a-function" }), /secure Web Crypto/);
+});
+
 test("renderMarkdownSlots: plain Markdown (heading, list, emphasis, inline code, link, table) survives the pure marked pass", () => {
   const doc = [
     "# Title",
@@ -63,7 +84,7 @@ test("renderMarkdownSlots: plain Markdown (heading, list, emphasis, inline code,
     "| - | - |",
     "| 1 | 2 |",
   ].join("\n");
-  const { html } = renderMarkdownSlots(doc);
+  const { html } = renderMarkdownSlots(doc, freshNonce);
   assert.match(html, /<h1[^>]*>Title<\/h1>/);
   assert.match(html, /<li>one<\/li>/);
   assert.match(html, /<li>two<\/li>/);
@@ -74,7 +95,7 @@ test("renderMarkdownSlots: plain Markdown (heading, list, emphasis, inline code,
 });
 
 test("renderMarkdownSlots: a non-mermaid fenced code block falls back to marked's default renderer, untouched", () => {
-  const { html, slotCount } = renderMarkdownSlots(JS_BLOCK);
+  const { html, slotCount } = renderMarkdownSlots(JS_BLOCK, freshNonce);
   assert.equal(slotCount, 0);
   assert.match(html, /<pre><code class="language-js">/);
   assert.doesNotMatch(html, /data-ahm-slot/);
@@ -82,7 +103,7 @@ test("renderMarkdownSlots: a non-mermaid fenced code block falls back to marked'
 
 test("renderMarkdownSlots: every mermaid fence in examples/showcase.md gets one ordered nonce-tagged slot, matching convertMarkdown's own count", () => {
   const results = convertMarkdown(SHOWCASE);
-  const { html, nonce, slotCount } = renderMarkdownSlots(SHOWCASE);
+  const { html, nonce, slotCount } = renderMarkdownSlots(SHOWCASE, freshNonce);
   assert.equal(slotCount, results.length);
   // slots appear in the html in ascending ordinal order (document order)
   const ids = [...html.matchAll(/data-ahm-slot="([^"]+)"/g)].map((m) => m[1]);
@@ -91,7 +112,7 @@ test("renderMarkdownSlots: every mermaid fence in examples/showcase.md gets one 
 
 test("mapSlotsToOutcomes: maps showcase.md's slots to convertMarkdown's own per-block outcome, in order", () => {
   const results = convertMarkdown(SHOWCASE);
-  const { nonce, slotCount } = renderMarkdownSlots(SHOWCASE);
+  const { nonce, slotCount } = renderMarkdownSlots(SHOWCASE, freshNonce);
   const slots = mapSlotsToOutcomes({ nonce, slotCount }, results);
   assert.deepEqual(slots.map((s) => s.outcome.kind), results.map((r) => r.kind));
   assert.deepEqual(slots.map((s) => s.slotId), results.map((_, i) => `${nonce}-${i}`));
@@ -104,7 +125,7 @@ test("mapSlotsToOutcomes: maps showcase.md's slots to convertMarkdown's own per-
 test("mapSlotsToOutcomes: a document mixing health/unsupported/error fences classifies each slot independently, in source order", () => {
   const doc = [HEALTH_BLOCK, SEQUENCE_BLOCK, ZERO_NODE_HEALTH_SHAPED_BLOCK].join("\n");
   const results = convertMarkdown(doc);
-  const { nonce, slotCount } = renderMarkdownSlots(doc);
+  const { nonce, slotCount } = renderMarkdownSlots(doc, freshNonce);
   const slots = mapSlotsToOutcomes({ nonce, slotCount }, results);
   assert.deepEqual(slots.map((s) => s.outcome.kind), ["health", "unsupported", "error"]);
   assert.match(slots[0].outcome.svg, /^<svg[\s>]/);
@@ -113,14 +134,14 @@ test("mapSlotsToOutcomes: a document mixing health/unsupported/error fences clas
 });
 
 test("renderMarkdownSlots: a raw-HTML fragment forging a previous call's exact nonce-tagged placeholder cannot desync the next call's own slot count", () => {
-  const { html: html1, nonce: nonce1 } = renderMarkdownSlots(HEALTH_BLOCK);
+  const { html: html1, nonce: nonce1 } = renderMarkdownSlots(HEALTH_BLOCK, freshNonce);
   const forgedPlaceholder = html1.match(/<div data-ahm-slot="[^"]+"><\/div>/)[0];
   assert.match(forgedPlaceholder, new RegExp(`^<div data-ahm-slot="${nonce1}-0"></div>$`));
 
   // A new render call, whose source is literally the prior call's placeholder markup (raw HTML)
   // followed by one real health fence.
   const doc2 = `${forgedPlaceholder}\n\n${HEALTH_BLOCK}`;
-  const { html: html2, nonce: nonce2, slotCount: slotCount2 } = renderMarkdownSlots(doc2);
+  const { html: html2, nonce: nonce2, slotCount: slotCount2 } = renderMarkdownSlots(doc2, freshNonce);
 
   assert.notEqual(nonce2, nonce1, "each render call must mint a fresh nonce");
   assert.equal(slotCount2, 1, "only the one real fence is counted; the forged placeholder is not a fence");
@@ -141,7 +162,7 @@ test("mapSlotsToOutcomes: a slotCount/results-length mismatch degrades gracefull
 
 test("renderMarkdownSlots: fence-info variants ('mermaid midnight', 'mermaid slate') are still recognized as mermaid slots", () => {
   const doc = "```mermaid midnight\nflowchart BT\n  a --> b\n```\n";
-  const { slotCount, html } = renderMarkdownSlots(doc);
+  const { slotCount, html } = renderMarkdownSlots(doc, freshNonce);
   assert.equal(slotCount, 1);
   assert.match(html, /data-ahm-slot/);
 });
