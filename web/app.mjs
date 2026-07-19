@@ -12,9 +12,13 @@ const editor = document.getElementById("editor");
 const output = document.getElementById("output");
 const status = document.getElementById("status");
 const exportButton = document.getElementById("export-zip");
+const main = document.querySelector("main");
+const maximizeEditorButton = document.getElementById("maximize-editor");
+const maximizeOutputButton = document.getElementById("maximize-output");
 
 let latestResults = [];
 let exportInFlight = false;
+let maximizeActivator = null; // button that triggered the current maximize, for Escape focus return
 
 applyThemeVariables(getTheme("portal"));
 populateExamples();
@@ -24,6 +28,38 @@ loadSelected(); // show a non-empty starting point without changing the dropdown
 select.addEventListener("change", loadSelected);
 editor.addEventListener("input", render);
 exportButton.addEventListener("click", handleExportClick);
+maximizeEditorButton.addEventListener("click", () => togglePaneMaximize("editor", maximizeEditorButton));
+maximizeOutputButton.addEventListener("click", () => togglePaneMaximize("output", maximizeOutputButton));
+document.addEventListener("keydown", handleMaximizeKeydown);
+
+function togglePaneMaximize(pane, activatorButton) {
+  const isActive = main.dataset.maximized === pane;
+  setMaximizedPane(isActive ? null : pane, isActive ? null : activatorButton);
+}
+
+function setMaximizedPane(pane, activatorButton) {
+  if (pane) {
+    main.dataset.maximized = pane;
+  } else {
+    delete main.dataset.maximized;
+  }
+  maximizeActivator = pane ? activatorButton : null;
+  syncMaximizeButton(maximizeEditorButton, "editor", "Maximize editor");
+  syncMaximizeButton(maximizeOutputButton, "output", "Maximize preview");
+}
+
+function syncMaximizeButton(button, pane, restLabel) {
+  const active = main.dataset.maximized === pane;
+  button.textContent = active ? "Restore split view" : restLabel;
+  button.setAttribute("aria-pressed", String(active));
+}
+
+function handleMaximizeKeydown(event) {
+  if (event.key !== "Escape" || !main.dataset.maximized) return;
+  const activator = maximizeActivator;
+  setMaximizedPane(null, null);
+  activator?.focus();
+}
 
 function populateExamples() {
   for (const ex of EXAMPLES) {

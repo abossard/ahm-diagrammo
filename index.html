@@ -27,12 +27,18 @@
     </div>
   </header>
   <main>
-    <div class="pane">
-      <h2 id="editor-label">Markdown source</h2>
+    <div class="pane" id="editor-pane" data-pane="editor">
+      <div class="pane-header">
+        <h2 id="editor-label">Markdown source</h2>
+        <button id="maximize-editor" type="button" aria-controls="editor-pane" aria-pressed="false">Maximize editor</button>
+      </div>
       <textarea id="editor" aria-labelledby="editor-label" spellcheck="false"></textarea>
     </div>
-    <div class="pane">
-      <h2 id="output-label">Rendered diagrams</h2>
+    <div class="pane" id="output-pane" data-pane="output">
+      <div class="pane-header">
+        <h2 id="output-label">Rendered diagrams</h2>
+        <button id="maximize-output" type="button" aria-controls="output-pane" aria-pressed="false">Maximize preview</button>
+      </div>
       <div id="output" role="region" aria-labelledby="output-label"></div>
     </div>
   </main>

@@ -116,13 +116,47 @@ main {
   min-height: 0;
 }
 
-.pane > h2 {
-  margin: 0;
+/* Maximize mode: main[data-maximized] is the single source of truth (set by web/app.mjs).
+   Higher specificity than the plain `main` selector (including inside the <=800px media query
+   below) so a maximized pane always collapses to one column/one row, on mobile or desktop. */
+main[data-maximized] {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+main[data-maximized="editor"] .pane[data-pane="output"],
+main[data-maximized="output"] .pane[data-pane="editor"] {
+  display: none;
+}
+
+.pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
   padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--hair);
+}
+
+.pane-header h2 {
+  margin: 0;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--muted);
-  border-bottom: 1px solid var(--hair);
+}
+
+.pane-header button {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.8rem;
+  padding: 0.35rem 0.6rem;
+  min-height: 2rem;
+  border: 1px solid var(--hair);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 #editor {
