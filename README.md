@@ -6,6 +6,9 @@ Turn the mermaid blocks in a Markdown file into good-looking SVGs — with one c
 npx ahm-diagrammo your-doc.md
 ```
 
+**[Open the browser editor](https://abossard.github.io/ahm-diagrammo/)** to edit Markdown,
+preview every diagram, and download the rendered SVGs and PNGs without installing anything.
+
 Its specialty is **Azure Monitor health models**: Mermaid `flowchart BT` health models become
 SVGs that look like the Azure portal health graph, render as `<img>` on Microsoft Learn (native
 `<text>`, no `foreignObject`), and scale without blurring. Every other mermaid block in the
@@ -78,7 +81,7 @@ Many labeled edges converge on one parent, and one child feeds several parents. 
 child's vertical drop, and the router levels edges by horizontal span. No pill overlaps another, no line
 crosses another, and every pill belongs to one relationship.
 
-![Pills stress test](screenshots/pills-stress.png)
+![Pills stress test](svg/pills-stress.svg)
 
 ### More examples
 
@@ -109,7 +112,8 @@ The command walks the file, and for each ` ```mermaid ` block:
   it finds one via `PUPPETEER_EXECUTABLE_PATH`, `CHROME_PATH`, or the usual install locations).
 
 Each run writes the SVGs, a `manifest.json`, and a `gallery.html` you can open to browse everything at
-once. Try the demo: `npx ahm-diagrammo examples/showcase.md -o out-showcase`.
+once. Try the [browser editor](https://abossard.github.io/ahm-diagrammo/) or run
+`npx ahm-diagrammo examples/showcase.md -o out-showcase`.
 
 ## Agent plugin
 
