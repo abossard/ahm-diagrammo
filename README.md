@@ -21,7 +21,7 @@ The exact same mermaid block, rendered by vanilla mermaid and by diagrammo:
 
 | Vanilla mermaid | `npx ahm-diagrammo` |
 |---|---|
-| ![Vanilla mermaid rendering](screenshots/compare-vanilla.png) | ![diagrammo rendering](screenshots/compare-diagrammo.png) |
+| ![Vanilla mermaid rendering](svg/compare-vanilla.svg) | ![diagrammo rendering](svg/compare-diagrammo.svg) |
 
 Same source, but diagrammo understands what the diagram *means*:
 
@@ -66,14 +66,14 @@ flowchart BT
 Signals live **inside** each entity as a status table (status dot, name, metric icon, result). Health
 rolls up through business flows to the workload root. Relationship labels render as pills.
 
-![Hero](screenshots/hero.png)
+![Hero](svg/hero.svg)
 
 ### Kitchen sink: one figure, every feature
 
 Healthy, Degraded, Unhealthy, Unknown, and Standby states. Multi-row signal tables. Dashed propagation
 edges. Qualifiers like worstOf and active-active. Long names, straight and elbow connectors.
 
-![Kitchen sink](screenshots/kitchen-sink.png)
+![Kitchen sink](svg/kitchen-sink.svg)
 
 ### Pills stress test: labels that never collide
 
@@ -88,11 +88,11 @@ crosses another, and every pill belongs to one relationship.
 | | |
 |---|---|
 | Circuit breaker (limited propagation, unhealthy) | Multi-region (worst-of, tolerated failure) |
-| ![Circuit breaker](screenshots/circuit-breaker.png) | ![Multi-region](screenshots/multi-region.png) |
+| ![Circuit breaker](svg/swimlane/circuit-breaker.svg) | ![Multi-region](svg/swimlane/multi-region-with-worst-of-or-minimum-count-aggregation.svg) |
 | Portfolio (nested models, discovered) | Architecture diagram (declarative) |
-| ![Portfolio](screenshots/portfolio.png) | ![Architecture](screenshots/architecture.png) |
+| ![Portfolio](svg/swimlane/aggregate-health-across-the-workload-portfolio.svg) | ![Architecture](svg/architecture/appservice-baseline.svg) |
 
-All 22 service-guide diagrams: [screenshots/gallery.png](screenshots/gallery.png).
+All 22 service-guide diagrams: [svg/swimlane/](svg/swimlane/).
 
 ## Usage
 
@@ -102,7 +102,7 @@ npx ahm-diagrammo doc.md -o out -t midnight    # pick an output dir and a defaul
 npx ahm-diagrammo doc.md --list                # show what each block would render as
 npx ahm-diagrammo doc.md --verbose             # log every parsed node/edge/fold decision
 npx ahm-diagrammo doc.md --strict              # any warning fails the run (CI-friendly)
-npx ahm-diagrammo doc.md --sync-markdown       # rewrite fences into visible SVG + collapsed source
+npx ahm-diagrammo doc.md --sync-markdown       # rewrite fences into visible SVG + fully hidden source
 ```
 
 The command walks the file, and for each ` ```mermaid ` block:
@@ -120,18 +120,20 @@ once. Try the [browser editor](https://abossard.github.io/ahm-diagrammo/) or run
 
 `--sync-markdown` is the only mode that mutates your Markdown, and it's opt-in. It renders every
 block exactly like the default command, then rewrites each fence in place into a managed block: a
-visible SVG `<img>` above a collapsed `<details><summary>Mermaid source</summary>` that still
-holds the original fence, unchanged and fully editable. On GitHub, the `<img>` renders and the
-source stays collapsed-but-present — this repo's own `README.md:38-62` already ships that exact
-`<details>` + fenced-mermaid pattern, so it's proven against this document rendering on
-github.com right now, not just claimed.
+visible SVG `<img>`, followed by the Mermaid source **fully hidden** (not merely collapsed) inside
+an HTML comment — every literal `-->` in the fence is escaped to `--&gt;` first, so the comment
+never closes early. On GitHub, only the `<img>` renders; no disclosure widget, no leaked fence
+text — verified live against this exact shape via `gh api markdown` (mode=gfm): the response is
+just the heading and the `<img>`, nothing else.
 
 The loop:
 
-1. Edit the Mermaid fence directly in the raw Markdown (bare, or inside an existing `<details>`).
+1. Edit the Mermaid fence directly in the raw Markdown (bare, or inside an existing managed block —
+   see [docs/FEATURES.md](docs/FEATURES.md#sync-svgs-into-markdown) for the exact hidden-comment
+   shape and how to hand-edit it safely).
 2. `npx ahm-diagrammo doc.md --sync-markdown` (or `-o docs/assets --sync-markdown` to colocate the
    SVG next to the doc).
-3. Preview the *rendered* Markdown — the SVG shows, the source stays collapsed.
+3. Preview the *rendered* Markdown — only the SVG shows; the source stays fully hidden.
 4. Commit the Markdown and the emitted `.svg` together.
 
 See [the checked-in sync example](examples/sync-markdown/) for a real, already-synced Markdown
@@ -144,14 +146,20 @@ SLUG -->` marker is the block's permanent identity — later renaming the headin
 adding/changing an in-fence `title=`/`name=`, only updates the visible alt text, never the filename
 or marker. Resyncing any subset of a previously multi-file sync (even a single file on its own)
 keeps that file's own reserved slugs and never renames or overwrites another file's SVG. A real
-render failure, or a corrupted managed block, leaves the file's bytes completely untouched and
-exits non-zero rather than guessing a repair. Two alternatives were considered and rejected: a
-separate `.mmd` sidecar file (splits the single-file edit/preview loop) and wrapping the raw
-Mermaid source in an HTML comment (`<!-- ... -->` ends at the first `-->`, and Mermaid edges like
-`a --> b` would truncate it and leak content — see
-[docs/FEATURES.md](docs/FEATURES.md#sync-svgs-into-markdown)). This is verified against
-GitHub-flavored Markdown specifically; other Markdown renderers that strip raw HTML may not
-collapse the source the same way.
+render failure, a corrupted managed block, or a fence whose text already contains the reserved
+`--&gt;` token (ambiguous to decode later), leaves the file's bytes completely untouched and exits
+non-zero rather than guessing a repair. An existing managed block from any prior version of this
+tool (the old, merely-collapsed `<details>` shape) is recognized as valid and migrated to the new
+hidden-comment shape automatically on its next resync, keeping the same slug and filename.
+
+A separate `.mmd` sidecar file was considered and rejected: it splits the single-file edit/preview
+loop. Wrapping the raw, *unescaped* Mermaid source directly in an HTML comment was also rejected —
+an HTML comment ends at the first literal `-->`, and Mermaid edges like `a --> b` would truncate it
+and leak the remainder as visible content; escaping every `-->` to `--&gt;` first (and rejecting,
+before any write, a fence that already contains that literal token — it would decode ambiguously)
+is what makes the comment safe. See
+[docs/FEATURES.md](docs/FEATURES.md#sync-svgs-into-markdown) for the full mechanism, the exact
+codec, and the GitHub/Microsoft Learn/CommonMark verification boundary.
 
 ## Agent plugin
 

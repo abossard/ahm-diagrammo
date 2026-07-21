@@ -198,6 +198,26 @@ test("--sync-markdown: default (no flag) leaves Markdown byte-unchanged", async 
   assert.equal(readFileSync(mdPath, "utf8"), original);
 });
 
+test("default (no --sync-markdown) rendering of an already-synced file decodes the hidden-source comment — the renderer sees real Mermaid, never escaped text, and the Markdown still stays byte-unchanged", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  writeFileSync(mdPath, healthDoc(), "utf8");
+  const outDir = join(dir, "out");
+  const r1 = await run(mdPath, "-o", outDir, "--sync-markdown");
+  assert.equal(r1.code, 0, r1.stderr);
+  const synced = readFileSync(mdPath, "utf8");
+  assert.match(synced, /--&gt;/, "sanity: the fence is stored escaped on disk after sync");
+
+  // now render the ALREADY-SYNCED file again, this time WITHOUT --sync-markdown at all
+  const out2 = join(dir, "out2");
+  const r2 = await run(mdPath, "-o", out2);
+  assert.equal(r2.code, 0, r2.stderr);
+  assert.equal(readFileSync(mdPath, "utf8"), synced, "default mode must never mutate the Markdown");
+  const svg2 = readFileSync(join(out2, "checkout.svg"), "utf8");
+  const svg1 = readFileSync(join(outDir, "checkout.svg"), "utf8");
+  assert.equal(svg2, svg1, "re-rendering from the hidden, escaped comment must reproduce the identical SVG a fresh render would — proving the renderer saw decoded, real Mermaid, not escaped text or a parse failure");
+});
+
 test("--sync-markdown: first run rewrites the fence into a managed block and writes the SVG", async () => {
   const dir = tmp();
   const mdPath = join(dir, "doc.md");
@@ -207,9 +227,10 @@ test("--sync-markdown: first run rewrites the fence into a managed block and wri
   assert.equal(r.code, 0, r.stderr);
   assert.ok(existsSync(join(outDir, "checkout.svg")));
   const synced = readFileSync(mdPath, "utf8");
-  assert.match(synced, /<!-- diagrammo:sync checkout -->\n!\[Checkout\]\(out\/checkout\.svg\)\n\n<details>\n<summary>Mermaid source<\/summary>\n\n```mermaid\nflowchart BT/);
-  assert.doesNotMatch(synced, /<details open/);
-  assert.match(synced, /<\/details>\n<!-- \/diagrammo:sync checkout -->/);
+  assert.match(synced, /<!-- diagrammo:sync checkout -->\n!\[Checkout\]\(out\/checkout\.svg\)\n\n<!-- diagrammo:source\n```mermaid\nflowchart BT/);
+  assert.doesNotMatch(synced, /<details/, "old collapsed-<details> mechanism must be gone");
+  assert.doesNotMatch(synced, /Mermaid source</, "no visible disclosure text of any kind");
+  assert.match(synced, /-->\n<!-- \/diagrammo:sync checkout -->/);
   assert.match(synced, /More prose stays put\./);
 });
 
@@ -291,6 +312,95 @@ test("--sync-markdown: a real render failure leaves the Markdown unchanged and r
   assert.equal(r.code, 1);
   assert.match(r.stderr, /FAIL .*errors\.md:5\s+garbage-that-parses-to-nothing: no nodes parsed/);
   assert.equal(readFileSync(mdPath, "utf8"), original);
+});
+
+// ---- Migrating a pre-existing OLD <details>-shape managed block to the new hidden-comment shape
+
+test("--sync-markdown: an existing OLD <details>-shape managed block (from any prior tool version) is recognized as valid and migrated to the new hidden-comment shape on resync, keeping its slug/filename identity and fence content", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  const outDir = join(dir, "out");
+  const oldShape = [
+    "## Checkout", "",
+    "<!-- diagrammo:sync checkout -->",
+    "![Checkout](out/checkout.svg)", "",
+    "<details>", "<summary>Mermaid source</summary>", "",
+    "```mermaid", HEALTH_MERMAID, "```", "",
+    "</details>",
+    "<!-- /diagrammo:sync checkout -->", "",
+    "More prose stays put.",
+  ].join("\n") + "\n";
+  writeFileSync(mdPath, oldShape, "utf8");
+  const r = await run(mdPath, "-o", outDir, "--sync-markdown");
+  assert.equal(r.code, 0, r.stderr);
+  const migrated = readFileSync(mdPath, "utf8");
+  assert.doesNotMatch(migrated, /<details/, "old collapsed mechanism must be fully replaced");
+  assert.match(migrated, /<!-- diagrammo:sync checkout -->\n!\[Checkout\]\(out\/checkout\.svg\)\n\n<!-- diagrammo:source\n```mermaid/);
+  assert.match(migrated, /-->\n<!-- \/diagrammo:sync checkout -->/);
+  assert.equal((migrated.match(/diagrammo:sync checkout/g) || []).length, 2, "same slug, no duplicate");
+  assert.match(migrated, /More prose stays put\./);
+  assert.ok(existsSync(join(outDir, "checkout.svg")), "reuses the same, stable filename — no orphan asset");
+
+  // migrating is itself idempotent from here on
+  const r2 = await run(mdPath, "-o", outDir, "--sync-markdown");
+  assert.equal(r2.code, 0, r2.stderr);
+  assert.equal(readFileSync(mdPath, "utf8"), migrated);
+});
+
+// ---- Ambiguity guard: a fence already containing the reserved "--&gt;" token must be rejected --
+
+test("--sync-markdown: a fence whose raw text already contains the reserved '--&gt;' token is rejected in preflight, before any SVG/manifest/gallery/Markdown write", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  const original = [
+    "## Checkout", "",
+    "```mermaid",
+    'flowchart BT',
+    '    a["already --&gt; encoded label"] --> b["B"]',
+    "```",
+  ].join("\n") + "\n";
+  writeFileSync(mdPath, original, "utf8");
+  const outDir = join(dir, "out");
+  const r = await run(mdPath, "-o", outDir, "--sync-markdown");
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /error: cannot sync .*doc\.md.*reserved token/);
+  assert.equal(readFileSync(mdPath, "utf8"), original, "input bytes must stay unchanged");
+  assert.ok(!existsSync(outDir), "must fail before any render/manifest/gallery write");
+});
+
+// ---- extractBlocks()/the renderer must never see escaped text — proven via an observable SVG ---
+
+test("--sync-markdown: hand-editing the fence directly inside the hidden comment (decode -> edit -> resync) is picked up by the renderer as real Mermaid, not escaped text", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  writeFileSync(mdPath, healthDoc(), "utf8");
+  const outDir = join(dir, "out");
+  const r1 = await run(mdPath, "-o", outDir, "--sync-markdown");
+  assert.equal(r1.code, 0, r1.stderr);
+  const svgPath = join(outDir, "checkout.svg");
+  const svgBefore = readFileSync(svgPath, "utf8");
+  assert.doesNotMatch(svgBefore, />NewNode</);
+
+  // Hand-edit *inside* the hidden comment: add a brand-new node/edge in plain, unescaped Mermaid —
+  // exactly as the documented decode/edit/re-encode flow describes. If extractBlocks() (or the
+  // renderer) ever received the wrapper's escaped text as-is, the pre-existing "--&gt;" tokens
+  // would be invalid Mermaid syntax and rendering would fail outright, rather than succeed with
+  // both the untouched old edges and the freshly-typed new one.
+  const synced = readFileSync(mdPath, "utf8");
+  const edited = synced.replace(
+    "classDef green fill:#f2f8f2,stroke:#a0d8a0;",
+    'newNode["NewNode<br/>healthy"] --> b\n    classDef green fill:#f2f8f2,stroke:#a0d8a0;',
+  );
+  assert.notEqual(edited, synced, "expected the fixture edit to actually change the fence");
+  writeFileSync(mdPath, edited, "utf8");
+
+  const r2 = await run(mdPath, "-o", outDir, "--sync-markdown");
+  assert.equal(r2.code, 0, r2.stderr);
+  const svgAfter = readFileSync(svgPath, "utf8");
+  assert.match(svgAfter, />NewNode</, "the renderer saw the real, decoded Mermaid, including the hand-typed new node");
+  const finalMd = readFileSync(mdPath, "utf8");
+  assert.equal((finalMd.match(/diagrammo:sync checkout/g) || []).length, 2);
+  assert.match(finalMd, /newNode\["NewNode<br\/>healthy"\] --&gt; b/, "sanity: the hand-typed new edge is escaped on disk, on the next resync");
 });
 
 test("--sync-markdown: a malformed managed marker leaves the Markdown unchanged with a nonzero exit", async () => {

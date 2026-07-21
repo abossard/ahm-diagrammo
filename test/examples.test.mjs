@@ -16,7 +16,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { extractBlocks } from "../src/extract.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
-import { validateManagedSpans } from "../src/markdown-sync.mjs";
+import { validateManagedSpans, decodeManagedSpans } from "../src/markdown-sync.mjs";
 import { parseGraph, foldSignals, looksLikeHealthModel } from "../src/swimlane.mjs";
 import { verifySvgString } from "./helpers/geo.mjs";
 
@@ -61,8 +61,11 @@ test("examples/sync-markdown/README.md holds exactly one canonical managed block
   assert.equal(spans.length, 1, `expected exactly one managed span, found ${spans.length}`);
   const slug = spans[0].slug;
 
-  // fenced source is still extractable inside the managed block
-  const blocks = extractBlocks(md, THEME_NAMES);
+  // the fence's real Mermaid source lives escaped inside a hidden-source comment on disk —
+  // extractBlocks() must always see the *decoded* view, never the raw/escaped text
+  assert.match(md, /--&gt;/, "sanity: the committed fence is stored escaped on disk");
+  const decoded = decodeManagedSpans(md);
+  const blocks = extractBlocks(decoded, THEME_NAMES);
   assert.equal(blocks.length, 1, "expected exactly one mermaid fence");
   assert.equal(blocks[0].slug, slug);
   assert.match(blocks[0].code, /^flowchart BT/m);
@@ -74,13 +77,15 @@ test("examples/sync-markdown/README.md holds exactly one canonical managed block
   assert.ok(existsSync(svgPath), `image href does not resolve to a real file: ${hrefMatch[1]}`);
   assert.match(hrefMatch[1], new RegExp(`^assets/${slug}\\.svg$`));
 
-  // <details> is collapsed by default, and the <img> sits above it (marked structural check,
-  // same technique as test/markdown-sync.test.mjs)
+  // the Mermaid source is fully hidden (not merely collapsed): no <details>/<summary> disclosure
+  // widget, no leaked fence content, and the <img> is the only visible/renderable element (marked
+  // structural check, same technique as test/markdown-sync.test.mjs)
   const html = marked.parse(md);
-  assert.doesNotMatch(html, /<details open/);
+  assert.doesNotMatch(html, /<details/);
+  assert.doesNotMatch(html, /<summary/);
+  assert.doesNotMatch(html, /<pre><code class="language-mermaid">/, "the mermaid fence itself must never render as visible code");
   const imgIdx = html.indexOf(`<img src="${hrefMatch[1]}"`);
-  const detailsIdx = html.indexOf("<details>");
-  assert.ok(imgIdx >= 0 && detailsIdx > imgIdx, "expected <img> above a collapsed <details>");
+  assert.ok(imgIdx >= 0, "expected a visible <img>");
 
   // non-trivial diagram: verified via the project's own parser, not brittle line counts
   assert.equal(looksLikeHealthModel(blocks[0].code), true);

@@ -28,7 +28,7 @@ npx ahm-diagrammo <file.md> [more.md ...] [options]
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
       --no-gallery       don't write gallery.html
-      --sync-markdown    rewrite each file's fences into a visible <img> + collapsed source
+      --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden source
   -h, --help             this help
   -V, --version          print version
 ```
@@ -58,70 +58,112 @@ writing files", "--no-gallery skips gallery.html", "multiple files aggregate int
 
 `--sync-markdown` is the one mutating mode: it renders every block exactly as the default command
 does, then rewrites each ` ```mermaid ` fence *in place* into a machine-owned **managed block** —
-a visible SVG `<img>` followed by a collapsed `<details><summary>Mermaid source</summary>` that
-still holds the original, fully editable fence:
+a visible SVG `<img>` followed by the Mermaid source **fully hidden** (not merely collapsed)
+inside an HTML comment. Three independent, non-nested comments make up the whole block: the begin
+marker, a "hidden-source" comment wrapping the fence, and the end marker:
 
 `````markdown
 <!-- diagrammo:sync checkout -->
 ![Checkout](diagrams/checkout.svg)
 
-<details>
-<summary>Mermaid source</summary>
-
+<!-- diagrammo:source
 ```mermaid
 flowchart BT
-a["A<br/>healthy"] --> b["B<br/>healthy"]
+a["A<br/>healthy"] --&gt; b["B<br/>healthy"]
 ```
-
-</details>
+-->
 <!-- /diagrammo:sync checkout -->
 `````
+
+The fully editable fence lives inside the hidden-source comment with every literal `-->` escaped
+to `--&gt;` — an HTML comment ends at the first `-->` it meets, and Mermaid edges (`a --> b`) would
+otherwise truncate it early and leak the remainder as visible content. Escaping is exact and
+minimal (only the 3-character string `-->`, never a broad HTML-entity decode) and fully reversible;
+decoding is the same substitution in reverse. A fence whose raw text already contains the literal
+`--&gt;` token is rejected — before any SVG/manifest/gallery/Markdown write — because decoding it
+back later would be ambiguous.
 
 The recommended loop:
 
 ```bash
-# 1. edit the mermaid fence directly in the raw Markdown (or inside the collapsed <details>)
+# 1. edit the mermaid fence directly in the raw Markdown (bare, or inside an existing managed
+#    block's hidden-source comment — real arrows there are fine; the next resync re-escapes them)
 # 2. re-render + rewrite the managed block in place
 npx ahm-diagrammo doc.md --sync-markdown
 npx ahm-diagrammo doc.md -o docs/assets --sync-markdown   # colocate the SVG under docs/assets
-# 3. preview the *rendered* Markdown (GitHub, VS Code preview, …) — the SVG shows, the source
-#    stays collapsed but present
+# 3. preview the *rendered* Markdown (GitHub, VS Code preview, …) — only the SVG shows, the
+#    source stays fully hidden, not just collapsed
 # 4. commit both the Markdown and the emitted .svg
 ```
 
-On GitHub.com, `<details>` with no `open` attribute renders **collapsed by default** — verified
-against this repository's own `README.md:38-62`, which already ships the same
-`<details><summary>...</summary>` + fenced-mermaid pattern in production. That collapse behavior
-is a property of GitHub-flavored Markdown specifically; it is not verified (and not claimed) for
-other Markdown renderers or static-site pipelines, some of which strip raw HTML.
+### Verified renderer boundary
 
-The begin/end `<!-- diagrammo:sync <slug> -->` comments carry only the block's machine-generated
-slug — never the title or the Mermaid source — because an HTML comment ends at the first `-->`,
-and Mermaid edges (`a --> b`) would otherwise truncate it early and leak content. For the same
-reason, the Mermaid source is never wrapped in an HTML comment to "hide" it; the collapsed
-`<details>` is the only mechanism used to keep it out of the way while still rendering.
+- **GitHub-flavored Markdown:** verified live against this exact shape via `gh api markdown`
+  (mode=gfm) — the response is only the heading and the `<img>`; no disclosure text, no leaked
+  fence content. An *unescaped* comment (a real `-->` left inside) was verified, the same way, to
+  truncate early and leak the remainder as visible prose — which is why the escaping exists.
+- **Any CommonMark-conformant renderer:** proven with `marked` (`{gfm:true}`, already a repo
+  dependency) as a portable, no-network proxy — the hidden-source comment passes through as one
+  opaque HTML-comment node, never re-parsed as Markdown, never wrapped in a visible element. This
+  is a property of CommonMark's own HTML-block grammar (spec 0.31.2: an HTML comment's "start
+  condition" is a line beginning with `<!--`; its "end condition" is a line containing the string
+  `-->`) — not a GitHub-specific behavior.
+- **Microsoft Learn:** Microsoft Learn's own contributor guide states HTML comments are supported
+  and invisible to the reader:
+  > "Microsoft Learn supports HTML comments if you must comment out sections of your article... Do
+  > not put private or sensitive information in HTML comments. Microsoft Learn carries HTML
+  > comments through to the published HTML that goes public. While HTML comments are invisible to
+  > the reader's eye, they are exposed in the HTML underneath."
+  — [Markdown reference for Microsoft Learn](https://learn.microsoft.com/en-us/contribute/content/markdown-reference#comments).
+  Microsoft Learn's own parsing engine, [Markdig](https://github.com/lunet-io/markdig), claims 600+
+  CommonMark 0.31.2 spec-test conformance, and CommonMark's HTML-block grammar recognizes a
+  comment as one opaque raw-text span before any nested block parsing (including fenced-code
+  recognition) ever runs on its contents — so a fenced ` ```mermaid ` block *inside* an
+  already-open comment can never be pulled back out and reprocessed by Markdig's own Mermaid
+  "Diagrams" extension. This is reasoned from the official statement plus CommonMark-conformance,
+  not a live Microsoft Learn/OPS/Markdig build (this repo intentionally doesn't add a Markdig/OPS
+  toolchain just to test one feature).
+  The same guide's **HTML** section notes general raw HTML "isn't recommended for publishing to
+  Microsoft Learn, and except for a limited list of values will cause build errors or warnings" —
+  the old, now-replaced `<details>`-based mechanism carried this risk; the comment-based mechanism
+  is Microsoft Learn's own documented, recommended way to hide content instead.
+  **Caveat:** `.svg` is not one of Microsoft Learn's two *default*-supported image types (`.jpg`
+  and `.png` are); like `.gif` (the guide's own example), it needs an explicit
+  `"resource"` entry in the docset's `docfx.json` — e.g. `"**/*.svg"` in a `files` array — or the
+  emitted image won't be picked up by the Learn build. This is a live, current, widespread pattern
+  across official Microsoft docs repositories, including diagram-focused ones (for example,
+  `MicrosoftDocs/architecture-center`'s `docfx.json` registers `"**/*.svg"`).
 
 Reruns are idempotent (unchanged input produces byte-identical output, no nested wrappers) and
-edit-aware (editing the fence inside an existing managed block and rerunning regenerates the SVG
-and updates the same block in place). **A managed block's marker slug is its stable, first-generated
-identity and SVG filename for the rest of that block's life** — renaming the surrounding heading or
-adding/changing an in-fence `title=`/`name=` only changes the visible alt text, never the filename
-or marker; the CLI preflights every input file's existing managed markers and reserves all their
-slugs *before* rendering or deriving any new slug, so resyncing any subset of a previously
-multi-file sync (even one file alone) can never rename or overwrite another file's SVG, and a new
-plain block colliding with an existing managed slug is bumped to the next unique slug instead. The
-Markdown file is mutated only after every block in it has rendered with no failures; a real render
-failure, a malformed pre-existing managed block (missing end marker, mismatched slug, duplicate
-slug), or a managed slug duplicated across two input files in the same run, leaves every affected
-file's bytes completely unchanged and reports a nonzero exit *before* any SVG/manifest/gallery
-write — never a guessed repair, never a newly orphaned asset. `--list` always wins: combined with
-`--sync-markdown` it still writes nothing.
+edit-aware (editing the fence — even by hand, directly inside the hidden-source comment — and
+rerunning regenerates the SVG and updates the same block in place; `extractBlocks()` and the
+renderer always see the decoded, real Mermaid text, never the escaped on-disk bytes). **A managed
+block's marker slug is its stable, first-generated identity and SVG filename for the rest of that
+block's life** — renaming the surrounding heading or adding/changing an in-fence `title=`/`name=`
+only changes the visible alt text, never the filename or marker; the CLI preflights every input
+file's existing managed markers and reserves all their slugs *before* rendering or deriving any
+new slug, so resyncing any subset of a previously multi-file sync (even one file alone) can never
+rename or overwrite another file's SVG, and a new plain block colliding with an existing managed
+slug is bumped to the next unique slug instead. An existing managed block from any prior version of
+this tool — the old, merely-collapsed `<details><summary>Mermaid source</summary>` shape — is
+recognized as valid (not malformed) and migrated to the new hidden-comment shape automatically on
+its next resync, keeping the same slug/filename identity and fence content. The Markdown file is
+mutated only after every block in it has rendered with no failures; a real render failure, a
+malformed pre-existing managed block (missing end marker, mismatched slug, duplicate slug,
+malformed hidden-source comment), a fence that already contains the reserved `--&gt;` token, or a
+managed slug duplicated across two input files in the same run, leaves every affected file's bytes
+completely unchanged and reports a nonzero exit *before* any SVG/manifest/gallery write — never a
+guessed repair, never a newly orphaned asset. `--list` always wins: combined with `--sync-markdown`
+it still writes nothing.
 
-*Verified by:* `markdown-sync.test.mjs` — exact literal managed block, GitHub-rendering HTML shape
-via `marked`, byte-identical fence recovery, multiple/colliding-slug mapping, non-managed lines
-preserved, idempotent rerun, edit-then-resync, a valid managed span never rejected for a
-heading/title-derived slug change, `preferredIdentities()`'s stable-slug-by-open-line mapping,
-CRLF/no-trailing-newline preservation, space-in-path angle destination, malformed-marker rejection;
+*Verified by:* `markdown-sync.test.mjs` — codec round-trip across arrow variants and blank lines,
+`--&gt;`-collision rejection, exact literal managed block, GitHub/CommonMark-rendering HTML shape
+via `marked` (only the `<img>` visible, hidden comment passes through verbatim), byte-identical
+fence recovery through `decodeManagedSpans()`, multiple/colliding-slug mapping, non-managed lines
+preserved, idempotent rerun, hand-edit-inside-the-hidden-comment-then-resync, OLD-`<details>`-shape
+migration, a valid managed span never rejected for a heading/title-derived slug change,
+`preferredIdentities()`'s stable-slug-by-open-line mapping, CRLF/no-trailing-newline preservation,
+space-in-path angle destination, malformed-marker rejection (both marker shapes);
 `extract.test.mjs` — a preferred slug wins over the heading/title-derived one, `reserveSlug()`
 reserving both a bare and an already-suffixed slug; `cli.test.mjs` — "--sync-markdown" end-to-end
 cases (first sync, idempotent rerun, edit-then-rerun, multi-block, nested relative href,
@@ -129,7 +171,9 @@ render-failure leaves file unchanged, malformed-marker leaves file unchanged, ze
 `--list` wins, heading rename keeps the stable filename, title=/name= edit keeps the stable
 filename, resyncing a subset of a multi-file sync keeps its reserved slug, a new plain block
 colliding with a managed slug gets the next unique slug, a managed slug duplicated across input
-files fails before any write).
+files fails before any write, OLD-shape migration, `--&gt;`-collision preflight rejection,
+hand-edited hidden comment picked up by the renderer, default-mode rendering of an already-synced
+file).
 
 ## Renderer selection
 

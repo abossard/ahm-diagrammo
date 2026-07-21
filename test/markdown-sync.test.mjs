@@ -1,15 +1,120 @@
 // Tests for the pure markdown-sync transform: turns a plain ```mermaid fence into a machine-owned
-// managed block (visible <img> + collapsed <details> holding the still-editable fence), and keeps
-// reruns idempotent/edit-aware. No filesystem, no subprocess — see cli.test.mjs for the real CLI
+// managed block (visible <img> plus a fully hidden HTML comment holding the still-editable fence,
+// its `-->` terminators escaped to `--&gt;` so the comment never closes early), and keeps reruns
+// idempotent/edit-aware. No filesystem, no subprocess — see cli.test.mjs for the real CLI
 // end-to-end proof of mutation/atomic-rename/path-resolution.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { marked } from "marked";
-import { syncMarkdown, svgHref, escapeAltText, preferredIdentities } from "../src/markdown-sync.mjs";
+import {
+  syncMarkdown, svgHref, escapeAltText, preferredIdentities,
+  escapeCommentTerminator, unescapeCommentTerminator, decodeManagedSpans, assertBlocksEncodable,
+} from "../src/markdown-sync.mjs";
 import { extractBlocks } from "../src/extract.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
 
-test("syncMarkdown: wraps a plain fence into the exact literal managed block", () => {
+// ---------- codec: escapeCommentTerminator / unescapeCommentTerminator ----------
+
+test("escapeCommentTerminator/unescapeCommentTerminator: round-trips every arrow variant and blank-line-separated bodies byte-for-byte", () => {
+  const cases = {
+    "plain arrow": "a --> b",
+    "dotted arrow": "a -.-> b",
+    "thick arrow": "a ==> b",
+    "cross arrow": "a --x b",
+    "circle arrow": "a --o b",
+    "async arrow (contains a real --> prefix plus a trailing >)": "a -->> b",
+    "multiple arrows on one line": "a --> b --> c",
+    "blank lines between statements": "a --> b\n\nc --> d\n\ne --> f",
+    "no arrows at all": "flowchart BT\nclassDef green fill:#0f0;",
+  };
+  for (const [name, raw] of Object.entries(cases)) {
+    const encoded = escapeCommentTerminator(raw);
+    assert.equal(unescapeCommentTerminator(encoded), raw, name);
+    // encoding must never insert/remove a line — line count is stable (see decode-view line-number
+    // stability requirement: extractBlocks()'s line-based indexing must stay valid either way).
+    assert.equal(encoded.split("\n").length, raw.split("\n").length, `${name}: line count changed`);
+  }
+});
+
+test("escapeCommentTerminator: every literal '-->' becomes '--&gt;', never a bare '>' left dangling", () => {
+  assert.equal(escapeCommentTerminator("a --> b"), "a --&gt; b");
+  assert.equal(escapeCommentTerminator("a -->> b"), "a --&gt;> b");
+  assert.doesNotMatch(escapeCommentTerminator("a --> b --> c"), /-->/);
+});
+
+test("escapeCommentTerminator: rejects (throws) raw text that already contains the reserved encoded token, naming the reason", () => {
+  assert.throws(
+    () => escapeCommentTerminator('a["already --&gt; encoded"] --> b'),
+    /already contains.*--&gt;|reserved/i,
+  );
+});
+
+test("unescapeCommentTerminator: is the exact inverse of escapeCommentTerminator for any input that survived encoding", () => {
+  const raw = "a --> b\nc -.-> d\ne ==> f";
+  assert.equal(unescapeCommentTerminator(escapeCommentTerminator(raw)), raw);
+});
+
+// ---------- decodeManagedSpans: recover real Mermaid text from a hidden-source comment ----------
+
+test("decodeManagedSpans: unescapes only the lines inside a hidden-source comment, leaving everything else byte-identical", () => {
+  const md = [
+    "# Title",
+    "<!-- diagrammo:sync checkout -->",
+    "![Checkout](checkout.svg)",
+    "",
+    "<!-- diagrammo:source",
+    "```mermaid",
+    "flowchart BT",
+    "a --&gt; b",
+    "```",
+    "-->",
+    "<!-- /diagrammo:sync checkout -->",
+    "",
+    "Prose mentioning --&gt; literally should never be touched, since it sits outside any comment.",
+  ].join("\n");
+  const decoded = decodeManagedSpans(md);
+  const lines = decoded.split("\n");
+  assert.equal(lines[7], "a --> b", "fence body inside the comment must be unescaped");
+  assert.equal(lines[12], "Prose mentioning --&gt; literally should never be touched, since it sits outside any comment.", "text outside a hidden-source comment is never decoded (no broad HTML-entity decode)");
+  assert.equal(lines.length, md.split("\n").length, "decode never changes line count");
+});
+
+test("decodeManagedSpans: a bare fence or an old <details>-shape fence (no hidden-source comment) passes through completely unchanged", () => {
+  const bare = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
+  assert.equal(decodeManagedSpans(bare), bare);
+  const oldShape = [
+    "<!-- diagrammo:sync checkout -->", "![Checkout](checkout.svg)", "",
+    "<details>", "<summary>Mermaid source</summary>", "",
+    "```mermaid", "flowchart BT", "a --> b", "```", "",
+    "</details>", "<!-- /diagrammo:sync checkout -->",
+  ].join("\n") + "\n";
+  assert.equal(decodeManagedSpans(oldShape), oldShape);
+});
+
+test("decodeManagedSpans: a hidden-source comment that never finds a closing '-->' fails loudly", () => {
+  // deliberately no end identity marker either, so there is truly no "-->" anywhere in the
+  // remainder of the document (an end marker line would itself contain one and be mistaken for it)
+  const malformed = [
+    "<!-- diagrammo:sync checkout -->", "![Checkout](checkout.svg)", "",
+    "<!-- diagrammo:source", "```mermaid", "flowchart BT", "a --&gt; b", "```",
+    // no closing "-->" at all
+  ].join("\n") + "\n";
+  assert.throws(() => decodeManagedSpans(malformed), /hidden-source comment opened at line 4 is missing its closing/);
+});
+
+test("decodeManagedSpans: a line that clearly attempts a hidden-source marker but has the wrong shape fails loudly rather than being silently treated as prose", () => {
+  const cases = {
+    "trailing self-close (would never stay open across the fence)": "<!-- diagrammo:source -->",
+    "extra token after the keyword": "<!-- diagrammo:source extra",
+    "no space, still self-closed": "<!--diagrammo:source-->",
+  };
+  for (const [name, sourceLine] of Object.entries(cases)) {
+    const md = ["<!-- diagrammo:sync checkout -->", "![x](x.svg)", "", sourceLine, "```mermaid", "flowchart BT", "a --&gt; b", "```", "-->", "<!-- /diagrammo:sync checkout -->"].join("\n") + "\n";
+    assert.throws(() => decodeManagedSpans(md), /looks like a hidden-source marker but is not a valid one/, name);
+  }
+});
+
+test("syncMarkdown: wraps a plain fence into the exact literal managed block (visible <img> plus one hidden-source comment holding the escaped fence)", () => {
   const md = [
     "# Doc",
     "",
@@ -32,15 +137,12 @@ test("syncMarkdown: wraps a plain fence into the exact literal managed block", (
     "<!-- diagrammo:sync checkout -->",
     "![Checkout](checkout.svg)",
     "",
-    "<details>",
-    "<summary>Mermaid source</summary>",
-    "",
+    "<!-- diagrammo:source",
     "```mermaid",
     "flowchart BT",
-    "a --> b",
+    "a --&gt; b",
     "```",
-    "",
-    "</details>",
+    "-->",
     "<!-- /diagrammo:sync checkout -->",
     "",
     "More prose.",
@@ -48,26 +150,32 @@ test("syncMarkdown: wraps a plain fence into the exact literal managed block", (
   assert.equal(out, expected);
 });
 
-test("syncMarkdown: GitHub-flavored rendering shows the img and keeps <details> collapsed with the fence intact", () => {
+test("syncMarkdown: GitHub-flavored/CommonMark rendering shows only the <img> — no visible disclosure text, no leaked fence content, and the hidden comment passes through verbatim as an inert node", () => {
   const md = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
   const [b] = extractBlocks(md, THEME_NAMES);
   const out = syncMarkdown(md, [{ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: b.heading, href: "checkout.svg" }]);
-  const html = marked.parse(out);
-  // <img> sits outside/above <details>
-  const imgIdx = html.indexOf('<img src="checkout.svg"');
-  const detailsIdx = html.indexOf("<details>");
-  assert.ok(imgIdx >= 0 && detailsIdx > imgIdx, html);
-  // <details> carries no open attribute (collapsed by default)
-  assert.doesNotMatch(html, /<details open/);
-  // the fenced mermaid source is present inside, as real markdown-rendered code, not escaped text
-  assert.match(html, /<pre><code class="language-mermaid">flowchart BT\na --&gt; b\n<\/code><\/pre>/);
+  const html = marked.parse(out); // marked defaults to gfm:true, the repo's existing GFM proxy
+  // the <img> is the only visible/renderable element this block produces
+  assert.match(html, /<img src="checkout\.svg" alt="Checkout">/);
+  // no collapsed-but-present disclosure widget (that was the old, merely-collapsed mechanism)
+  assert.doesNotMatch(html, /<details/);
+  assert.doesNotMatch(html, /<summary/);
+  assert.doesNotMatch(html, /Mermaid source/);
+  // no leaked fence content rendered as visible markdown (a <pre><code> block would be visible)
+  assert.doesNotMatch(html, /<pre>/);
+  assert.doesNotMatch(html, /<code/);
+  // the hidden-source comment is present verbatim (proving pass-through, not corruption/loss) —
+  // marked classifies it as one opaque HTML-comment block, never re-wrapped in a visible <p>
+  assert.match(html, /<!-- diagrammo:source\n```mermaid\nflowchart BT\na --&gt; b\n```\n-->/);
+  assert.doesNotMatch(html, /<p>[^<]*<!-- diagrammo:source/);
 });
 
-test("syncMarkdown: the fence recovered from the synced Markdown is byte-identical to the original", () => {
+test("syncMarkdown: the fence recovered (via decodeManagedSpans) from the synced Markdown is byte-identical to the original", () => {
   const original = "## Metrics\n\n```mermaid swimlane theme=candy title=\"X\"\nflowchart BT\na[\"A\"] --> b[\"B\"]\n```\n";
   const [b] = extractBlocks(original, THEME_NAMES);
   const out = syncMarkdown(original, [{ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: b.heading, href: "metrics.svg" }]);
-  const [recovered] = extractBlocks(out, THEME_NAMES);
+  // extractBlocks() must never see escaped text directly — every real caller decodes first
+  const [recovered] = extractBlocks(decodeManagedSpans(out), THEME_NAMES);
   assert.equal(recovered.code, b.code);
   assert.equal(recovered.info, b.info);
 });
@@ -96,14 +204,14 @@ test("syncMarkdown: multiple blocks including colliding headings map to the corr
   assert.deepEqual(blocks.map((b) => b.slug), ["same", "same-2", "other"]);
   const specs = blocks.map((b) => ({ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: b.heading, href: `${b.slug}.svg` }));
   const out = syncMarkdown(md, specs);
-  const reBlocks = extractBlocks(out, THEME_NAMES);
+  const reBlocks = extractBlocks(decodeManagedSpans(out), THEME_NAMES);
   assert.deepEqual(reBlocks.map((b) => b.slug), ["same", "same-2", "other"]);
   assert.equal(reBlocks[0].code, blocks[0].code);
   assert.equal(reBlocks[1].code, blocks[1].code);
   assert.equal(reBlocks[2].code, blocks[2].code);
-  assert.match(out, /<!-- diagrammo:sync same -->[\s\S]*?a --> b[\s\S]*?<!-- \/diagrammo:sync same -->/);
-  assert.match(out, /<!-- diagrammo:sync same-2 -->[\s\S]*?c --> d[\s\S]*?<!-- \/diagrammo:sync same-2 -->/);
-  assert.match(out, /<!-- diagrammo:sync other -->[\s\S]*?e --> f[\s\S]*?<!-- \/diagrammo:sync other -->/);
+  assert.match(out, /<!-- diagrammo:sync same -->[\s\S]*?a --&gt; b[\s\S]*?<!-- \/diagrammo:sync same -->/);
+  assert.match(out, /<!-- diagrammo:sync same-2 -->[\s\S]*?c --&gt; d[\s\S]*?<!-- \/diagrammo:sync same-2 -->/);
+  assert.match(out, /<!-- diagrammo:sync other -->[\s\S]*?e --&gt; f[\s\S]*?<!-- \/diagrammo:sync other -->/);
 });
 
 test("syncMarkdown: every non-managed line survives untouched, verbatim", () => {
@@ -148,17 +256,22 @@ test("syncMarkdown: rerunning on unchanged input is byte-identical (no nested wr
   assert.equal((twice.match(/diagrammo:sync checkout/g) || []).length, 2); // exactly one begin + one end
 });
 
-test("syncMarkdown: editing the fence inside an existing managed block then re-syncing replaces the same wrapper", () => {
+test("syncMarkdown: hand-editing the fence inside the hidden comment (decode -> edit -> resync, the documented flow) updates the same wrapper", () => {
   const md = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
   const [b] = extractBlocks(md, THEME_NAMES);
   const spec = (blk) => [{ slug: blk.slug, openLine: blk.line, closeLine: blk.closeLine, title: blk.heading, href: "checkout.svg" }];
   const synced = syncMarkdown(md, spec(b));
-  const edited = synced.replace("a --> b", "a --> b\nb --> c");
+  // the fence lives escaped inside the hidden comment on disk; editing it directly means decoding
+  // first (the documented flow), editing the real Mermaid text, then letting resync re-encode it.
+  assert.doesNotMatch(synced, /a --> b/, "sanity: the fence body should be escaped on disk");
+  assert.match(synced, /a --&gt; b/, "sanity: the escaped fence body should be present");
+  const decodedForEdit = decodeManagedSpans(synced);
+  const edited = decodedForEdit.replace("a --> b", "a --> b\nb --> c");
   const [b2] = extractBlocks(edited, THEME_NAMES);
   assert.equal(b2.slug, "checkout");
   const resynced = syncMarkdown(edited, spec(b2));
   assert.equal((resynced.match(/diagrammo:sync checkout/g) || []).length, 2);
-  const [recovered] = extractBlocks(resynced, THEME_NAMES);
+  const [recovered] = extractBlocks(decodeManagedSpans(resynced), THEME_NAMES);
   assert.match(recovered.code, /b --> c/);
 });
 
@@ -170,6 +283,64 @@ test("syncMarkdown: preserves CRLF line endings and no-final-newline presence", 
   assert.ok(!/[^\r]\n/.test(out), "expected every newline to be part of a CRLF pair");
   assert.ok(!out.endsWith("\n") && !out.endsWith("\r"), "expected no trailing newline to be introduced");
   assert.ok(out.endsWith("Trailer, no newline at EOF"));
+});
+
+// ---------- migrating an old <details>-shape managed block to the new hidden-comment shape ------
+
+test("syncMarkdown: an existing OLD <details>-shape managed block is recognized as valid (not malformed) and migrated to the new hidden-comment shape on resync, keeping its slug/filename identity", () => {
+  const oldShape = [
+    "# Doc", "",
+    "<!-- diagrammo:sync notification-health -->",
+    "![Notification health](assets/notification-health.svg)", "",
+    "<details>", "<summary>Mermaid source</summary>", "",
+    "```mermaid", "flowchart BT", 'sig["Signal"] --> node["Node"]', "```", "",
+    "</details>",
+    "<!-- /diagrammo:sync notification-health -->", "",
+    "Trailing prose.",
+  ].join("\n") + "\n";
+
+  // old shape must be recognized as a *valid* span (never malformed) so it migrates, not rejects
+  const identities = preferredIdentities(oldShape);
+  assert.deepEqual(identities.slugs, ["notification-health"]);
+
+  const [b] = extractBlocks(oldShape, THEME_NAMES, new Map(), identities.byOpenLine);
+  assert.equal(b.slug, "notification-health"); // stable identity preserved, not re-derived
+  const migrated = syncMarkdown(oldShape, [{ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: b.heading, href: "assets/notification-health.svg" }]);
+
+  // new shape: no more <details>/<summary>, exactly one hidden-source comment, same slug/href
+  assert.doesNotMatch(migrated, /<details>|<summary>/);
+  assert.match(migrated, /<!-- diagrammo:sync notification-health -->\n!\[[^\]]*\]\(assets\/notification-health\.svg\)\n\n<!-- diagrammo:source\n```mermaid/);
+  assert.match(migrated, /sig\["Signal"\] --&gt; node\["Node"\]/, "fence content preserved, only the terminator escaped");
+  assert.match(migrated, /Trailing prose\./);
+
+  // fence recovered from the migrated block equals the original OLD-shape fence, byte-for-byte
+  const [recovered] = extractBlocks(decodeManagedSpans(migrated), THEME_NAMES);
+  assert.equal(recovered.code, b.code);
+
+  // migrating twice (idempotent from here on) never double-wraps or duplicates markers
+  const [b2] = extractBlocks(decodeManagedSpans(migrated), THEME_NAMES);
+  const resynced = syncMarkdown(migrated, [{ slug: b2.slug, openLine: b2.line, closeLine: b2.closeLine, title: b2.heading, href: "assets/notification-health.svg" }]);
+  assert.equal(resynced, migrated);
+  assert.equal((resynced.match(/diagrammo:sync notification-health/g) || []).length, 2);
+});
+
+// ---------- assertBlocksEncodable: preflight ambiguity guard across a file's whole block set ----
+
+test("assertBlocksEncodable: throws, naming the offending line, when a block's raw fence text already contains the reserved token", () => {
+  const md = [
+    "## Checkout", "",
+    "```mermaid",
+    'a["already --&gt; encoded"] --> b',
+    "```",
+  ].join("\n");
+  const blocks = extractBlocks(md, THEME_NAMES);
+  assert.throws(() => assertBlocksEncodable(md, blocks), /reserved token.*\(fence at line 3\)/s);
+});
+
+test("assertBlocksEncodable: does not throw for ordinary blocks with real arrows only", () => {
+  const md = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const blocks = extractBlocks(md, THEME_NAMES);
+  assert.doesNotThrow(() => assertBlocksEncodable(md, blocks));
 });
 
 test("svgHref: relative to the Markdown file's own directory, POSIX separators, angle form for spaces", () => {

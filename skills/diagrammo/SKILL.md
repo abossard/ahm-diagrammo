@@ -19,4 +19,9 @@ them. `--sync-markdown` is the sole, explicit opt-in exception: only invoke it w
 to check in an editable-source-plus-rendered-SVG Markdown file, never as a default action. Its
 first generated SVG filename is stable for that managed block's lifetime — do not hand-edit its
 `<!-- diagrammo:sync ... -->` markers; renaming a heading or a fence's `title=`/`name=` later is
-safe and never renames the file.
+safe and never renames the file. The Mermaid source itself lives fully hidden (not merely
+collapsed) inside a `<!-- diagrammo:source ... -->` comment, with every literal `-->` escaped to
+`--&gt;`. Editing it directly is safe — write real, unescaped Mermaid (a raw `-->` is fine); the
+next `--sync-markdown` run decodes, re-renders, and re-escapes it. Never hand-type the literal
+`--&gt;` token into a fence — the CLI rejects a fence that already contains it, since decoding
+would then be ambiguous.

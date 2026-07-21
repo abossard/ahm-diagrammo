@@ -16,7 +16,7 @@ import { renderSwimlane, looksLikeHealthModel } from "../src/swimlane.mjs";
 import { getTheme, THEME_NAMES } from "../src/themes.mjs";
 import { galleryHtml } from "../src/gallery.mjs";
 import { Diagnostics } from "../src/diag.mjs";
-import { syncMarkdown, svgHref, preferredIdentities } from "../src/markdown-sync.mjs";
+import { syncMarkdown, svgHref, preferredIdentities, decodeManagedSpans, assertBlocksEncodable } from "../src/markdown-sync.mjs";
 
 const HELP = `diagrammo — mermaid blocks in Markdown → themed SVGs
 
@@ -31,7 +31,7 @@ Options:
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
       --no-gallery       don't write gallery.html
-      --sync-markdown    rewrite each file's fences into a visible <img> + collapsed, still-editable
+      --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden, still-editable
                          Mermaid source; leaves the file untouched if any of its blocks fails
   -h, --help             this help
   -V, --version          print version
@@ -123,25 +123,40 @@ const manifest = [], failures = [], galleryEntries = [];
 const usedSlugs = new Map();
 
 // --sync-markdown: preflight every input file's existing managed markers *before* any block in
-// the complete input set is rendered or a new slug is derived. Reserves every already-managed
-// slug up front so a plain/unmanaged block can never collide into a managed identity, and
-// resolves each managed fence's stable slug by its exact open line so the render loop below names
-// its SVG correctly the first time — never guessing, never renaming. A malformed marker or a
+// the complete input set is rendered or a new slug is derived. Decodes each file's hidden-source
+// comments up front (mdCache always holds the decoded view, never raw/escaped text — the render
+// loop below and syncMarkdown() must never see an escaped fence as if it were real Mermaid) and
+// asserts every block's fence is still safely re-encodable — a fence whose raw text already
+// contains the reserved "--&gt;" token would decode ambiguously later, so it is rejected right
+// here, before block 1's SVG is ever written. Reserves every already-managed slug up front so a
+// plain/unmanaged block can never collide into a managed identity, and resolves each managed
+// fence's stable slug by its exact open line so the render loop below names its SVG correctly the
+// first time — never guessing, never renaming. A malformed marker, an unencodable fence, or a
 // managed slug duplicated across two input files targeting this same output directory fails
 // loudly right here, before any SVG/manifest/gallery/Markdown write happens.
 const mdCache = new Map();
+const rawCache = new Map(); // file -> original on-disk bytes, for the write-skip comparison below
 const preferredByFile = new Map();
 if (args.syncMarkdown && !args.list) {
   const slugOwner = new Map(); // slug -> file that first claimed it in this invocation
   let preflightFailed = false;
   for (const file of args.files) {
-    let md;
-    try { md = readFileSync(file, "utf8"); }
+    let raw;
+    try { raw = readFileSync(file, "utf8"); }
     catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; preflightFailed = true; continue; }
-    mdCache.set(file, md);
+    let md;
+    try { md = decodeManagedSpans(raw); }
+    catch (e) { console.error(`error: cannot sync ${file}: ${e.message}`); process.exitCode = 1; preflightFailed = true; continue; }
     let identities;
     try { identities = preferredIdentities(md); }
     catch (e) { console.error(`error: cannot sync ${file}: ${e.message}`); process.exitCode = 1; preflightFailed = true; continue; }
+    try {
+      assertBlocksEncodable(md, extractBlocks(md, THEME_NAMES, new Map()));
+    } catch (e) {
+      console.error(`error: cannot sync ${file}: ${e.message}`); process.exitCode = 1; preflightFailed = true; continue;
+    }
+    rawCache.set(file, raw);
+    mdCache.set(file, md);
     preferredByFile.set(file, identities);
     for (const slug of identities.slugs) {
       const owner = slugOwner.get(slug);
@@ -162,7 +177,14 @@ if (args.syncMarkdown && !args.list) {
 for (const file of args.files) {
   let md = mdCache.get(file);
   if (md === undefined) {
-    try { md = readFileSync(file, "utf8"); }
+    let raw;
+    try { raw = readFileSync(file, "utf8"); }
+    catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; continue; }
+    rawCache.set(file, raw);
+    // Always render from a decoded view — even outside --sync-markdown — so a file carrying an
+    // existing hidden-source comment (from a prior sync) is parsed as real Mermaid, never as the
+    // escaped text it's stored as on disk. A no-op for bare fences and old <details>-shape blocks.
+    try { md = decodeManagedSpans(raw); }
     catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; continue; }
   }
   const preferred = args.syncMarkdown ? preferredByFile.get(file)?.byOpenLine ?? null : null;
@@ -230,11 +252,14 @@ for (const file of args.files) {
   // render failure leaves the file untouched, matching the default command's own guarantee.
   // Malformed pre-existing markers are a separate, transform-level failure: reported loudly,
   // never guessed/repaired, and — since the write only happens after syncMarkdown returns — the
-  // file is never partially mutated either way.
+  // file is never partially mutated either way. Compared against the *original on-disk bytes*
+  // (rawCache), not the decoded view `md`: those two always differ whenever any hidden-source
+  // comment exists (decoded is unescaped, `synced` is freshly re-encoded), so comparing against
+  // `md` would report a "change" — and rewrite the file — on every single idempotent rerun.
   if (args.syncMarkdown && !args.list && blocks.length > 0 && !fileRenderFailed) {
     try {
       const synced = syncMarkdown(md, syncSpecs);
-      if (synced !== md) {
+      if (synced !== rawCache.get(file)) {
         atomicWriteFileSync(file, synced);
         console.log(`  synced ${file} (${syncSpecs.length} managed block${syncSpecs.length === 1 ? "" : "s"})`);
       }
