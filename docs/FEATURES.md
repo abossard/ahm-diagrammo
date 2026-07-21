@@ -271,6 +271,7 @@ flowchart BT
 | `legend` | boolean | `false` hides the legend (swimlane only) |
 | `name` | string | output file name (default: slug of title/heading; duplicates get `-2`, `-3`, …) |
 | `background` | color | canvas background (mermaid renderer only) |
+| `alt` | string | alt text for the `--sync-markdown` visible embed; overrides `title`/heading (precedence: `alt` → `title` → heading). Empty/whitespace-only warns and falls back |
 
 Unknown keys warn (listing the valid ones); unknown `renderer`/`theme` values are **errors** that
 fail the block with its fence line; a non-list `lanes` warns and is ignored. Values parse as

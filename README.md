@@ -147,6 +147,24 @@ everything else about the managed block (hidden source, stable slug/filename, id
 untouched-on-failure) is unchanged. See
 [docs/FEATURES.md](docs/FEATURES.md#visible-token-format---image-format-commonmark--learn).
 
+**Per-diagram alt text (`%%| alt:`).** The visible embed's accessibility alt text follows the
+precedence **explicit `%%| alt:` override → `title` → nearest heading**. Add a `%%| alt:` directive
+inside the fence to give one diagram accurate, unique alt text (useful when several diagrams share a
+heading, or when a docset flags duplicate/redundant alt text):
+
+````markdown
+```mermaid
+%%| alt: Active-passive roll-up: two regions collapse to one healthy root
+flowchart BT
+  ...
+```
+````
+
+Because the directive lives inside the hidden Mermaid source, it survives every resync (it is the
+source of truth, not a hand-edit the next sync would overwrite) and is applied identically to both
+the CommonMark and Learn visible tokens, escaped for each. An empty/whitespace-only `%%| alt:` warns
+and falls back to `title`/heading — it never emits empty alt text.
+
 Reruns are idempotent, and editing the fence inside an already-synced block and rerunning updates
 that same block's SVG in place — no nested wrappers, no drift. **The first generated filename is
 stable for the life of that managed block:** once a fence is synced, its `<!-- diagrammo:sync
@@ -261,6 +279,7 @@ flowchart BT
 | `legend` | `false` hides the legend |
 | `name` | output file name (defaults to a slug of the title/heading) |
 | `background` | canvas background color (mermaid renderer only) |
+| `alt` | accessibility alt text for the `--sync-markdown` visible embed; overrides `title`/heading (see below) |
 
 Signal rows can carry a real measurement and their own state, straight in the mermaid label:
 

@@ -142,7 +142,7 @@ export function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "diagram";
 }
 
-export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background"];
+export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background", "alt"];
 
 // Reserves a slug in the shared `used` map before any new block's slug is derived, so a
 // managed block's stable identity (its first-generated marker slug) can never be re-derived or
@@ -215,6 +215,12 @@ function buildBlock({ heading, info, code, line, closeLine, themeNames, used, pr
     issues.push({ level: "error", message: `unknown theme "${options.theme}" (themes: ${themeNames.join(", ")})`, line });
   if (options.lanes != null && !Array.isArray(options.lanes))
     issues.push({ level: "warn", message: `"lanes" should be a list, e.g. lanes: [Root, Flows, Services] — got ${JSON.stringify(options.lanes)}`, line });
+  // An `alt` override that is present but empty/whitespace-only must not silently become empty
+  // accessibility text (an empty `![]`/`alt-text=""` is worse than none) — warn and let the shared
+  // alt pipeline fall back to title/heading. A `%%| alt` line with no colon is already reported by
+  // parseDirectives' "malformed directive" path, so only the empty-value case is handled here.
+  if (options.alt != null && !String(options.alt).trim())
+    issues.push({ level: "warn", message: `empty "alt" override — falling back to title/heading for the accessibility text`, line });
   // A preferred slug (e.g. an existing managed marker's stable identity) wins outright — the
   // heading/title-derived base below is never even computed as a candidate for this block.
   let slug;

@@ -721,3 +721,57 @@ test("--image-format learn: rerunning unmodified is byte-identical (idempotent)"
   assert.equal((afterSecond.match(/:::image/g) || []).length, 1, "no duplicated directive");
   assert.equal((afterSecond.match(/diagrammo:sync checkout/g) || []).length, 2, "single wrapper");
 });
+
+// ---- `%%| alt:` per-diagram alt-text override: real CLI end-to-end (both formats) ---------------
+
+// A health doc whose fence carries an explicit alt override directive inside the fence body.
+function altOverrideDoc(alt, heading = "Checkout") {
+  return [`## ${heading}`, "", "```mermaid", `%%| alt: ${alt}`, HEALTH_MERMAID, "```", "", "More prose stays put."].join("\n") + "\n";
+}
+
+test("--sync-markdown: an in-fence `%%| alt:` override sets the visible embed's alt in both commonmark and learn, and survives an idempotent resync", async () => {
+  const cases = {
+    commonmark: {
+      argv: [],
+      alt: 'Active-passive: two regions roll up to a healthy root [primary]',
+      // escapeAltText escapes [ ] → \[ \]
+      match: /!\[Active-passive: two regions roll up to a healthy root \\\[primary\\\]\]\(out\/checkout\.svg\)/,
+    },
+    learn: {
+      argv: ["--image-format", "learn"],
+      alt: 'Active-passive: "primary" & <secondary> roll up to root',
+      match: /alt-text="Active-passive: &quot;primary&quot; &amp; &lt;secondary&gt; roll up to root"/,
+    },
+  };
+  for (const [name, { argv, alt, match }] of Object.entries(cases)) {
+    const dir = tmp();
+    const mdPath = join(dir, "doc.md");
+    writeFileSync(mdPath, altOverrideDoc(alt), "utf8");
+    const outDir = join(dir, "out");
+    const r1 = await run(mdPath, "-o", outDir, "--sync-markdown", ...argv);
+    assert.equal(r1.code, 0, r1.stderr);
+    const afterFirst = readFileSync(mdPath, "utf8");
+    assert.match(afterFirst, match, `${name}: visible embed carries the override alt`);
+    assert.doesNotMatch(afterFirst, /alt-text=""|!\[\]\(/, `${name}: never empty accessibility text`);
+    // the override line is preserved inside the hidden source (durable, not a hand-edit)
+    assert.match(afterFirst, /%%\| alt:/, `${name}: alt directive survives inside the hidden fence`);
+    // resync is byte-idempotent
+    const r2 = await run(mdPath, "-o", outDir, "--sync-markdown", ...argv);
+    assert.equal(r2.code, 0, r2.stderr);
+    assert.equal(readFileSync(mdPath, "utf8"), afterFirst, `${name}: resync with an unchanged override must not drift`);
+    assert.equal(existsSync(join(outDir, "checkout.svg")), true, `${name}: slug/filename identity preserved`);
+  }
+});
+
+test("--sync-markdown: an empty `%%| alt:` override falls back to the heading and warns, never emitting empty alt", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  // empty override value; heading "Checkout" is the fallback
+  writeFileSync(mdPath, ["## Checkout", "", "```mermaid", "%%| alt:", HEALTH_MERMAID, "```", ""].join("\n") + "\n", "utf8");
+  const r = await run(mdPath, "-o", join(dir, "out"), "--sync-markdown");
+  assert.equal(r.code, 0, r.stderr);
+  const synced = readFileSync(mdPath, "utf8");
+  assert.match(synced, /!\[Checkout\]\(out\/checkout\.svg\)/, "empty override falls back to heading");
+  assert.doesNotMatch(synced, /!\[\]\(/, "never an empty commonmark alt");
+  assert.match(r.stderr, /empty "alt" override/, "the empty override is warned via the existing issues channel");
+});
