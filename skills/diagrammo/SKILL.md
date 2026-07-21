@@ -14,4 +14,9 @@ Use the packaged CLI. Do not reimplement parsing, renderer selection, layout, th
    `npx --yes ahm-diagrammo "$INPUT" --out "$OUTPUT" --strict`
 4. Verify the command exited successfully. Parse `$OUTPUT/manifest.json`, confirm every listed `.svg` exists and is non-empty, and report the emitted files. Also confirm `gallery.html` when gallery generation is enabled.
 
-Preserve the user's Markdown. Surface CLI diagnostics and non-zero exits rather than masking them.
+Preserve the user's Markdown. Surface CLI diagnostics and non-zero exits rather than masking
+them. `--sync-markdown` is the sole, explicit opt-in exception: only invoke it when the user asks
+to check in an editable-source-plus-rendered-SVG Markdown file, never as a default action. Its
+first generated SVG filename is stable for that managed block's lifetime — do not hand-edit its
+`<!-- diagrammo:sync ... -->` markers; renaming a heading or a fence's `title=`/`name=` later is
+safe and never renames the file.

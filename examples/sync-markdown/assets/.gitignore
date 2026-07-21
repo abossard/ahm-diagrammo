@@ -1,0 +1,6 @@
+# The documented regen command below always writes manifest.json (unconditional, regardless of
+# --no-gallery); --no-gallery itself already stops gallery.html from being written. Both are
+# ignored here defensively, so rerunning the documented command never leaves an unexplained
+# untracked/modified file in this example folder.
+manifest.json
+gallery.html

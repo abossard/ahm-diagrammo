@@ -11,7 +11,8 @@ Quick links: [CLI](#command-line) · [Renderer selection](#renderer-selection) �
 [Health-model swimlanes](#health-model-swimlanes) · [Signal rows](#signal-rows) ·
 [Layout guarantees](#layout-guarantees) · [Plain mermaid](#plain-mermaid-blocks) ·
 [Diagnostics](#diagnostics-reference) · [Exit codes](#exit-codes) ·
-[Programmatic API](#programmatic-api) · [Legacy commands](#legacy-entry-points)
+[Programmatic API](#programmatic-api) · [Legacy commands](#legacy-entry-points) ·
+[Sync SVGs into Markdown](#sync-svgs-into-markdown)
 
 ---
 
@@ -27,6 +28,7 @@ npx ahm-diagrammo <file.md> [more.md ...] [options]
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
       --no-gallery       don't write gallery.html
+      --sync-markdown    rewrite each file's fences into a visible <img> + collapsed source
   -h, --help             this help
   -V, --version          print version
 ```
@@ -37,7 +39,8 @@ shows every diagram with its title, renderer, and theme. Multiple input files ag
 output directory and one manifest. Progress goes to **stdout**; warnings and errors go to
 **stderr**, prefixed with `file:line`.
 
-`--list` is a dry run — it prints what each block would become and writes nothing:
+`--list` is a dry run — it prints what each block would become and writes nothing, even combined
+with `--sync-markdown`:
 
 ```
 examples/showcase.md: 6 mermaid blocks
@@ -50,6 +53,83 @@ examples/showcase.md: 6 mermaid blocks
 *Verified by:* `cli.test.mjs` — "renders a healthy file", "--list explains detection without
 writing files", "--no-gallery skips gallery.html", "multiple files aggregate into one manifest",
 "bad CLI arguments fail fast".
+
+## Sync SVGs into Markdown
+
+`--sync-markdown` is the one mutating mode: it renders every block exactly as the default command
+does, then rewrites each ` ```mermaid ` fence *in place* into a machine-owned **managed block** —
+a visible SVG `<img>` followed by a collapsed `<details><summary>Mermaid source</summary>` that
+still holds the original, fully editable fence:
+
+`````markdown
+<!-- diagrammo:sync checkout -->
+![Checkout](diagrams/checkout.svg)
+
+<details>
+<summary>Mermaid source</summary>
+
+```mermaid
+flowchart BT
+a["A<br/>healthy"] --> b["B<br/>healthy"]
+```
+
+</details>
+<!-- /diagrammo:sync checkout -->
+`````
+
+The recommended loop:
+
+```bash
+# 1. edit the mermaid fence directly in the raw Markdown (or inside the collapsed <details>)
+# 2. re-render + rewrite the managed block in place
+npx ahm-diagrammo doc.md --sync-markdown
+npx ahm-diagrammo doc.md -o docs/assets --sync-markdown   # colocate the SVG under docs/assets
+# 3. preview the *rendered* Markdown (GitHub, VS Code preview, …) — the SVG shows, the source
+#    stays collapsed but present
+# 4. commit both the Markdown and the emitted .svg
+```
+
+On GitHub.com, `<details>` with no `open` attribute renders **collapsed by default** — verified
+against this repository's own `README.md:38-62`, which already ships the same
+`<details><summary>...</summary>` + fenced-mermaid pattern in production. That collapse behavior
+is a property of GitHub-flavored Markdown specifically; it is not verified (and not claimed) for
+other Markdown renderers or static-site pipelines, some of which strip raw HTML.
+
+The begin/end `<!-- diagrammo:sync <slug> -->` comments carry only the block's machine-generated
+slug — never the title or the Mermaid source — because an HTML comment ends at the first `-->`,
+and Mermaid edges (`a --> b`) would otherwise truncate it early and leak content. For the same
+reason, the Mermaid source is never wrapped in an HTML comment to "hide" it; the collapsed
+`<details>` is the only mechanism used to keep it out of the way while still rendering.
+
+Reruns are idempotent (unchanged input produces byte-identical output, no nested wrappers) and
+edit-aware (editing the fence inside an existing managed block and rerunning regenerates the SVG
+and updates the same block in place). **A managed block's marker slug is its stable, first-generated
+identity and SVG filename for the rest of that block's life** — renaming the surrounding heading or
+adding/changing an in-fence `title=`/`name=` only changes the visible alt text, never the filename
+or marker; the CLI preflights every input file's existing managed markers and reserves all their
+slugs *before* rendering or deriving any new slug, so resyncing any subset of a previously
+multi-file sync (even one file alone) can never rename or overwrite another file's SVG, and a new
+plain block colliding with an existing managed slug is bumped to the next unique slug instead. The
+Markdown file is mutated only after every block in it has rendered with no failures; a real render
+failure, a malformed pre-existing managed block (missing end marker, mismatched slug, duplicate
+slug), or a managed slug duplicated across two input files in the same run, leaves every affected
+file's bytes completely unchanged and reports a nonzero exit *before* any SVG/manifest/gallery
+write — never a guessed repair, never a newly orphaned asset. `--list` always wins: combined with
+`--sync-markdown` it still writes nothing.
+
+*Verified by:* `markdown-sync.test.mjs` — exact literal managed block, GitHub-rendering HTML shape
+via `marked`, byte-identical fence recovery, multiple/colliding-slug mapping, non-managed lines
+preserved, idempotent rerun, edit-then-resync, a valid managed span never rejected for a
+heading/title-derived slug change, `preferredIdentities()`'s stable-slug-by-open-line mapping,
+CRLF/no-trailing-newline preservation, space-in-path angle destination, malformed-marker rejection;
+`extract.test.mjs` — a preferred slug wins over the heading/title-derived one, `reserveSlug()`
+reserving both a bare and an already-suffixed slug; `cli.test.mjs` — "--sync-markdown" end-to-end
+cases (first sync, idempotent rerun, edit-then-rerun, multi-block, nested relative href,
+render-failure leaves file unchanged, malformed-marker leaves file unchanged, zero-blocks no-op,
+`--list` wins, heading rename keeps the stable filename, title=/name= edit keeps the stable
+filename, resyncing a subset of a multi-file sync keeps its reserved slug, a new plain block
+colliding with a managed slug gets the next unique slug, a managed slug duplicated across input
+files fails before any write).
 
 ## Renderer selection
 

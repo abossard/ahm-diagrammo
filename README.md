@@ -102,6 +102,7 @@ npx ahm-diagrammo doc.md -o out -t midnight    # pick an output dir and a defaul
 npx ahm-diagrammo doc.md --list                # show what each block would render as
 npx ahm-diagrammo doc.md --verbose             # log every parsed node/edge/fold decision
 npx ahm-diagrammo doc.md --strict              # any warning fails the run (CI-friendly)
+npx ahm-diagrammo doc.md --sync-markdown       # rewrite fences into visible SVG + collapsed source
 ```
 
 The command walks the file, and for each ` ```mermaid ` block:
@@ -114,6 +115,43 @@ The command walks the file, and for each ` ```mermaid ` block:
 Each run writes the SVGs, a `manifest.json`, and a `gallery.html` you can open to browse everything at
 once. Try the [browser editor](https://abossard.github.io/ahm-diagrammo/) or run
 `npx ahm-diagrammo examples/showcase.md -o out-showcase`.
+
+## Check in both the Mermaid and the SVG
+
+`--sync-markdown` is the only mode that mutates your Markdown, and it's opt-in. It renders every
+block exactly like the default command, then rewrites each fence in place into a managed block: a
+visible SVG `<img>` above a collapsed `<details><summary>Mermaid source</summary>` that still
+holds the original fence, unchanged and fully editable. On GitHub, the `<img>` renders and the
+source stays collapsed-but-present — this repo's own `README.md:38-62` already ships that exact
+`<details>` + fenced-mermaid pattern, so it's proven against this document rendering on
+github.com right now, not just claimed.
+
+The loop:
+
+1. Edit the Mermaid fence directly in the raw Markdown (bare, or inside an existing `<details>`).
+2. `npx ahm-diagrammo doc.md --sync-markdown` (or `-o docs/assets --sync-markdown` to colocate the
+   SVG next to the doc).
+3. Preview the *rendered* Markdown — the SVG shows, the source stays collapsed.
+4. Commit the Markdown and the emitted `.svg` together.
+
+See [the checked-in sync example](examples/sync-markdown/) for a real, already-synced Markdown
+file plus the rendered SVG and the exact regeneration command.
+
+Reruns are idempotent, and editing the fence inside an already-synced block and rerunning updates
+that same block's SVG in place — no nested wrappers, no drift. **The first generated filename is
+stable for the life of that managed block:** once a fence is synced, its `<!-- diagrammo:sync
+SLUG -->` marker is the block's permanent identity — later renaming the heading it sits under, or
+adding/changing an in-fence `title=`/`name=`, only updates the visible alt text, never the filename
+or marker. Resyncing any subset of a previously multi-file sync (even a single file on its own)
+keeps that file's own reserved slugs and never renames or overwrites another file's SVG. A real
+render failure, or a corrupted managed block, leaves the file's bytes completely untouched and
+exits non-zero rather than guessing a repair. Two alternatives were considered and rejected: a
+separate `.mmd` sidecar file (splits the single-file edit/preview loop) and wrapping the raw
+Mermaid source in an HTML comment (`<!-- ... -->` ends at the first `-->`, and Mermaid edges like
+`a --> b` would truncate it and leak content — see
+[docs/FEATURES.md](docs/FEATURES.md#sync-svgs-into-markdown)). This is verified against
+GitHub-flavored Markdown specifically; other Markdown renderers that strip raw HTML may not
+collapse the source the same way.
 
 ## Agent plugin
 

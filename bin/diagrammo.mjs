@@ -8,13 +8,15 @@
 // style swimlane figures; every other mermaid block is rendered through mermaid-cli with the same
 // theme. Blocks can override anything locally — see README "Tags & YAML".
 
-import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
-import { basename, join, resolve } from "node:path";
-import { extractBlocks } from "../src/extract.mjs";
+import { readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from "node:fs";
+import { basename, dirname, join, resolve } from "node:path";
+import { randomBytes } from "node:crypto";
+import { extractBlocks, reserveSlug } from "../src/extract.mjs";
 import { renderSwimlane, looksLikeHealthModel } from "../src/swimlane.mjs";
 import { getTheme, THEME_NAMES } from "../src/themes.mjs";
 import { galleryHtml } from "../src/gallery.mjs";
 import { Diagnostics } from "../src/diag.mjs";
+import { syncMarkdown, svgHref, preferredIdentities } from "../src/markdown-sync.mjs";
 
 const HELP = `diagrammo — mermaid blocks in Markdown → themed SVGs
 
@@ -29,6 +31,8 @@ Options:
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
       --no-gallery       don't write gallery.html
+      --sync-markdown    rewrite each file's fences into a visible <img> + collapsed, still-editable
+                         Mermaid source; leaves the file untouched if any of its blocks fails
   -h, --help             this help
   -V, --version          print version
 
@@ -48,7 +52,7 @@ Signal rows may carry their own value and state:  P95 latency = 230 ms (degraded
 `;
 
 function parseArgs(argv) {
-  const a = { files: [], out: "diagrams", theme: "portal", renderer: "auto", gallery: true, list: false, verbose: false, strict: false };
+  const a = { files: [], out: "diagrams", theme: "portal", renderer: "auto", gallery: true, list: false, verbose: false, strict: false, syncMarkdown: false };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i];
     if (v === "-h" || v === "--help") a.help = true;
@@ -69,6 +73,7 @@ function parseArgs(argv) {
     else if (v === "-v" || v === "--verbose") a.verbose = true;
     else if (v === "--strict") a.strict = true;
     else if (v === "--no-gallery") a.gallery = false;
+    else if (v === "--sync-markdown") a.syncMarkdown = true;
     else if (v.startsWith("-")) { console.error(`unknown option ${v}\n`); a.help = true; a.bad = true; }
     else a.files.push(v);
   }
@@ -94,18 +99,78 @@ function pickRenderer(block, cliRenderer) {
   return looksLikeHealthModel(block.code) ? "swimlane" : "mermaid";
 }
 
+// Same-directory temp file + rename: POSIX rename(2) is atomic on the same filesystem. The temp
+// name includes this process's pid plus a random suffix so two concurrent invocations (even ones
+// syncing the exact same target file) never share a temp path and race each other's
+// rename/cleanup. Cleans up the temp file on any failure so a failed sync never leaves stray
+// files or a partial write.
+function atomicWriteFileSync(path, content) {
+  const target = resolve(path);
+  const unique = `${process.pid}-${randomBytes(6).toString("hex")}`;
+  const tmp = join(dirname(target), `.${basename(target)}.${unique}.diagrammo-sync.tmp`);
+  writeFileSync(tmp, content, "utf8");
+  try {
+    renameSync(tmp, target);
+  } catch (e) {
+    try { unlinkSync(tmp); } catch { /* best effort cleanup */ }
+    throw e;
+  }
+}
+
 const outDir = resolve(args.out);
 let ok = 0, total = 0, warnCount = 0;
 const manifest = [], failures = [], galleryEntries = [];
 const usedSlugs = new Map();
 
+// --sync-markdown: preflight every input file's existing managed markers *before* any block in
+// the complete input set is rendered or a new slug is derived. Reserves every already-managed
+// slug up front so a plain/unmanaged block can never collide into a managed identity, and
+// resolves each managed fence's stable slug by its exact open line so the render loop below names
+// its SVG correctly the first time — never guessing, never renaming. A malformed marker or a
+// managed slug duplicated across two input files targeting this same output directory fails
+// loudly right here, before any SVG/manifest/gallery/Markdown write happens.
+const mdCache = new Map();
+const preferredByFile = new Map();
+if (args.syncMarkdown && !args.list) {
+  const slugOwner = new Map(); // slug -> file that first claimed it in this invocation
+  let preflightFailed = false;
+  for (const file of args.files) {
+    let md;
+    try { md = readFileSync(file, "utf8"); }
+    catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; preflightFailed = true; continue; }
+    mdCache.set(file, md);
+    let identities;
+    try { identities = preferredIdentities(md); }
+    catch (e) { console.error(`error: cannot sync ${file}: ${e.message}`); process.exitCode = 1; preflightFailed = true; continue; }
+    preferredByFile.set(file, identities);
+    for (const slug of identities.slugs) {
+      const owner = slugOwner.get(slug);
+      if (owner) {
+        console.error(`error: cannot sync ${file}: managed slug "${slug}" is already used by ${owner} — duplicate managed identity targeting the same output directory (${outDir})`);
+        process.exitCode = 1; preflightFailed = true;
+      } else {
+        slugOwner.set(slug, file);
+      }
+    }
+  }
+  if (preflightFailed) process.exit(process.exitCode || 1);
+  for (const identities of preferredByFile.values()) {
+    for (const slug of identities.slugs) reserveSlug(usedSlugs, slug);
+  }
+}
+
 for (const file of args.files) {
-  let md;
-  try { md = readFileSync(file, "utf8"); }
-  catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; continue; }
-  const blocks = extractBlocks(md, THEME_NAMES, usedSlugs);
+  let md = mdCache.get(file);
+  if (md === undefined) {
+    try { md = readFileSync(file, "utf8"); }
+    catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; continue; }
+  }
+  const preferred = args.syncMarkdown ? preferredByFile.get(file)?.byOpenLine ?? null : null;
+  const blocks = extractBlocks(md, THEME_NAMES, usedSlugs, preferred);
   console.log(`${file}: ${blocks.length} mermaid block${blocks.length === 1 ? "" : "s"}`);
   total += blocks.length;
+  const syncSpecs = [];
+  let fileRenderFailed = false;
 
   for (const b of blocks) {
     const renderer = pickRenderer(b, args.renderer);
@@ -149,12 +214,34 @@ for (const file of args.files) {
       galleryEntries.push({ svg: outName, title, renderer, theme: themeName, nodes: meta.nodes });
       ok++;
       console.log(`  ok   ${file}:${b.line}  ${outName}  [${renderer} · ${themeName}]${meta.nodes ? `  (${meta.nodes} nodes, ${meta.lanes} lanes, ${meta.w}×${meta.h})` : ""}`);
+      if (args.syncMarkdown) {
+        syncSpecs.push({ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title, href: svgHref(file, join(outDir, outName)) });
+      }
     } catch (e) {
       failures.push({ slug: b.slug, source: file, line: b.line, error: e.message });
       console.error(`  FAIL ${file}:${b.line}  ${b.slug}: ${e.message}`);
+      fileRenderFailed = true;
     }
     for (const line of diag.format({ verbose: args.verbose, indent: "       " })) console.error(line);
     warnCount += diag.warnings.length;
+  }
+
+  // Mutate the Markdown only once every block in this file has rendered with no failures — a
+  // render failure leaves the file untouched, matching the default command's own guarantee.
+  // Malformed pre-existing markers are a separate, transform-level failure: reported loudly,
+  // never guessed/repaired, and — since the write only happens after syncMarkdown returns — the
+  // file is never partially mutated either way.
+  if (args.syncMarkdown && !args.list && blocks.length > 0 && !fileRenderFailed) {
+    try {
+      const synced = syncMarkdown(md, syncSpecs);
+      if (synced !== md) {
+        atomicWriteFileSync(file, synced);
+        console.log(`  synced ${file} (${syncSpecs.length} managed block${syncSpecs.length === 1 ? "" : "s"})`);
+      }
+    } catch (e) {
+      console.error(`error: cannot sync ${file}: ${e.message}`);
+      process.exitCode = 1;
+    }
   }
 }
 

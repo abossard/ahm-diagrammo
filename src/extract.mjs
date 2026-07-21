@@ -144,14 +144,32 @@ export function slugify(s) {
 
 export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background"];
 
+// Reserves a slug in the shared `used` map before any new block's slug is derived, so a
+// managed block's stable identity (its first-generated marker slug) can never be re-derived or
+// collided into by a later plain/unmanaged block sharing the same base heading/title. Handles
+// both a bare base slug ("checkout") and an already-suffixed one ("checkout-2") by also bumping
+// the bare base's count, so the *next* collision on that base skips past the reservation.
+export function reserveSlug(used, slug) {
+  used.set(slug, Math.max(used.get(slug) || 0, 1));
+  const m = slug.match(/^(.+)-(\d+)$/);
+  if (m) {
+    const base = m[1], n = Number(m[2]);
+    if (n >= 2) used.set(base, Math.max(used.get(base) || 0, n));
+  }
+}
+
 // The optional `used` map can be shared across calls to keep slugs unique across multiple files.
+// The optional `preferred` map (fence open line → slug) lets a caller pin a block's slug to a
+// stable, previously-generated identity (e.g. an existing managed marker) regardless of its
+// current heading/title — used by `--sync-markdown` to keep the first-generated filename stable.
 // Returns [{ slug, heading, info, code, options, line, codeLine, issues }]
 //   code     — block body with frontmatter kept (renderers decide what to strip)
 //   options  — merged per-block options (fence info < frontmatter < directives)
 //   line     — 1-based line number of the opening fence
 //   codeLine — 1-based line number of the first code line (fence line + 1)
+//   closeLine — 1-based line number of the closing fence line, or null when the fence never closes
 //   issues   — [{ level, message, line }] option-level problems (unknown keys, bad values)
-export function extractBlocks(md, themeNames = [], used = new Map()) {
+export function extractBlocks(md, themeNames = [], used = new Map(), preferred = null) {
   const lines = md.split("\n");
   const blocks = [];
   let heading = "diagram";
@@ -165,20 +183,20 @@ export function extractBlocks(md, themeNames = [], used = new Map()) {
     const close = inBlock && line.match(/^\s*(`+|~+)\s*$/);
     if (close && close[1][0] === openFence[0] && close[1].length >= openFence.length) {
       inBlock = false;
-      blocks.push(buildBlock({ heading, info, code: buf.join("\n"), line: openLine, themeNames, used }));
+      blocks.push(buildBlock({ heading, info, code: buf.join("\n"), line: openLine, closeLine: li + 1, themeNames, used, preferredSlug: preferred ? preferred.get(openLine) : null }));
       continue;
     }
     if (inBlock) buf.push(line);
   }
   if (inBlock) {
-    const blk = buildBlock({ heading, info, code: buf.join("\n"), line: openLine, themeNames, used });
+    const blk = buildBlock({ heading, info, code: buf.join("\n"), line: openLine, closeLine: null, themeNames, used, preferredSlug: preferred ? preferred.get(openLine) : null });
     blk.issues.push({ level: "warn", message: "mermaid fence is never closed (``` missing) — using everything up to end of file", line: openLine });
     blocks.push(blk);
   }
   return blocks;
 }
 
-function buildBlock({ heading, info, code, line, themeNames, used }) {
+function buildBlock({ heading, info, code, line, closeLine, themeNames, used, preferredSlug }) {
   const issues = [];
   const { fm } = splitFrontmatter(code);
   const fence = parseFenceInfo(info, themeNames, issues, line);
@@ -197,9 +215,17 @@ function buildBlock({ heading, info, code, line, themeNames, used }) {
     issues.push({ level: "error", message: `unknown theme "${options.theme}" (themes: ${themeNames.join(", ")})`, line });
   if (options.lanes != null && !Array.isArray(options.lanes))
     issues.push({ level: "warn", message: `"lanes" should be a list, e.g. lanes: [Root, Flows, Services] — got ${JSON.stringify(options.lanes)}`, line });
-  const base = slugify(options.name || options.title || heading);
-  const n = (used.get(base) || 0) + 1; used.set(base, n);
-  return { slug: n === 1 ? base : `${base}-${n}`, heading, info, code, options, line, codeLine: line + 1, issues };
+  // A preferred slug (e.g. an existing managed marker's stable identity) wins outright — the
+  // heading/title-derived base below is never even computed as a candidate for this block.
+  let slug;
+  if (preferredSlug) {
+    slug = preferredSlug;
+  } else {
+    const base = slugify(options.name || options.title || heading);
+    const n = (used.get(base) || 0) + 1; used.set(base, n);
+    slug = n === 1 ? base : `${base}-${n}`;
+  }
+  return { slug, heading, info, code, options, line, codeLine: line + 1, closeLine, issues };
 }
 
 function extractFmOptions(fm) {

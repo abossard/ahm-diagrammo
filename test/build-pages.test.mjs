@@ -11,9 +11,17 @@ import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 import { buildSite } from "../scripts/build-pages.mjs";
 
+// Cleanup registry: a single process "exit" listener (registered once, at module load) removes
+// every temp dir any tmp() call has created — instead of one new listener per call, which trips
+// Node's MaxListenersExceededWarning once a test file calls tmp() more than 10 times (matches
+// test/cli.test.mjs's identical fix for the same pattern).
+const cleanupDirs = [];
+process.on("exit", () => {
+  for (const d of cleanupDirs) { try { rmSync(d, { recursive: true, force: true }); } catch {} }
+});
 function tmp() {
   const d = mkdtempSync(join(tmpdir(), "diagrammo-pages-test-"));
-  process.on("exit", () => { try { rmSync(d, { recursive: true, force: true }); } catch {} });
+  cleanupDirs.push(d);
   return d;
 }
 

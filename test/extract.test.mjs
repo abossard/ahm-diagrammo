@@ -1,7 +1,7 @@
 // Tests for markdown extraction, option channels, and the YAML subset parser.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { extractBlocks, parseYamlite, splitFrontmatter, stripDiagrammoKey } from "../src/extract.mjs";
+import { extractBlocks, parseYamlite, splitFrontmatter, stripDiagrammoKey, reserveSlug } from "../src/extract.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
 
 const md = (s) => s.replace(/^ {4}/gm, "");
@@ -57,6 +57,8 @@ test("extractBlocks: line numbers, fence info, directives, frontmatter merge", (
   assert.equal(blocks.length, 2);
   assert.equal(blocks[0].line, 3);
   assert.equal(blocks[0].codeLine, 4);
+  assert.equal(blocks[0].closeLine, 7);
+  assert.equal(blocks[1].closeLine, 18);
   assert.equal(blocks[0].options.theme, "candy");
   assert.equal(blocks[0].options.legend, false);
   assert.equal(blocks[1].options.theme, "slate");
@@ -111,6 +113,7 @@ test("extractBlocks: unclosed fence is flagged but still returned", () => {
   const [b] = extractBlocks(doc, THEME_NAMES);
   assert.ok(b);
   assert.match(b.issues[0].message, /never closed/);
+  assert.equal(b.closeLine, null);
 });
 
 test("stripDiagrammoKey keeps mermaid-native frontmatter, drops only the diagrammo key", () => {
@@ -132,6 +135,38 @@ test("extractBlocks: ~~~ fences and duplicate slugs", () => {
   assert.equal(blocks.length, 2);
   assert.equal(blocks[0].slug, "same");
   assert.equal(blocks[1].slug, "same-2");
+});
+
+test("extractBlocks: a preferred slug keyed by fence open line wins over the heading/title-derived slug", () => {
+  const doc = "## Payment\n\n```mermaid title=\"Ignored\"\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(doc, THEME_NAMES);
+  assert.equal(b.line, 3); // sanity: fence opens at line 3
+  const preferred = new Map([[3, "checkout"]]);
+  const [b2] = extractBlocks(doc, THEME_NAMES, new Map(), preferred);
+  assert.equal(b2.slug, "checkout"); // stable identity, not "payment"/"ignored"
+});
+
+test("extractBlocks: without a preferred entry for its own open line, slug is still heading/title-derived as before", () => {
+  const doc = "## Payment\n\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const preferred = new Map([[999, "unrelated"]]); // no entry for this block's open line
+  const [b] = extractBlocks(doc, THEME_NAMES, new Map(), preferred);
+  assert.equal(b.slug, "payment");
+});
+
+test("reserveSlug: reserves a plain slug so a later colliding base gets the next unique suffix", () => {
+  const used = new Map();
+  reserveSlug(used, "checkout");
+  const doc = "## Checkout\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(doc, THEME_NAMES, used);
+  assert.equal(b.slug, "checkout-2");
+});
+
+test("reserveSlug: reserves a suffixed slug (e.g. checkout-2) so its base also skips ahead", () => {
+  const used = new Map();
+  reserveSlug(used, "checkout-2");
+  const doc = "## Checkout\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(doc, THEME_NAMES, used);
+  assert.equal(b.slug, "checkout-3");
 });
 
 test("extractBlocks: closing fence matches opener character and minimum length", () => {
