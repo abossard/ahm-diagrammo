@@ -33,6 +33,8 @@ Options:
       --no-gallery       don't write gallery.html
       --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden, still-editable
                          Mermaid source; leaves the file untouched if any of its blocks fails
+      --image-format <fmt>  visible embed for --sync-markdown: commonmark | learn   (default: commonmark)
+                            commonmark → ![alt](href); learn → Microsoft Learn :::image:::  directive
   -h, --help             this help
   -V, --version          print version
 
@@ -52,12 +54,12 @@ Signal rows may carry their own value and state:  P95 latency = 230 ms (degraded
 `;
 
 function parseArgs(argv) {
-  const a = { files: [], out: "diagrams", theme: "portal", renderer: "auto", gallery: true, list: false, verbose: false, strict: false, syncMarkdown: false };
+  const a = { files: [], out: "diagrams", theme: "portal", renderer: "auto", gallery: true, list: false, verbose: false, strict: false, syncMarkdown: false, imageFormat: "commonmark" };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i];
     if (v === "-h" || v === "--help") a.help = true;
     else if (v === "-V" || v === "--version") a.version = true;
-    else if (v === "-o" || v === "--out" || v === "-t" || v === "--theme" || v === "-r" || v === "--renderer") {
+    else if (v === "-o" || v === "--out" || v === "-t" || v === "--theme" || v === "-r" || v === "--renderer" || v === "--image-format") {
       const value = argv[i + 1];
       if (value == null || value.startsWith("-")) {
         console.error(`error: option ${v} requires a value`);
@@ -65,7 +67,8 @@ function parseArgs(argv) {
       } else {
         if (v === "-o" || v === "--out") a.out = value;
         else if (v === "-t" || v === "--theme") a.theme = value;
-        else a.renderer = value;
+        else if (v === "-r" || v === "--renderer") a.renderer = value;
+        else a.imageFormat = value;
         i++;
       }
     }
@@ -91,6 +94,9 @@ if (args.help || args.files.length === 0) {
 try { getTheme(args.theme); } catch (e) { console.error(`error: ${e.message}`); process.exit(1); }
 if (!["auto", "swimlane", "mermaid"].includes(args.renderer)) {
   console.error(`error: unknown renderer "${args.renderer}" (use auto, swimlane, or mermaid)`); process.exit(1);
+}
+if (!["commonmark", "learn"].includes(args.imageFormat)) {
+  console.error(`error: unknown image format "${args.imageFormat}" (use commonmark or learn)`); process.exit(1);
 }
 
 function pickRenderer(block, cliRenderer) {
@@ -237,7 +243,7 @@ for (const file of args.files) {
       ok++;
       console.log(`  ok   ${file}:${b.line}  ${outName}  [${renderer} · ${themeName}]${meta.nodes ? `  (${meta.nodes} nodes, ${meta.lanes} lanes, ${meta.w}×${meta.h})` : ""}`);
       if (args.syncMarkdown) {
-        syncSpecs.push({ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title, href: svgHref(file, join(outDir, outName)) });
+        syncSpecs.push({ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title, href: svgHref(file, join(outDir, outName), args.imageFormat) });
       }
     } catch (e) {
       failures.push({ slug: b.slug, source: file, line: b.line, error: e.message });
@@ -258,7 +264,7 @@ for (const file of args.files) {
   // `md` would report a "change" — and rewrite the file — on every single idempotent rerun.
   if (args.syncMarkdown && !args.list && blocks.length > 0 && !fileRenderFailed) {
     try {
-      const synced = syncMarkdown(md, syncSpecs);
+      const synced = syncMarkdown(md, syncSpecs, { imageFormat: args.imageFormat });
       if (synced !== rawCache.get(file)) {
         atomicWriteFileSync(file, synced);
         console.log(`  synced ${file} (${syncSpecs.length} managed block${syncSpecs.length === 1 ? "" : "s"})`);

@@ -652,3 +652,72 @@ test("--sync-markdown: two concurrent real syncs of the same file never race the
   const leftoverTmp = readdirSync(dir).filter((f) => f.includes(".diagrammo-sync.tmp"));
   assert.deepEqual(leftoverTmp, [], "no atomic temp file should ever survive a concurrent pair");
 });
+
+// ---- --image-format learn: Microsoft Learn :::image::: directive output (opt-in) --------------
+
+test("--image-format is documented in --help with both format values", async () => {
+  const r = await run("--help");
+  assert.match(r.stdout, /--image-format/);
+  assert.match(r.stdout, /commonmark \| learn/);
+});
+
+test("--image-format rejects an invalid value with a clear message and nonzero exit", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  writeFileSync(mdPath, healthDoc(), "utf8");
+  const bad = await run(mdPath, "-o", join(dir, "out"), "--sync-markdown", "--image-format", "docx");
+  assert.equal(bad.code, 1);
+  assert.match(bad.stderr, /unknown image format "docx"/);
+  assert.equal(readFileSync(mdPath, "utf8"), healthDoc(), "an invalid format leaves the Markdown untouched");
+  const missingValue = await run(mdPath, "--image-format");
+  assert.equal(missingValue.code, 1);
+  assert.match(missingValue.stderr, /option --image-format requires a value/);
+  // rejected even without --sync-markdown (validated unconditionally, like --theme/--renderer)
+  const badNoSync = await run(mdPath, "-o", join(dir, "out"), "--image-format", "docx");
+  assert.equal(badNoSync.code, 1);
+  assert.match(badNoSync.stderr, /unknown image format "docx"/);
+});
+
+test("--sync-markdown --image-format learn emits a Microsoft Learn :::image::: directive and writes the SVG", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  writeFileSync(mdPath, healthDoc(), "utf8");
+  const outDir = join(dir, "out");
+  const r = await run(mdPath, "-o", outDir, "--sync-markdown", "--image-format", "learn");
+  assert.equal(r.code, 0, r.stderr);
+  assert.ok(existsSync(join(outDir, "checkout.svg")));
+  const synced = readFileSync(mdPath, "utf8");
+  assert.match(synced, /<!-- diagrammo:sync checkout -->\n:::image type="content" source="out\/checkout\.svg" alt-text="Checkout" lightbox="out\/checkout\.svg" border="false":::\n\n<!-- diagrammo:source/);
+  assert.doesNotMatch(synced, /!\[Checkout\]/, "no CommonMark image token in learn mode");
+  assert.match(synced, /-->\n<!-- \/diagrammo:sync checkout -->/, "marker/hidden-source shape unchanged");
+  assert.match(synced, /--&gt; b\[/, "hidden source is still escaped byte-recoverable Mermaid");
+});
+
+test("--image-format learn escapes attribute-significant characters in the heading-derived alt text", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  const doc = ['## A "risky" & <odd> title', "", "```mermaid", HEALTH_MERMAID, "```", ""].join("\n") + "\n";
+  writeFileSync(mdPath, doc, "utf8");
+  const r = await run(mdPath, "-o", join(dir, "out"), "--sync-markdown", "--image-format", "learn");
+  assert.equal(r.code, 0, r.stderr);
+  const synced = readFileSync(mdPath, "utf8");
+  assert.match(synced, /alt-text="A &quot;risky&quot; &amp; &lt;odd&gt; title"/);
+  const directive = synced.split("\n").find((l) => l.startsWith(":::image"));
+  assert.equal((directive.match(/"/g) || []).length % 2, 0, "every quote in the directive is balanced (no early attribute close)");
+});
+
+test("--image-format learn: rerunning unmodified is byte-identical (idempotent)", async () => {
+  const dir = tmp();
+  const mdPath = join(dir, "doc.md");
+  writeFileSync(mdPath, healthDoc(), "utf8");
+  const outDir = join(dir, "out");
+  const r1 = await run(mdPath, "-o", outDir, "--sync-markdown", "--image-format", "learn");
+  assert.equal(r1.code, 0, r1.stderr);
+  const afterFirst = readFileSync(mdPath, "utf8");
+  const r2 = await run(mdPath, "-o", outDir, "--sync-markdown", "--image-format", "learn");
+  assert.equal(r2.code, 0, r2.stderr);
+  const afterSecond = readFileSync(mdPath, "utf8");
+  assert.equal(afterSecond, afterFirst, "a learn-mode resync must not drift");
+  assert.equal((afterSecond.match(/:::image/g) || []).length, 1, "no duplicated directive");
+  assert.equal((afterSecond.match(/diagrammo:sync checkout/g) || []).length, 2, "single wrapper");
+});
