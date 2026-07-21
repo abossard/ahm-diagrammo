@@ -29,6 +29,7 @@ npx ahm-diagrammo <file.md> [more.md ...] [options]
       --strict           any warning fails the run (exit 1)
       --no-gallery       don't write gallery.html
       --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden source
+      --image-format <fmt>  visible embed for --sync-markdown: commonmark | learn (default: commonmark)
   -h, --help             this help
   -V, --version          print version
 ```
@@ -95,6 +96,35 @@ npx ahm-diagrammo doc.md -o docs/assets --sync-markdown   # colocate the SVG und
 #    source stays fully hidden, not just collapsed
 # 4. commit both the Markdown and the emitted .svg
 ```
+
+### Visible-token format: `--image-format commonmark | learn`
+
+The visible embed inside each managed block defaults to core CommonMark `![alt](href)`
+(`--image-format commonmark`, the default — omit it and nothing changes). Pass
+`--image-format learn` to emit a [Microsoft Learn `:::image:::` content
+directive](https://learn.microsoft.com/en-us/contribute/content/markdown-reference#images) instead,
+for docsets built on Learn/Markdig:
+
+`````markdown
+<!-- diagrammo:sync checkout -->
+:::image type="content" source="diagrams/checkout.svg" alt-text="Checkout" lightbox="diagrams/checkout.svg" border="false":::
+
+<!-- diagrammo:source
+```mermaid
+flowchart BT
+a["A<br/>healthy"] --&gt; b["B<br/>healthy"]
+```
+-->
+<!-- /diagrammo:sync checkout -->
+`````
+
+Only the visible token line changes — the begin/end markers, the hidden-source comment, the stable
+slug/filename, the atomic untouched-on-failure guarantee, and byte-idempotent reruns are all
+identical to the default. The `alt-text`, `source`, and `lightbox` attribute values are escaped for
+the double-quoted directive (`&`, `<`, `>`, `"` → entities). An invalid `--image-format` value is
+rejected with a non-zero exit (validated even without `--sync-markdown`).
+A managed block first synced as CommonMark switches its visible token in place on the next
+`--image-format learn` resync (same slug, same hidden source), and vice versa.
 
 ### Verified renderer boundary
 

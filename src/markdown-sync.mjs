@@ -77,12 +77,16 @@ const SOURCE_INTENT_RE = /^<!--\s*diagrammo:source\b/;
 
 // ---------- path/text formatting ----------
 
-// Relative Markdown image destination from the Markdown file's own directory to the emitted SVG.
-// POSIX separators always; CommonMark angle-bracket form `<...>` when the path contains a space.
-export function svgHref(mdFilePath, svgFilePath) {
+// Relative destination from the Markdown file's own directory to the emitted SVG. POSIX separators
+// always. For the default CommonMark image (`![alt](href)`) a path containing a space must use the
+// angle-bracket form `<...>` or the link parse breaks; for a Microsoft Learn `:::image:::` directive
+// the path sits inside a double-quoted `source="..."` attribute where a space is fine and the angle
+// brackets would become literal, so the raw POSIX path is returned instead.
+export function svgHref(mdFilePath, svgFilePath, imageFormat = "commonmark") {
   const mdDir = dirname(resolve(mdFilePath));
   const rel = relative(mdDir, resolve(svgFilePath));
   const posix = rel.split(sep).join("/");
+  if (imageFormat === "learn") return posix;
   return /\s/.test(posix) ? `<${posix}>` : posix;
 }
 
@@ -92,6 +96,21 @@ export function svgHref(mdFilePath, svgFilePath) {
 export function escapeAltText(text) {
   return String(text).replace(/[\r\n]+/g, " ").trim()
     .replace(/\\/g, "\\\\").replace(/\[/g, "\\[").replace(/\]/g, "\\]");
+}
+
+// Escape text for safe use inside a double-quoted Microsoft Learn `:::image:::` directive attribute
+// (`alt-text="..."`, `source="..."`, `lightbox="..."`): newlines flattened to spaces (the directive
+// is one line), then the standard HTML-attribute-significant characters escaped so the value can
+// never close its own quote or introduce stray markup — `&` first so an already-present entity isn't
+// broken by a later pass. Deterministic and derived fresh each run from the fence's heading/title
+// (alt) or the computed relative path (source/lightbox), never re-parsed from a previously emitted
+// directive, so a Learn-mode resync stays byte-idempotent.
+export function escapeLearnAttr(text) {
+  return String(text).replace(/[\r\n]+/g, " ").trim()
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }
 
 // ---------- EOL-preserving line split/join ----------
@@ -247,15 +266,26 @@ export function preferredIdentities(source) {
 // ---------- managed-block shape ----------
 
 // Three independent, self-closed, non-nested HTML comments — begin marker, hidden-source, end
-// marker — with the visible `![alt](href)` image sitting outside all of them. The fence's own
-// text (delimiters + body) is escaped as one unit via escapeCommentTerminator() before being
-// embedded, so this throws (never silently mis-encodes) if that text already contains the
-// reserved token — the same guard assertBlocksEncodable() lets the CLI run as an early preflight.
-function buildManagedBlockLines({ slug, altText, href, fenceLines }) {
+// marker — with the visible image sitting outside all of them. The visible token is either core
+// CommonMark `![alt](href)` (default) or a Microsoft Learn `:::image:::` content directive; both
+// render to an <img> on their respective platforms (GitHub / Markdig-Learn) and neither is wrapped
+// in any of the comments. The fence's own text (delimiters + body) is escaped as one unit via
+// escapeCommentTerminator() before being embedded, so this throws (never silently mis-encodes) if
+// that text already contains the reserved token — the same guard assertBlocksEncodable() lets the
+// CLI run as an early preflight.
+function buildManagedBlockLines({ slug, altText, href, fenceLines, imageFormat = "commonmark" }) {
   const encodedFence = escapeCommentTerminator(fenceLines.join("\n")).split("\n");
+  // Learn's source/lightbox are double-quoted attribute values too, so the relative path is escaped
+  // the same way as alt-text — a directory (from -o or the file's own parents) containing " & < >
+  // would otherwise close the attribute early or leak markup. SVG filenames are slug-derived
+  // ([a-z0-9-]+), so only the directory portion can ever carry such a character.
+  const learnHref = escapeLearnAttr(href);
+  const visible = imageFormat === "learn"
+    ? `:::image type="content" source="${learnHref}" alt-text="${altText}" lightbox="${learnHref}" border="false":::`
+    : `![${altText}](${href})`;
   return [
     `<!-- diagrammo:sync ${slug} -->`,
-    `![${altText}](${href})`,
+    visible,
     "",
     "<!-- diagrammo:source",
     ...encodedFence,
@@ -271,7 +301,7 @@ function buildManagedBlockLines({ slug, altText, href, fenceLines }) {
 // extractBlocks() reports them on a *decoded* view of this same `source` (fence detection is
 // indifferent to any existing HTML wrapper, so this holds whether the fence is bare, inside an old
 // `<details>`-shape span, or inside a hidden-source comment from a previous run).
-export function syncMarkdown(source, blocks) {
+export function syncMarkdown(source, blocks, { imageFormat = "commonmark" } = {}) {
   // Decode first: an existing hidden-source comment's fence body is escaped on disk, and every
   // call site here (line-splicing below, and buildManagedBlockLines()'s own re-encode) must see
   // real Mermaid text — never escaped text — so an edit made directly inside the hidden comment,
@@ -295,8 +325,9 @@ export function syncMarkdown(source, blocks) {
     const start = wrapping ? wrapping.beginLine : b.openLine;
     const end = wrapping ? wrapping.endLine : b.closeLine;
     const fenceLines = lines.slice(b.openLine - 1, b.closeLine);
-    const altText = escapeAltText(b.title && String(b.title).trim() ? b.title : "Mermaid diagram");
-    const block = buildManagedBlockLines({ slug, altText, href: b.href, fenceLines });
+    const rawAlt = b.title && String(b.title).trim() ? b.title : "Mermaid diagram";
+    const altText = imageFormat === "learn" ? escapeLearnAttr(rawAlt) : escapeAltText(rawAlt);
+    const block = buildManagedBlockLines({ slug, altText, href: b.href, fenceLines, imageFormat });
     return { start, end, block };
   });
   edits.sort((a, b) => b.start - a.start); // bottom-up: earlier spans' line numbers stay valid

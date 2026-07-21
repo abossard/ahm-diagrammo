@@ -7,7 +7,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { marked } from "marked";
 import {
-  syncMarkdown, svgHref, escapeAltText, preferredIdentities,
+  syncMarkdown, svgHref, escapeAltText, escapeLearnAttr, preferredIdentities,
   escapeCommentTerminator, unescapeCommentTerminator, decodeManagedSpans, assertBlocksEncodable,
 } from "../src/markdown-sync.mjs";
 import { extractBlocks } from "../src/extract.mjs";
@@ -462,4 +462,101 @@ test("syncMarkdown: an ordinary HTML comment that merely mentions diagrammo:sync
   const out = syncMarkdown(md, spec);
   assert.match(out, /^<!-- see diagrammo:sync docs for details -->/);
   assert.match(out, /<!-- diagrammo:sync checkout -->/);
+});
+
+// ---------- Microsoft Learn image-directive output (opt-in --image-format learn) --------------
+
+test("svgHref: learn format returns the raw POSIX path (no CommonMark angle-bracket form), even with spaces", () => {
+  // default/commonmark keeps its angle-bracket-for-spaces behavior (asserted above); learn does not
+  assert.equal(svgHref("/repo/docs/page.md", "/repo/docs/assets/diagram.svg", "learn"), "assets/diagram.svg");
+  assert.equal(svgHref("/repo/docs/page.md", "/repo/docs/assets/my diagram.svg", "learn"), "assets/my diagram.svg");
+  assert.equal(svgHref("/repo/sub/dir/page.md", "/repo/out/assets/diagram.svg", "learn"), "../../out/assets/diagram.svg");
+});
+
+test("escapeLearnAttr: escapes attribute-significant characters and flattens newlines (idempotent-safe, deterministic)", () => {
+  assert.equal(escapeLearnAttr('A "quoted" & <tagged> value'), "A &quot;quoted&quot; &amp; &lt;tagged&gt; value");
+  assert.equal(escapeLearnAttr("Line one\nLine two"), "Line one Line two");
+  // & escaped first so an existing bare & never breaks a later-inserted entity
+  assert.equal(escapeLearnAttr('Tom & "Jerry"'), "Tom &amp; &quot;Jerry&quot;");
+});
+
+test("syncMarkdown: --image-format learn vs commonmark differ only in the visible token line; markers + hidden source are identical", () => {
+  const md = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(md, THEME_NAMES);
+  const spec = [{ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: b.heading, href: "diagrams/checkout.svg" }];
+  const cases = {
+    commonmark: { format: "commonmark", visible: "![Checkout](diagrams/checkout.svg)" },
+    learn: {
+      format: "learn",
+      visible: ':::image type="content" source="diagrams/checkout.svg" alt-text="Checkout" lightbox="diagrams/checkout.svg" border="false":::',
+    },
+  };
+  for (const [name, { format, visible }] of Object.entries(cases)) {
+    const out = syncMarkdown(md, spec, { imageFormat: format });
+    const expected = [
+      "## Checkout",
+      "",
+      "<!-- diagrammo:sync checkout -->",
+      visible,
+      "",
+      "<!-- diagrammo:source",
+      "```mermaid",
+      "flowchart BT",
+      "a --&gt; b",
+      "```",
+      "-->",
+      "<!-- /diagrammo:sync checkout -->",
+      "",
+    ].join("\n");
+    assert.equal(out, expected, name);
+  }
+});
+
+test("syncMarkdown: learn-mode source/lightbox href is attribute-escaped when the (directory) path carries \" & < >", () => {
+  const md = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(md, THEME_NAMES);
+  // svgHref only ever emits [a-z0-9-]+.svg filenames, but the directory portion (from -o or the
+  // file's own parents) can carry attribute-significant characters — those must not close source="
+  const href = 'a&b/<x>/"q"/checkout.svg';
+  const out = syncMarkdown(md, [{ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: b.heading, href }], { imageFormat: "learn" });
+  assert.match(out, /source="a&amp;b\/&lt;x&gt;\/&quot;q&quot;\/checkout\.svg"/);
+  assert.match(out, /lightbox="a&amp;b\/&lt;x&gt;\/&quot;q&quot;\/checkout\.svg"/);
+  const directive = out.split("\n").find((l) => l.startsWith(":::image"));
+  assert.equal((directive.match(/"/g) || []).length % 2, 0, "every quote in the directive is balanced");
+});
+
+test("syncMarkdown: learn-mode alt text with attribute-significant characters is escaped inside alt-text=\"...\"", () => {
+  const md = '## A "risky" & <odd> title\n\n```mermaid\nflowchart BT\na --> b\n```\n';
+  const [b] = extractBlocks(md, THEME_NAMES);
+  const out = syncMarkdown(md, [{ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: b.heading, href: "d.svg" }], { imageFormat: "learn" });
+  assert.match(out, /alt-text="A &quot;risky&quot; &amp; &lt;odd&gt; title"/);
+  // the raw double-quote must never survive unescaped inside the attribute (it would close it early)
+  const visibleLine = out.split("\n").find((l) => l.startsWith(":::image"));
+  assert.equal((visibleLine.match(/"/g) || []).length % 2, 0, "every quote in the directive line is balanced");
+});
+
+test("syncMarkdown: rerunning learn-mode on an already-learn-synced file is byte-identical (idempotent)", () => {
+  const md = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(md, THEME_NAMES);
+  const spec = (blk) => [{ slug: blk.slug, openLine: blk.line, closeLine: blk.closeLine, title: blk.heading, href: "checkout.svg" }];
+  const once = syncMarkdown(md, spec(b), { imageFormat: "learn" });
+  const [b2] = extractBlocks(decodeManagedSpans(once), THEME_NAMES);
+  const twice = syncMarkdown(once, spec(b2), { imageFormat: "learn" });
+  assert.equal(twice, once, "a learn-mode resync of unchanged input must not drift");
+  assert.equal((twice.match(/:::image/g) || []).length, 1, "no duplicated/nested directive");
+});
+
+test("syncMarkdown: a commonmark-synced block re-synced with --image-format learn switches the visible token in place, keeping the same slug and hidden source", () => {
+  const md = "## Checkout\n\n```mermaid\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(md, THEME_NAMES);
+  const spec = (blk) => [{ slug: blk.slug, openLine: blk.line, closeLine: blk.closeLine, title: blk.heading, href: "checkout.svg" }];
+  const cm = syncMarkdown(md, spec(b), { imageFormat: "commonmark" });
+  assert.match(cm, /!\[Checkout\]\(checkout\.svg\)/);
+  const [b2] = extractBlocks(decodeManagedSpans(cm), THEME_NAMES);
+  const learn = syncMarkdown(cm, spec(b2), { imageFormat: "learn" });
+  assert.doesNotMatch(learn, /!\[Checkout\]\(checkout\.svg\)/, "old commonmark token is gone");
+  assert.match(learn, /:::image type="content" source="checkout\.svg" alt-text="Checkout" lightbox="checkout\.svg" border="false":::/);
+  assert.equal((learn.match(/diagrammo:sync checkout/g) || []).length, 2, "same slug, single wrapper");
+  // hidden source is untouched and still recovers the original fence byte-for-byte
+  assert.equal(extractBlocks(decodeManagedSpans(learn), THEME_NAMES)[0].code, b.code);
 });

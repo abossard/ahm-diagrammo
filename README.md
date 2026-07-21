@@ -103,6 +103,7 @@ npx ahm-diagrammo doc.md --list                # show what each block would rend
 npx ahm-diagrammo doc.md --verbose             # log every parsed node/edge/fold decision
 npx ahm-diagrammo doc.md --strict              # any warning fails the run (CI-friendly)
 npx ahm-diagrammo doc.md --sync-markdown       # rewrite fences into visible SVG + fully hidden source
+npx ahm-diagrammo doc.md --sync-markdown --image-format learn   # emit Microsoft Learn :::image::: directives
 ```
 
 The command walks the file, and for each ` ```mermaid ` block:
@@ -138,6 +139,13 @@ The loop:
 
 See [the checked-in sync example](examples/sync-markdown/) for a real, already-synced Markdown
 file plus the rendered SVG and the exact regeneration command.
+
+By default the visible embed is core CommonMark `![alt](href)`. For docsets built on Microsoft
+Learn (Markdig), add `--image-format learn` to emit a `:::image type="content" source="…"
+alt-text="…" lightbox="…" border="false":::` content directive as the visible token instead —
+everything else about the managed block (hidden source, stable slug/filename, idempotent reruns,
+untouched-on-failure) is unchanged. See
+[docs/FEATURES.md](docs/FEATURES.md#visible-token-format---image-format-commonmark--learn).
 
 Reruns are idempotent, and editing the fence inside an already-synced block and rerunning updates
 that same block's SVG in place — no nested wrappers, no drift. **The first generated filename is
