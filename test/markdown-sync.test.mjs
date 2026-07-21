@@ -560,3 +560,137 @@ test("syncMarkdown: a commonmark-synced block re-synced with --image-format lear
   // hidden source is untouched and still recovers the original fence byte-for-byte
   assert.equal(extractBlocks(decodeManagedSpans(learn), THEME_NAMES)[0].code, b.code);
 });
+
+// ---------- `%%| alt:` per-diagram alt-text override (shared alt pipeline) ----------
+//
+// The alt precedence for a synced visible embed is: explicit `%%| alt:` override → existing
+// `title` (which the CLI resolves to `options.title ?? heading`) → generic fallback. These tests
+// mirror the CLI's spec shape (`title: options.title ?? heading, alt: options.alt`) so they prove
+// the same pipeline the real command feeds into syncMarkdown().
+
+// Build a syncMarkdown spec from an extracted block exactly as bin/diagrammo.mjs does.
+const specFromBlock = (b, href = "checkout.svg") => [{
+  slug: b.slug, openLine: b.line, closeLine: b.closeLine,
+  title: b.options.title ?? b.heading, alt: b.options.alt, href,
+}];
+
+test("syncMarkdown: `%%| alt:` override beats both title and heading, in both image formats, safely escaped", () => {
+  const md = [
+    "## Fallback Heading",
+    "",
+    '```mermaid title="Rendered Title"',
+    '%%| alt: Regions "A" & <B> to [root]',
+    "flowchart BT",
+    "a --> b",
+    "```",
+    "",
+  ].join("\n");
+  const [b] = extractBlocks(md, THEME_NAMES);
+  assert.equal(b.options.alt, 'Regions "A" & <B> to [root]');
+  const cases = {
+    commonmark: {
+      format: "commonmark",
+      // escapeAltText escapes \ [ ] only — brackets become \[ \]; quotes/&/<> are inert in ![...]
+      match: /!\[Regions "A" & <B> to \\\[root\\\]\]\(checkout\.svg\)/,
+    },
+    learn: {
+      format: "learn",
+      // escapeLearnAttr escapes & < > " — brackets are inert inside an attribute value
+      match: /alt-text="Regions &quot;A&quot; &amp; &lt;B&gt; to \[root\]"/,
+    },
+  };
+  for (const [name, { format, match }] of Object.entries(cases)) {
+    const out = syncMarkdown(md, specFromBlock(b), { imageFormat: format });
+    assert.match(out, match, name);
+    // the visible embed line must not fall back to title/heading (the hidden source legitimately
+    // still carries the fence's `title="Rendered Title"`, so scope this to the visible token only)
+    const visible = out.split("\n").find((l) => l.startsWith(format === "learn" ? ":::image" : "!["));
+    assert.doesNotMatch(visible, /Rendered Title|Fallback Heading/, `${name}: visible alt is the override, not title/heading`);
+  }
+});
+
+test("syncMarkdown: without an alt override, alt text is unchanged (title, then heading, then generic fallback)", () => {
+  const cases = {
+    "title wins over heading when both present": {
+      md: '## Heading\n\n```mermaid title="Real Title"\nflowchart BT\na --> b\n```\n',
+      expect: /!\[Real Title\]\(checkout\.svg\)/,
+    },
+    "heading is used when no title/alt": {
+      md: "## Just A Heading\n\n```mermaid\nflowchart BT\na --> b\n```\n",
+      expect: /!\[Just A Heading\]\(checkout\.svg\)/,
+    },
+    "generic fallback when neither heading nor title nor alt": {
+      md: "```mermaid\nflowchart BT\na --> b\n```\n",
+      // no heading → extractBlocks defaults heading to "diagram"; but the CLI passes
+      // title = options.title ?? heading = "diagram", so alt is "diagram" here. Force the
+      // true no-title/no-heading fallback by passing an empty title spec below instead.
+      expect: /!\[diagram\]/,
+    },
+  };
+  for (const [name, { md, expect }] of Object.entries(cases)) {
+    const [b] = extractBlocks(md, THEME_NAMES);
+    assert.equal(b.options.alt, undefined, `${name}: no alt override present`);
+    const out = syncMarkdown(md, specFromBlock(b), { imageFormat: "commonmark" });
+    assert.match(out, expect, name);
+  }
+  // the true generic fallback ("Mermaid diagram") only appears when title is also empty/absent
+  const md = "```mermaid\nflowchart BT\na --> b\n```\n";
+  const [b] = extractBlocks(md, THEME_NAMES);
+  const out = syncMarkdown(md, [{ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title: "", alt: undefined, href: "x.svg" }]);
+  assert.match(out, /!\[Mermaid diagram\]\(x\.svg\)/);
+});
+
+test("syncMarkdown: an empty/whitespace `%%| alt:` override never emits empty accessibility text — it falls back to title/heading", () => {
+  const cases = {
+    "empty alt falls back to title": {
+      md: '## H\n\n```mermaid title="The Title"\n%%| alt:\nflowchart BT\na --> b\n```\n',
+      commonmark: /!\[The Title\]\(checkout\.svg\)/,
+      learn: /alt-text="The Title"/,
+    },
+    "whitespace-only alt falls back to heading (no title)": {
+      md: "## Heading Only\n\n```mermaid\n%%| alt:    \nflowchart BT\na --> b\n```\n",
+      commonmark: /!\[Heading Only\]\(checkout\.svg\)/,
+      learn: /alt-text="Heading Only"/,
+    },
+  };
+  for (const [name, { md, commonmark, learn }] of Object.entries(cases)) {
+    const [b] = extractBlocks(md, THEME_NAMES);
+    const cm = syncMarkdown(md, specFromBlock(b), { imageFormat: "commonmark" });
+    assert.match(cm, commonmark, `${name} (commonmark)`);
+    assert.doesNotMatch(cm, /!\[\]\(/, `${name}: never an empty commonmark alt`);
+    const lrn = syncMarkdown(md, specFromBlock(b), { imageFormat: "learn" });
+    assert.match(lrn, learn, `${name} (learn)`);
+    assert.doesNotMatch(lrn, /alt-text=""/, `${name}: never an empty learn alt-text`);
+  }
+});
+
+test("syncMarkdown: the `%%| alt:` override lives inside the hidden source and round-trips across a resync (fresh fence + existing managed block)", () => {
+  const md = [
+    "## Checkout",
+    "",
+    "```mermaid",
+    "%%| alt: Durable screen-reader description of the roll-up",
+    "flowchart BT",
+    "a --> b",
+    "```",
+    "",
+  ].join("\n");
+  for (const format of ["commonmark", "learn"]) {
+    const [b] = extractBlocks(md, THEME_NAMES);
+    // first sync (fresh fence)
+    const once = syncMarkdown(md, specFromBlock(b), { imageFormat: format });
+    // the override text survives inside the hidden diagrammo:source comment
+    const [b2] = extractBlocks(decodeManagedSpans(once), THEME_NAMES);
+    assert.equal(b2.options.alt, "Durable screen-reader description of the roll-up", `${format}: alt recovered from managed block`);
+    // second sync (existing managed block) is byte-identical and preserves the visible alt
+    const twice = syncMarkdown(once, specFromBlock(b2), { imageFormat: format });
+    assert.equal(twice, once, `${format}: resync with an unchanged alt override must be byte-idempotent`);
+    const expectAlt = format === "learn"
+      ? /alt-text="Durable screen-reader description of the roll-up"/
+      : /!\[Durable screen-reader description of the roll-up\]/;
+    assert.match(twice, expectAlt, `${format}: visible embed keeps the override alt`);
+    // slug/filename identity and the hidden fence body are untouched by the alt override
+    assert.equal((twice.match(/diagrammo:sync checkout/g) || []).length, 2, `${format}: single wrapper, stable slug`);
+    assert.equal(extractBlocks(decodeManagedSpans(twice), THEME_NAMES)[0].code, b.code, `${format}: hidden fence body preserved`);
+  }
+});

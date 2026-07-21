@@ -296,11 +296,13 @@ function buildManagedBlockLines({ slug, altText, href, fenceLines, imageFormat =
 
 // ---------- main transform ----------
 
-// blocks: [{ slug, openLine, closeLine, title, href }] — openLine/closeLine are the current
+// blocks: [{ slug, openLine, closeLine, title, alt, href }] — openLine/closeLine are the current
 // (pre-transform) 1-based line numbers of the mermaid fence's own open/close lines, exactly as
 // extractBlocks() reports them on a *decoded* view of this same `source` (fence detection is
 // indifferent to any existing HTML wrapper, so this holds whether the fence is bare, inside an old
-// `<details>`-shape span, or inside a hidden-source comment from a previous run).
+// `<details>`-shape span, or inside a hidden-source comment from a previous run). `alt` is the
+// optional per-diagram alt-text override (`%%| alt:`); when absent/empty the alt falls back to
+// `title`.
 export function syncMarkdown(source, blocks, { imageFormat = "commonmark" } = {}) {
   // Decode first: an existing hidden-source comment's fence body is escaped on disk, and every
   // call site here (line-splicing below, and buildManagedBlockLines()'s own re-encode) must see
@@ -325,7 +327,11 @@ export function syncMarkdown(source, blocks, { imageFormat = "commonmark" } = {}
     const start = wrapping ? wrapping.beginLine : b.openLine;
     const end = wrapping ? wrapping.endLine : b.closeLine;
     const fenceLines = lines.slice(b.openLine - 1, b.closeLine);
-    const rawAlt = b.title && String(b.title).trim() ? b.title : "Mermaid diagram";
+    // Shared alt pipeline (both image formats): an explicit per-diagram `alt` override wins, then the
+    // existing `title` (which the CLI already resolves to `options.title ?? heading`), then a generic
+    // fallback. Empty/whitespace-only values are skipped (extractBlocks() already warned on an empty
+    // `alt` override) so the emitted embed never carries empty accessibility text (`![]`/`alt-text=""`).
+    const rawAlt = [b.alt, b.title].find((t) => t != null && String(t).trim()) ?? "Mermaid diagram";
     const altText = imageFormat === "learn" ? escapeLearnAttr(rawAlt) : escapeAltText(rawAlt);
     const block = buildManagedBlockLines({ slug, altText, href: b.href, fenceLines, imageFormat });
     return { start, end, block };

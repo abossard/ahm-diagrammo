@@ -100,6 +100,50 @@ test("extractBlocks: unknown option key and bad values produce issues", () => {
   assert.equal(b.issues.find((i) => i.message.includes("sparkles")).level, "error");
 });
 
+test("extractBlocks: `%%| alt:` override directive parsing (recognized, empty warns, malformed warns)", () => {
+  const cases = {
+    "non-empty alt is a recognized option, no unknown-option warning": {
+      doc: "```mermaid\n%%| alt: Active-passive roll-up: two regions to healthy root\nflowchart BT\na --> b\n```",
+      alt: "Active-passive roll-up: two regions to healthy root",
+      expectWarn: null,
+      noWarn: /unknown option/,
+    },
+    "alt with attribute/bracket-significant characters is captured verbatim": {
+      doc: '```mermaid\n%%| alt: Roll-up of "A" & <B> to [root]\nflowchart BT\na --> b\n```',
+      alt: 'Roll-up of "A" & <B> to [root]',
+      expectWarn: null,
+      noWarn: /unknown option/,
+    },
+    "empty alt override warns and falls back (value stays empty for the pipeline to skip)": {
+      doc: "```mermaid\n%%| alt:\nflowchart BT\na --> b\n```",
+      alt: "",
+      expectWarn: /empty "alt" override — falling back to title\/heading/,
+      noWarn: /unknown option/,
+    },
+    "whitespace-only alt override warns": {
+      doc: '```mermaid\n%%| alt: "   "\nflowchart BT\na --> b\n```',
+      alt: "   ",
+      expectWarn: /empty "alt" override/,
+      noWarn: /unknown option/,
+    },
+    "malformed `%%| alt` (no colon) uses the existing malformed-directive warning": {
+      doc: "```mermaid\n%%| alt\nflowchart BT\na --> b\n```",
+      alt: undefined,
+      expectWarn: /malformed directive "%%\| alt"/,
+      noWarn: /unknown option/,
+    },
+  };
+  for (const [name, { doc, alt, expectWarn, noWarn }] of Object.entries(cases)) {
+    const [b] = extractBlocks(doc, THEME_NAMES);
+    assert.equal(b.options.alt, alt, name);
+    const msgs = b.issues.map((i) => i.message).join("\n");
+    if (expectWarn) assert.match(msgs, expectWarn, name);
+    if (noWarn) assert.doesNotMatch(msgs, noWarn, `${name}: should not emit an unknown-option warning`);
+    // `alt` never participates in slug derivation — identity stays heading/title/name-based.
+    assert.equal(b.slug, "diagram", `${name}: alt must not change the slug`);
+  }
+});
+
 test("extractBlocks: unknown theme is a block-level error with fence line", () => {
   const doc = "line1\n\n```mermaid theme=neon\nflowchart BT\na --> b\n```";
   const [b] = extractBlocks(doc, THEME_NAMES);

@@ -243,7 +243,7 @@ for (const file of args.files) {
       ok++;
       console.log(`  ok   ${file}:${b.line}  ${outName}  [${renderer} · ${themeName}]${meta.nodes ? `  (${meta.nodes} nodes, ${meta.lanes} lanes, ${meta.w}×${meta.h})` : ""}`);
       if (args.syncMarkdown) {
-        syncSpecs.push({ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title, href: svgHref(file, join(outDir, outName), args.imageFormat) });
+        syncSpecs.push({ slug: b.slug, openLine: b.line, closeLine: b.closeLine, title, alt: b.options.alt, href: svgHref(file, join(outDir, outName), args.imageFormat) });
       }
     } catch (e) {
       failures.push({ slug: b.slug, source: file, line: b.line, error: e.message });
