@@ -142,7 +142,7 @@ export function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "diagram";
 }
 
-export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background", "alt"];
+export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background", "alt", "maxWidth", "laneLabels"];
 
 // Reserves a slug in the shared `used` map before any new block's slug is derived, so a
 // managed block's stable identity (its first-generated marker slug) can never be re-derived or
@@ -221,6 +221,19 @@ function buildBlock({ heading, info, code, line, closeLine, themeNames, used, pr
   // parseDirectives' "malformed directive" path, so only the empty-value case is handled here.
   if (options.alt != null && !String(options.alt).trim())
     issues.push({ level: "warn", message: `empty "alt" override — falling back to title/heading for the accessibility text`, line });
+  if (options.maxWidth != null && !(Number.isFinite(options.maxWidth) && options.maxWidth > 0)) {
+    issues.push({ level: "warn", message: `"maxWidth" should be a positive number of CSS px — got ${JSON.stringify(options.maxWidth)} — falling back to the renderer's default`, line });
+    delete options.maxWidth; // never an "unbounded" state: dropping it lets the 1024 default (or another still-valid source) apply
+  }
+  // `laneLabels` follows the same explicit warn-and-drop precedent as `maxWidth` above — a
+  // deliberate improvement over `legend`'s own silent gap, not merely mirroring it (see the
+  // blueprint's Decisions table): a non-boolean value warns and is dropped, falling back to the
+  // default-on behavior, so a direct JS/library caller passing e.g. "false" (a string) never
+  // reaches renderSwimlane un-normalized.
+  if (options.laneLabels != null && typeof options.laneLabels !== "boolean") {
+    issues.push({ level: "warn", message: `"laneLabels" should be a boolean — got ${JSON.stringify(options.laneLabels)} — falling back to shown (the default)`, line });
+    delete options.laneLabels;
+  }
   // A preferred slug (e.g. an existing managed marker's stable identity) wins outright — the
   // heading/title-derived base below is never even computed as a candidate for this block.
   let slug;
