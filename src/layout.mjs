@@ -169,3 +169,83 @@ export function pickCorridorX(corridors, want, taken = [], { spacing = 7 } = {})
   }
   return best; // null ⇒ no corridor slot available (caller falls back / verifier flags)
 }
+
+// ---------- row packing (multi-row swimlane wrapping) ----------
+// Wraps one lane's ordered node ids into physical rows bounded by `budget` (a row's content
+// width: card widths + the gaps between them). Graph-aware, not per-node: maximal contiguous runs
+// of ids sharing the same groupKeyOf(id) (the caller passes each node's primary parent) are
+// atomic units, never split across rows while the unit's own width fits the budget. A unit (or a
+// single node) whose own width exceeds the budget degrades to per-node next-fit for just its own
+// members — it may still end up alone in a row wider than budget (the caller's unavoidable-
+// content exception; never split/cropped/reordered).
+//
+// After the greedy pass, one bounded, deterministic, left-to-right rebalance sweep may move the
+// whole trailing atomic unit of a row into the front of the NEXT row when that next row's content
+// sits below 50% of budget and the move still fits — relieving a sparse row without breaking unit
+// atomicity, order, or the hard budget bound. Not a search: one forward pass, one sweep, O(n).
+//
+// ids        — ordered node ids (existing barycenter order; never reordered by this function).
+// widthOf(id) — a node's card width.
+// gap        — minimum gap between adjacent cards in a row.
+// budget     — max content width per row. A non-finite or non-positive budget means "no wrapping
+//              requested": returns `[ids]` (a single row, unchanged) — the "unset" case a caller
+//              resolves to a real default before ever calling this.
+// groupKeyOf(id) — the atomic-unit key. Defaults to `id` itself (every node its own singleton
+//              unit) when omitted. A key of `null`/`undefined` never merges with another node's
+//              null/undefined key (each becomes its own singleton unit).
+// Returns an array of rows, each an ordered array of ids. Concatenating every row reproduces
+// `ids` exactly: only row boundaries are introduced, never a reorder or a dropped id.
+export function packRows(ids, widthOf, gap, budget, groupKeyOf) {
+  if (ids.length === 0) return [];
+  if (!Number.isFinite(budget) || budget <= 0) return [ids.slice()];
+  const keyOf = groupKeyOf || ((id) => id);
+  const EPS = 1e-6;
+
+  // 1. maximal contiguous runs sharing the same key become atomic units.
+  const units = [];
+  for (const id of ids) {
+    const rawKey = keyOf(id);
+    const key = rawKey == null ? { solo: id } : rawKey; // {} !== {}: never merges with another solo
+    const last = units[units.length - 1];
+    if (last && last.key === key) last.ids.push(id);
+    else units.push({ key, ids: [id] });
+  }
+  for (const u of units) u.width = u.ids.reduce((a, id) => a + widthOf(id), 0) + gap * (u.ids.length - 1);
+
+  // 2. greedy next-fit over units; an oversized unit degrades to per-node next-fit for its own ids.
+  const rows = [[]], rowW = [0], rowUnits = [[]]; // rowUnits[r]: [{ ids, width, atomic }] placed
+  const place = (rowIds, addWidth, atomic) => {
+    let r = rows.length - 1;
+    if (rows[r].length && rowW[r] + gap + addWidth > budget + EPS) {
+      rows.push([]); rowW.push(0); rowUnits.push([]);
+      r = rows.length - 1;
+    }
+    const extra = rows[r].length ? gap + addWidth : addWidth;
+    rows[r].push(...rowIds);
+    rowW[r] += extra;
+    rowUnits[r].push({ ids: rowIds, width: addWidth, atomic });
+  };
+  for (const u of units) {
+    if (u.width <= budget + EPS) place(u.ids, u.width, true);
+    else for (const id of u.ids) place([id], widthOf(id), false); // oversized: per-node next-fit
+  }
+
+  // 3. bounded rebalance sweep: relieve a row below 50% fill by pulling the previous row's
+  //    trailing atomic unit onto its front, left to right, once, only when it still fits.
+  for (let i = 1; i < rows.length; i++) {
+    if (rowW[i] / budget >= 0.5) continue;
+    const donorUnits = rowUnits[i - 1];
+    if (donorUnits.length < 2) continue; // never empty a row entirely
+    const moving = donorUnits[donorUnits.length - 1];
+    if (!moving.atomic) continue; // don't reach into an already-degraded oversized unit
+    const movedRowW = moving.width + (rows[i].length ? gap : 0) + rowW[i];
+    if (movedRowW > budget + EPS) continue;
+    donorUnits.pop();
+    rows[i - 1].splice(rows[i - 1].length - moving.ids.length, moving.ids.length);
+    rowW[i - 1] -= moving.width + gap; // donorUnits still has >=1 unit left, so a gap preceded it
+    rows[i].unshift(...moving.ids);
+    rowUnits[i].unshift(moving);
+    rowW[i] = movedRowW;
+  }
+  return rows;
+}

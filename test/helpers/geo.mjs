@@ -15,7 +15,11 @@ function fmtRect(r) {
 }
 
 // Every violation found across all checks, as human-readable strings.
-export function verifyGeometry(result, { checkTexts = true } = {}) {
+// `maxWidth` is opt-in (default undefined = today's exact behavior for every existing caller):
+// when set, flags any physical lane row whose packed card content exceeds it — a defense-in-depth
+// secondary check to the primary `result.W <= maxWidth` bound — unless that row holds exactly one
+// card (the "a single node/group too wide to split gets its own oversized row" exception).
+export function verifyGeometry(result, { checkTexts = true, maxWidth } = {}) {
   const { debug, W, H } = result;
   const problems = [];
 
@@ -33,6 +37,23 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
       problems.push(`card ${fmtRect(c)} leaves its lane band [${lane.top.toFixed(1)}..${(lane.top + lane.h).toFixed(1)}]`);
     if (c.x < -EPS || c.x + c.w > W + EPS || c.y < -EPS || c.y + c.h > H + EPS)
       problems.push(`card ${fmtRect(c)} leaves the canvas ${W}×${H}`);
+  }
+
+  // 2b. (opt-in) no physical row's packed card content exceeds maxWidth, unless it's the sole
+  // occupant of that row (an unavoidable single node/group wider than the budget, per C4).
+  if (Number.isFinite(maxWidth)) {
+    const byRow = new Map();
+    for (const c of debug.cards) {
+      if (!byRow.has(c.lane)) byRow.set(c.lane, []);
+      byRow.get(c.lane).push(c);
+    }
+    for (const [rowIdx, cards] of byRow) {
+      if (cards.length < 2) continue; // sole occupant: the C4 exception, never flagged
+      const lo = Math.min(...cards.map((c) => c.x)), hi = Math.max(...cards.map((c) => c.x + c.w));
+      const span = hi - lo;
+      if (span > maxWidth + EPS)
+        problems.push(`row ${rowIdx} packed content ${span.toFixed(1)}px exceeds maxWidth ${maxWidth}px (${cards.length} cards: ${cards.map((c) => c.id).join(", ")})`);
+    }
   }
 
   // 3. pills: inside canvas, disjoint from each other, from every card, and from every
@@ -67,21 +88,27 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
   }
 
   // 5. horizontal segments of different edges never overlap collinearly (share a y and an x-range)
+  //    — UNLESS both segments carry the same non-null `trunk` tag: a deliberate, intentional
+  //    shared-bundle coincidence (see C24/C29 — a group of edges sharing a target rides one
+  //    genuinely-coincident trunk, tagged with the target's id). A different (or absent) trunk
+  //    tag on either side is still flagged exactly as before; this is a narrow, tag-gated
+  //    exception, not a general loosening of the anti-accidental-overlap guarantee.
+  const sameTrunk = (a, b) => a.trunk != null && a.trunk === b.trunk;
   const hs = debug.segs.filter((s) => s.kind === "h");
   for (let i = 0; i < hs.length; i++)
     for (let j = i + 1; j < hs.length; j++) {
       const a = hs[i], b = hs[j];
-      if (a.edge === b.edge) continue;
+      if (a.edge === b.edge || sameTrunk(a, b)) continue;
       if (Math.abs(a.y1 - b.y1) < 1.5 && a.x1 + 1 < b.x2 && b.x1 + 1 < a.x2)
         problems.push(`collinear horizontal overlap between ${a.edge} and ${b.edge} at y≈${a.y1.toFixed(0)}`);
     }
 
-  // 6. vertical segments of different edges never overlap collinearly
+  // 6. vertical segments of different edges never overlap collinearly (same trunk-tag exception)
   const vs = debug.segs.filter((s) => s.kind === "v");
   for (let i = 0; i < vs.length; i++)
     for (let j = i + 1; j < vs.length; j++) {
       const a = vs[i], b = vs[j];
-      if (a.edge === b.edge) continue;
+      if (a.edge === b.edge || sameTrunk(a, b)) continue;
       if (Math.abs(a.x1 - b.x1) < 1.5 && a.y1 + 1 < b.y2 && b.y1 + 1 < a.y2)
         problems.push(`collinear vertical overlap between ${a.edge} and ${b.edge} at x≈${a.x1.toFixed(0)}`);
     }
@@ -100,6 +127,37 @@ export function verifyGeometry(result, { checkTexts = true } = {}) {
   }
 
   return problems;
+}
+
+// ---------- routing-readability metrics (C26-C28) ----------
+// A true visual "crossing" in this axis-aligned geometry model: a vertical segment and a
+// horizontal segment, belonging to different edges, where the vertical's x falls STRICTLY
+// inside the horizontal's x-range and the horizontal's y falls STRICTLY inside the vertical's
+// y-range. Strict inequality is what naturally excludes both an intentional collinear shared
+// trunk (a v×v/h×h overlap — a different shape entirely, already governed by checks #5/#6 and
+// their trunk-tag exception above) and an endpoint touch/T-junction (a branch stub ending
+// exactly at a trunk: the join point sits ON the trunk's boundary, not strictly inside it).
+export function countCrossings(debug) {
+  const EPS = 1e-6;
+  const vs = debug.segs.filter((s) => s.kind === "v");
+  const hs = debug.segs.filter((s) => s.kind === "h");
+  let count = 0;
+  for (const v of vs) {
+    const vx = v.x1; // x1 === x2 on a vertical segment
+    for (const h of hs) {
+      if (v.edge === h.edge) continue;
+      const hy = h.y1; // y1 === y2 on a horizontal segment
+      if (vx > h.x1 + EPS && vx < h.x2 - EPS && hy > v.y1 + EPS && hy < v.y2 - EPS) count++;
+    }
+  }
+  return count;
+}
+
+// Total Manhattan (taxicab) length of every drawn connector segment, summed across all edges —
+// including duplicated shared-trunk portions (every edge keeps its own complete polyline, per
+// C29), so this is the true rendered ink length, not a de-duplicated topological length.
+export function manhattanLength(debug) {
+  return debug.segs.reduce((sum, s) => sum + (s.x2 - s.x1) + (s.y2 - s.y1), 0);
 }
 
 // sanity checks on the SVG string itself

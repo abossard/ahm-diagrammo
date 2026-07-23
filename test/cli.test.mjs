@@ -56,6 +56,10 @@ test("renders a healthy file: exit 0, svg + manifest + gallery, technical log", 
   assert.equal(manifest.length, 1);
   assert.equal(manifest[0].renderer, "swimlane");
   assert.ok(manifest[0].line >= 1);
+  // maxWidth: no token anywhere in kitchen-sink.md, yet its already-wide health model (2699px
+  // before this default existed) still comes out bounded — the 1024 default applies with zero
+  // extra CLI wiring beyond passing b.options.maxWidth through unchanged.
+  assert.ok(manifest[0].w <= 1024, `expected the CLI's default-bounded width, got ${manifest[0].w}`);
 });
 
 test("--list explains detection without writing files", async () => {
@@ -774,4 +778,41 @@ test("--sync-markdown: an empty `%%| alt:` override falls back to the heading an
   assert.match(synced, /!\[Checkout\]\(out\/checkout\.svg\)/, "empty override falls back to heading");
   assert.doesNotMatch(synced, /!\[\]\(/, "never an empty commonmark alt");
   assert.match(r.stderr, /empty "alt" override/, "the empty override is warned via the existing issues channel");
+});
+
+// ---- maxWidth: default-bounded rendering, per-block override, no new CLI flag -----------------
+
+test("maxWidth: a fence-info override threads through unchanged (C13) and produces a measurably different, still-bounded width than the 1024 default", async () => {
+  const dir = tmp();
+  const defaultPath = join(dir, "default.md");
+  writeFileSync(defaultPath, readFileSync(join(ROOT, "kitchen-sink.md"), "utf8"), "utf8");
+  const overridePath = join(dir, "override.md");
+  const overridden = readFileSync(join(ROOT, "kitchen-sink.md"), "utf8").replace("```mermaid\n", "```mermaid maxWidth=1400\n");
+  writeFileSync(overridePath, overridden, "utf8");
+
+  const outDefault = tmp(), outOverride = tmp();
+  const rDefault = await run(defaultPath, "-o", outDefault);
+  const rOverride = await run(overridePath, "-o", outOverride);
+  assert.equal(rDefault.code, 0, rDefault.stderr);
+  assert.equal(rOverride.code, 0, rOverride.stderr);
+
+  const manifestDefault = JSON.parse(readFileSync(join(outDefault, "manifest.json"), "utf8"));
+  const manifestOverride = JSON.parse(readFileSync(join(outOverride, "manifest.json"), "utf8"));
+  assert.ok(manifestDefault[0].w <= 1024, `default run: ${manifestDefault[0].w}`);
+  assert.ok(manifestOverride[0].w <= 1400, `override run: ${manifestOverride[0].w}`);
+  assert.notEqual(manifestOverride[0].w, manifestDefault[0].w, "an accepted override must change the outcome, not be silently ignored");
+});
+
+test("laneLabels=false: a fence-info override threads through unchanged (C22) and removes the lane-label text from the emitted SVG", async () => {
+  const dir = tmp();
+  const path = join(dir, "off.md");
+  const off = readFileSync(join(ROOT, "kitchen-sink.md"), "utf8").replace("```mermaid\n", "```mermaid laneLabels=false\n");
+  writeFileSync(path, off, "utf8");
+
+  const out = tmp();
+  const r = await run(path, "-o", out);
+  assert.equal(r.code, 0, r.stderr);
+  const svg = readFileSync(join(out, "kitchen-sink-health-model.svg"), "utf8");
+  assert.doesNotMatch(svg, />Business &amp; user flows</, "laneLabels=false must remove the lane-label text from the CLI's emitted SVG");
+  assert.doesNotMatch(svg, />Application</, "laneLabels=false must remove the lane-label text from the CLI's emitted SVG");
 });
