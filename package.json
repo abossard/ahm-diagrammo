@@ -1,6 +1,6 @@
 {
   "name": "ahm-diagrammo",
-  "version": "3.1.0",
+  "version": "3.1.1",
   "description": "Turn the mermaid blocks in a Markdown file into good-looking themed SVGs — including Azure-portal style health-model swimlanes",
   "type": "module",
   "license": "MIT",

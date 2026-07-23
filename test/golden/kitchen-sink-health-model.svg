@@ -42,7 +42,7 @@
 <path d="M1820.3 241.0 L1820.3 185.0 Q1820.3 178.0 1813.3 178.0 L1247.2 178.0 Q1240.2 178.0 1240.2 171.0 L1240.2 154.0" stroke="#c8c6c4" stroke-width="1.7"/>
 <path d="M1402.5 241.0 L1402.5 181.0 Q1402.5 174.0 1395.5 174.0 L1235.2 174.0 Q1228.2 174.0 1228.2 167.0 L1228.2 154.0" stroke="#db7500" stroke-width="1.7"/>
 <path d="M551.5 413.0 L551.5 378.5 Q551.5 371.5 558.5 371.5 L748.8 371.5 Q755.8 371.5 755.8 364.5 L755.8 299.0" stroke="#ba0d16" stroke-width="1.6" stroke-dasharray="5 4"/>
-<path d="M1094.8 241.0 L1094.8 202.5 Q1094.8 199.5 1091.8 199.5 L1091.8 199.5 Q1088.8 199.5 1088.8 196.5 L1088.8 154.0" stroke="#db7500" stroke-width="1.6" stroke-dasharray="5 4"/>
+<path d="M1094.8 241.0 L1094.8 154.0" stroke="#db7500" stroke-width="1.6" stroke-dasharray="5 4"/>
 </g>
 <g stroke="none"><rect x="491.8" y="361.5" width="119.4" height="20" rx="10" fill="#ffffff" stroke="#d8d6d4" stroke-width="1"/><text x="551.5" y="375.1" font-size="10.5" font-weight="600" fill="#242424" text-anchor="middle">limited propagation</text></g>
 <g stroke="none"><rect x="1022.3" y="189.5" width="145.0" height="20" rx="10" fill="#ffffff" stroke="#d8d6d4" stroke-width="1"/><text x="1094.8" y="203.1" font-size="10.5" font-weight="600" fill="#242424" text-anchor="middle">suppressed propagation</text></g>
