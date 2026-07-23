@@ -1,6 +1,6 @@
 {
   "name": "ahm-diagrammo",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "description": "Inspect and render Mermaid blocks in Markdown with the ahm-diagrammo CLI.",
   "author": {
     "name": "abossard"

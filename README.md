@@ -277,11 +277,10 @@ flowchart BT
 | `title` / `subtitle` | figure header text (title defaults to the nearest Markdown heading) |
 | `lanes` | custom swimlane labels, top to bottom: `[Root, Flows, Services]` |
 | `legend` | `false` hides the legend |
-| `laneLabels` | swimlane only; `false` hides the lane label text and reclaims its gutter width for row content — bands/hairlines stay visible; **default shown** |
+| `laneLabels` | `false` hides the lane label text and reclaims its right-hand gutter, making the diagram narrower without changing routing, edge colors, node layout, or height (swimlane only; default `true`) |
 | `name` | output file name (defaults to a slug of the title/heading) |
 | `background` | canvas background color (mermaid renderer only) |
 | `alt` | accessibility alt text for the `--sync-markdown` visible embed; overrides `title`/heading (see below) |
-| `maxWidth` | swimlane only; final SVG width budget in CSS px, chrome (margins/gutter/legend) included — **default `1024`**, not unbounded. Any lane whose content would push past it wraps onto multiple stacked rows, grouped by parent so siblings stay together. Below the diagram's own structural minimum, it warns and clamps up to that minimum instead of shrinking further. |
 
 Signal rows can carry a real measurement and their own state, straight in the mermaid label:
 
@@ -335,17 +334,6 @@ enforced by geometric tests:
   child (where crossing connectors are sparse), get repaired onto a different row when the
   assignment pins them under a connector, and finally slide along their own line to a
   verified-clear spot.
-- **Every render is width-bounded by default.** The final SVG width (margins, lane-label gutter,
-  title, and legend all counted) never exceeds `maxWidth` — **1024 CSS px unless overridden** —
-  a lane whose cards would push past it wraps onto multiple stacked rows instead, grouped by
-  parent so siblings stay together rather than splitting arbitrarily. Setting `laneLabels: false`
-  reclaims the label gutter's width for row content too — a second, independent lever for keeping
-  wide diagrams narrower.
-- **Shared routes bundle into one trunk, not a comb.** Solid, unlabeled edges that share a target
-  ride one genuinely-coincident trunk (at any physical-row distance, not just adjacent rows),
-  branching onto a short per-edge stub only near their own source and the shared target — drawn in
-  the theme's neutral color so it never implies a merged health state; dashed and labeled edges
-  keep routing individually.
 
 `npm test` runs the suite: unit tests for the layout algorithms, parse-diagnostic tests, CLI
 end-to-end tests (real process spawns, exit codes, log format), a mermaid-cli smoke test (skipped

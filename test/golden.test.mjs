@@ -21,6 +21,7 @@ const SOURCES = [
   "kitchen-sink.md",
   "pills-stress.md",
   "examples/showcase.md",
+  "test/fixtures/pr6-regressions.md",
   "test/fixtures/torture-deep.md",
   "test/fixtures/torture-pills.md",
   "test/fixtures/torture-text.md",

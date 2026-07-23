@@ -25,3 +25,15 @@ collapsed) inside a `<!-- diagrammo:source ... -->` comment, with every literal 
 next `--sync-markdown` run decodes, re-renders, and re-escapes it. Never hand-type the literal
 `--&gt;` token into a fence — the CLI rejects a fence that already contains it, since decoding
 would then be ambiguous.
+
+## Per-diagram directives
+
+Author-controlled options live inside the fence as `%%| key: value` lines (also settable via
+fence-info `key=value` or a `diagrammo:` frontmatter block). Common keys: `theme`, `title`,
+`subtitle`, `lanes`, `legend`, `alt`, and `laneLabels`.
+
+To make a wide swimlane narrower, set `%%| laneLabels: false`. It hides the right-hand lane-label
+text and reclaims that gutter — nothing else moves: node placement, edge routing, edge state
+colors, lane bands, and SVG height are all unchanged. There is no width-wrapping/`maxWidth` knob;
+narrowing is achieved only by reclaiming the label gutter, never by wrapping lanes onto extra rows.
+`laneLabels` defaults to `true` (labels shown); a non-boolean value warns and falls back to `true`.

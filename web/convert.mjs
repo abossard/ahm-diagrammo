@@ -35,7 +35,6 @@ function classifyBlock(b, defaultTheme) {
       subtitle: b.options.subtitle,
       lanes: b.options.lanes,
       legend: b.options.legend,
-      maxWidth: b.options.maxWidth,
       laneLabels: b.options.laneLabels,
       diag,
       baseLine: b.codeLine - 1,
