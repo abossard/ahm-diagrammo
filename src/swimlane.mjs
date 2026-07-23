@@ -20,7 +20,7 @@ import { splitFrontmatter } from "./extract.mjs";
 import { getTheme } from "./themes.mjs";
 import { textWidth, wrapText } from "./text.mjs";
 import { Diagnostics } from "./diag.mjs";
-import { relaxCoordinates, assignTracks, corridorsOf, pickCorridorX, packRows } from "./layout.mjs";
+import { relaxCoordinates, assignTracks, corridorsOf, pickCorridorX } from "./layout.mjs";
 
 const STATE_LABEL = { healthy: "Healthy", degraded: "Degraded", unhealthy: "Unhealthy", unknown: "Unknown", alt: "Standby" };
 const CLASS_STATE = { blue: "signal", green: "healthy", amber: "degraded", red: "unhealthy", purple: "alt" };
@@ -263,13 +263,6 @@ export function layout(g, diag = new Diagnostics()) {
 const CARD_MIN_W = 168, CARD_MAX_W = 480, GAP = 30, TOPPAD = 18;
 const NAME_FS = 12.5, QUAL_FS = 9, ROW_FS = 10.5, PILL_FS = 10.5;
 
-// Default final-SVG-width budget (chrome-inclusive: margins, lane-label gutter, title, legend all
-// counted) when a caller supplies no valid `maxWidth` override. Any lane whose packed content
-// would push the render past it wraps onto multiple physical rows instead — see `renderSwimlane`'s
-// maxWidth resolution below. There is no "unbounded" state: an unset/invalid override resolves
-// here, never to today's old ultra-wide default.
-export const DEFAULT_MAX_WIDTH = 1024;
-
 function measureNode(n, diag) {
   const rawLines = n.lines.filter((l) => !STATE_WORDS.has(l.toLowerCase()));
   const name = rawLines[0] || n.lines[0] || n.id;
@@ -314,12 +307,10 @@ function measureNode(n, diag) {
 // ---------- geometry / routing ----------
 // One vertical-x registry per channel: every riser/trunk/stub in a channel draws from the same
 // pool, so two verticals of different edges can never be collinear. Each caller stays inside its
-// own card footprint via [lo, hi]. Exposes `used` (channel -> already-picked xs) so a lane-
-// skipping corridor pick — which effectively shares a position with the channels immediately
-// above and below the lane it crosses (see `corr()`) — can see and avoid them too.
+// own card footprint via [lo, hi].
 function makeSlots() {
   const used = new Map(); // channel -> xs[]
-  const pick = (chan, want, lo, hi, pitch = 6) => {
+  return (chan, want, lo, hi, pitch = 6) => {
     if (!used.has(chan)) used.set(chan, []);
     const xs = used.get(chan);
     let x = Math.min(hi, Math.max(lo, want));
@@ -330,7 +321,6 @@ function makeSlots() {
     }
     xs.push(x); return x; // saturated: accept (cards are wide enough in practice)
   };
-  return { pick, used };
 }
 
 function roundedOrtho(pts, r = 8) {
@@ -348,14 +338,11 @@ function roundedOrtho(pts, r = 8) {
   d += ` L${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
   return d;
 }
-// `trunk` (default null) tags a segment as part of an intentionally-shared bundle span (see
-// C24/C29): the geometry verifier's collinearity checks treat two different edges' segments
-// sharing the same non-null trunk id as a deliberate coincidence, not a violation.
-const segsOf = (pts, edge, trunk = null) => {
+const segsOf = (pts, edge) => {
   const out = [];
   for (let i = 1; i < pts.length; i++) {
     const a = pts[i - 1], b = pts[i];
-    out.push({ x1: Math.min(a.x, b.x), y1: Math.min(a.y, b.y), x2: Math.max(a.x, b.x), y2: Math.max(a.y, b.y), kind: a.x === b.x ? "v" : "h", edge, trunk });
+    out.push({ x1: Math.min(a.x, b.x), y1: Math.min(a.y, b.y), x2: Math.max(a.x, b.x), y2: Math.max(a.y, b.y), kind: a.x === b.x ? "v" : "h", edge });
   }
   return out;
 };
@@ -383,7 +370,7 @@ export function looksLikeHealthModel(code) {
 }
 
 // ---------- main render ----------
-// opts: { theme, title, subtitle, lanes, legend, maxWidth, laneLabels, diag, baseLine, debug }
+// opts: { theme, title, subtitle, lanes, legend, diag, baseLine, debug }
 export function renderSwimlane(code, opts = {}) {
   const diag = opts.diag || new Diagnostics();
   const T = typeof opts.theme === "object" && opts.theme !== null ? opts.theme : getTheme(opts.theme);
@@ -396,27 +383,375 @@ export function renderSwimlane(code, opts = {}) {
   }
   foldSignals(g, diag);
   const lay = layout(g, diag);
-  const { laneNodes: logicalLaneNodes, L: logicalL, parents } = lay;
+  const { laneNodes, lane, L } = lay;
 
   // ----- measure cards -----
   const size = new Map();
   for (const [id, n] of g.nodes) size.set(id, measureNode(n, diag));
-  diag.info(`graph: ${g.nodes.size} nodes, ${g.edges.length} edges, ${logicalL} lanes`);
+  diag.info(`graph: ${g.nodes.size} nodes, ${g.edges.length} edges, ${L} lanes`);
 
-  // ----- chrome (margins, lane-label gutter, title, legend) — hoisted ahead of packing: these
-  // depend only on opts/theme/lane *count*, never on node content, positions, or routing, so the
-  // final-width budget can be resolved (and any lane wrapped to fit it) before X/routing exist. -----
+  // ----- x coordinates (variable widths, no overlap by construction) -----
+  const widths = new Map([...size].map(([id, s]) => [id, s.w]));
+  const neighbors = new Map();
+  for (const id of g.nodes.keys()) neighbors.set(id, []);
+  for (const e of g.edges) {
+    if (e.from === e.to) continue;
+    neighbors.get(e.from).push(e.to);
+    neighbors.get(e.to).push(e.from);
+  }
+  const X = relaxCoordinates(laneNodes, widths, neighbors, GAP);
+
+  // ----- classify edges -----
+  const bundlesByParent = new Map(); // parentId -> [edge]
+  const tracked = [];                // { e, u, l, sameLane, reverse, pill }
+  for (const e of g.edges) {
+    if (e.from === e.to) { diag.warn(`self-loop on "${e.from}" is not drawn`, { line: e.line }); continue; }
+    const lu = lane.get(e.to), ll = lane.get(e.from);
+    if (lu === ll) {
+      diag.warn(`edge ${e.from} → ${e.to} connects nodes in the same lane — routed over the top of the lane`, { line: e.line });
+      tracked.push({ e, u: lu, l: ll, sameLane: true, pill: !!e.label });
+    } else if (lu > ll) {
+      diag.warn(`edge ${e.from} → ${e.to} points downward (child sits above its parent) — drawn bottom-up`, { line: e.line });
+      tracked.push({ e, u: ll, l: lu, reverse: true, pill: !!e.label });
+    } else if (ll - lu === 1 && !e.label && !e.dashed) {
+      if (!bundlesByParent.has(e.to)) bundlesByParent.set(e.to, []);
+      bundlesByParent.get(e.to).push(e);
+    } else {
+      tracked.push({ e, u: lu, l: ll, pill: !!e.label });
+    }
+  }
+
+  // ----- corridor + slot planning (x only; ys come after channel heights are known) -----
+  const cardsInLane = (j) => laneNodes[j].map((id) => ({ id, x: X.get(id) - size.get(id).w / 2, w: size.get(id).w }));
+  const corridorCache = new Map();
+  const corridorTaken = new Map(); // lane -> xs
+  const corr = (j, want) => {
+    if (!corridorCache.has(j)) corridorCache.set(j, corridorsOf(cardsInLane(j)));
+    if (!corridorTaken.has(j)) corridorTaken.set(j, []);
+    const x = pickCorridorX(corridorCache.get(j), want, corridorTaken.get(j));
+    if (x == null) return want; // no corridor: fall back (verifier will flag if it matters)
+    corridorTaken.get(j).push(x);
+    return x;
+  };
+  const slots = makeSlots();
+  const nodeRange = (id) => { const s = size.get(id); return [X.get(id) - s.w / 2 + 12, X.get(id) + s.w / 2 - 12]; };
+  const topSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
+  const botSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
+
+  // bundles first (they own the space right under their parent)
+  const bundlePlans = [];
+  for (const [pid, es] of bundlesByParent) {
+    const chan = lane.get(pid);
+    const pcx = X.get(pid), pw = size.get(pid).w;
+    const kids = es.map((e) => ({ e, cx: X.get(e.from), cw: size.get(e.from).w })).sort((a, b) => a.cx - b.cx);
+    for (const k of kids) {
+      const oMin = Math.max(k.cx - k.cw / 2 + 12, pcx - pw / 2 + 12);
+      const oMax = Math.min(k.cx + k.cw / 2 - 12, pcx + pw / 2 - 12);
+      k.straight = oMin <= oMax;
+      if (k.straight) k.oMin = oMin, k.oMax = oMax;
+    }
+    const straights = kids.filter((k) => k.straight);
+    straights.forEach((k, j) => {
+      const centered = pcx - ((straights.length - 1) * 3) / 2 + j * 3;
+      const want = Math.min(k.oMax, Math.max(k.oMin, centered));
+      k.x = slots(chan, want, k.oMin, k.oMax, 3);
+    });
+    const sides = kids.filter((k) => !k.straight);
+    [...sides].sort((a, b) => Math.abs(b.cx - pcx) - Math.abs(a.cx - pcx)).forEach((k, rank) => { k.rank = rank; });
+    sides.forEach((k) => {
+      const side = k.cx < pcx ? -1 : 1;
+      k.entryX = botSlot(chan, pid, pcx + side * (pw / 2 - 14) - side * k.rank * 4);
+      k.stubX = topSlot(chan, k.e.from, k.cx);
+    });
+    bundlePlans.push({ pid, kids, maxRank: sides.length ? Math.max(...sides.map((k) => k.rank)) : -1, chan });
+  }
+
+  // tracked edges: corridor chain bottom-up, then entry/exit slots.
+  // A child with several tracked edges spreads its exits toward each edge's parent, so sibling
+  // risers don't hug each other (a wide pill would otherwise cover its sibling's line).
+  const trackedPerChild = new Map();
+  for (const t of tracked) {
+    if (t.sameLane) continue;
+    const lo = t.reverse ? t.e.to : t.e.from;
+    trackedPerChild.set(lo, (trackedPerChild.get(lo) || 0) + 1);
+  }
+  for (const t of tracked) {
+    const [uNode, loNode] = t.sameLane
+      ? [t.e.to, t.e.from]
+      : (t.reverse ? [t.e.from, t.e.to] : [t.e.to, t.e.from]);
+    t.uNode = uNode; t.loNode = loNode;
+    t.chan = t.sameLane ? t.u - 1 : t.u;      // channel adjacent to the upper node
+    t.pillChan = t.sameLane ? t.chan : t.l - 1; // pills live nearest the child (see assignTracks)
+    if (t.sameLane) {
+      t.exitLo = topSlot(t.chan, loNode, X.get(uNode));
+      t.exitU = topSlot(t.chan, uNode, X.get(loNode));
+      t.channels = [{ g: t.chan, xBelow: t.exitLo, xAbove: t.exitU }];
+    } else {
+      const ucx = X.get(uNode), locx = X.get(loNode);
+      t.corr = {}; // laneIdx -> x
+      for (let j = t.l - 1; j > t.u; j--) {
+        const frac = (t.l - j) / (t.l - t.u);
+        const want = locx + (ucx - locx) * frac;
+        t.corr[j] = corr(j, want);
+      }
+      t.entryU = botSlot(t.u, uNode, t.corr[t.u + 1] ?? locx);
+      // Exit at the child's own center when it has a single tracked edge (keeps risers spread out
+      // across children); when the child has several, pull each exit toward its parent so sibling
+      // risers separate. Lane-skippers aim at their first corridor.
+      const loW = size.get(loNode).w;
+      const spread = trackedPerChild.get(loNode) > 1
+        ? locx + Math.sign(ucx - locx) * Math.min(Math.abs(ucx - locx), loW / 2 - 14)
+        : locx;
+      t.exitLo = topSlot(t.l - 1, loNode, t.corr[t.l - 1] ?? spread);
+      t.channels = [];
+      for (let gph = t.u; gph <= t.l - 1; gph++) {
+        const xAbove = gph === t.u ? t.entryU : t.corr[gph];
+        const xBelow = gph === t.l - 1 ? t.exitLo : t.corr[gph + 1];
+        t.channels.push({ g: gph, xBelow, xAbove });
+      }
+    }
+    if (t.pill) {
+      // long labels wrap to two lines: a 300px pill can never dodge risers ~200px apart,
+      // a 160px one can — and the full text stays visible
+      let wrap = wrapText(t.e.label, 170, PILL_FS, { weight: 600, maxLines: 2 });
+      if (wrap.clipped) wrap = wrapText(t.e.label, 280, PILL_FS, { weight: 600, maxLines: 2 });
+      if (wrap.clipped) diag.warn(`edge label "${t.e.label.slice(0, 40)}…" is too long even wrapped — clipped (full text kept as tooltip)`);
+      t.pillLines = wrap.lines;
+      t.pillClipped = wrap.clipped;
+      t.pillW = Math.max(...wrap.lines.map((l) => textWidth(l, PILL_FS, 600))) + 20;
+      t.pillH = wrap.lines.length === 1 ? 20 : 33;
+    }
+  }
+
+  // ----- per-channel structure: bus levels (bundles) + track rows (tracked edges) -----
+  const chanIdx = new Set();
+  for (const t of tracked) t.channels.forEach((c) => chanIdx.add(c.g));
+  for (const b of bundlePlans) chanIdx.add(b.chan);
+  const chans = new Map(); // g -> { busLevels, items, rows, h }
+  for (const gph of chanIdx) chans.set(gph, { busLevels: 0, items: [] });
+
+  // side-bus horizontals are interval-colored ACROSS parents so buses of different parents
+  // sharing a y can never overlap collinearly
+  for (const gph of chanIdx) {
+    const busItems = [];
+    for (const b of bundlePlans) {
+      if (b.chan !== gph) continue;
+      for (const k of b.kids) {
+        if (k.straight) continue;
+        busItems.push({ id: k, xL: Math.min(k.stubX, k.entryX) - 4, xR: Math.max(k.stubX, k.entryX) + 4 });
+      }
+    }
+    if (busItems.length) {
+      const { levelOf, count } = assignTracks(busItems.map((it, i) => ({ ...it, id: i })));
+      busItems.forEach((it, i) => { it.id.busLevel = levelOf.get(i); });
+      chans.get(gph).busLevels = count;
+    }
+  }
+
+  for (const t of tracked) {
+    for (const c of t.channels) {
+      const isPill = t.pill && c.g === t.pillChan;
+      // pill pad covers the slide overhang (pw/2−10 past either segment end) plus margin
+      const pad = isPill ? Math.max(16, t.pillW - 6) : 6;
+      chans.get(c.g).items.push({
+        t, cRef: c,
+        xL: Math.min(c.xBelow, c.xAbove) - pad,
+        xR: Math.max(c.xBelow, c.xAbove) + pad,
+        pill: isPill,
+        span: Math.abs(c.xAbove - c.xBelow),
+      });
+    }
+  }
+  for (const [, c] of chans) {
+    const uniq = c.items.map((it, i) => ({ id: i, xL: it.xL, xR: it.xR, pill: it.pill, order: -it.span }));
+    const { levelOf, count, pillLevels, plainLevels } = assignTracks(uniq);
+    c.plainLevels = plainLevels;
+    uniq.forEach((u, i) => { c.items[i].level = levelOf.get(u.id); });
+    c.rows = [];
+    for (let i = 0; i < count; i++) {
+      const isPillRow = i >= count - pillLevels;
+      // pill rows grow to fit their tallest (possibly two-line) pill
+      const tallest = Math.max(20, ...c.items.filter((it) => it.level === i && it.pill).map((it) => it.t.pillH || 20));
+      c.rows.push({ h: isPillRow ? tallest + 7 : 12 });
+    }
+    const busH = c.busLevels ? 10 + c.busLevels * 4 : (count ? 6 : 0);
+    c.busH = busH;
+    c.h = busH + c.rows.reduce((a, r) => a + r.h, 0) + (count || c.busLevels ? 10 : 0);
+  }
+  const chanH = (gph) => chans.get(gph)?.h || 0;
+
+  // ----- vertical stacking -----
   const M = { left: 40, top: 78 };
-  const laneLabelsOn = opts.laneLabels !== false;
-  const labels = laneLabels(logicalL, opts.lanes);
+  const laneMaxH = laneNodes.map((arr) => Math.max(58, ...arr.map((id) => size.get(id).h)));
+  const laneTop = [], laneBandH = [];
+  let cursorY = M.top + chanH(-1) + (chanH(-1) ? 6 : 0);
+  for (let i = 0; i < L; i++) {
+    laneTop.push(cursorY);
+    const bodyH = TOPPAD + laneMaxH[i] + 14;
+    laneBandH.push(bodyH + chanH(i));
+    cursorY += bodyH + chanH(i);
+  }
+  const totalH = cursorY + 18;
+  const chanTop = (gph) => (gph === -1 ? M.top : laneTop[gph] + TOPPAD + laneMaxH[gph] + 14);
+  const rowY = (gph, level) => {
+    const c = chans.get(gph);
+    let y = chanTop(gph) + (c.busH || 6);
+    for (let i = 0; i < level; i++) y += c.rows[i].h;
+    return y + c.rows[level].h / 2;
+  };
+
+  // card boxes
+  const box = new Map();
+  for (const [id, s] of size) {
+    const li = lane.get(id);
+    const x = X.get(id) - s.w / 2, y = laneTop[li] + TOPPAD;
+    box.set(id, { x, y, w: s.w, h: s.h, cx: X.get(id), top: y, bottom: y + s.h });
+  }
+
+  // ----- vertical bookkeeping (recomputable: crossings depend on row assignment) -----
+  const gEnd = (gph, side) => (side === "below" ? chanTop(gph) + chanH(gph) : chanTop(gph));
+  const itemFor = (t, c) => chans.get(c.g).items.find((it) => it.t === t && it.cRef === c);
+  function collectVerticals() {
+    const map = new Map(); // g -> [{x, y1, y2, owner}]
+    const add = (gph, x, y1, y2, owner) => {
+      if (!map.has(gph)) map.set(gph, []);
+      map.get(gph).push({ x, y1: Math.min(y1, y2), y2: Math.max(y1, y2), owner });
+    };
+    for (const b of bundlePlans) {
+      const pb = box.get(b.pid), busBase = chanTop(b.chan) + 6;
+      for (const k of b.kids) {
+        const cb = box.get(k.e.from);
+        if (k.straight) add(b.chan, k.x, pb.bottom, cb.top, k.e);
+        else {
+          const busY = busBase + k.busLevel * 4;
+          add(b.chan, k.stubX, busY, cb.top, k.e);
+          add(b.chan, k.entryX, pb.bottom, busY, k.e);
+        }
+      }
+    }
+    for (const t of tracked) {
+      if (t.sameLane) {
+        const c = t.channels[0], y = rowY(c.g, itemFor(t, c).level);
+        add(c.g, t.exitLo, y, gEnd(c.g, "below"), t.e);
+        add(c.g, t.exitU, y, gEnd(c.g, "below"), t.e);
+        continue;
+      }
+      let prevX = t.exitLo;
+      for (let i = t.channels.length - 1; i >= 0; i--) {
+        const c = t.channels[i], y = rowY(c.g, itemFor(t, c).level);
+        add(c.g, prevX, y, gEnd(c.g, "below"), t.e);      // riser below this row
+        add(c.g, c.xAbove, gEnd(c.g, "above"), y, t.e);   // continuation above this row
+        prevX = c.xAbove;
+      }
+    }
+    return map;
+  }
+
+  // slide simulation: best x for a pill along its horizontal (with overhang), given verticals
+  function slidePill(pw, anchor, segX, y, verts, ownerEdge, ph = 20) {
+    const halfH = ph / 2;
+    const near = verts.filter((v) => v.owner !== ownerEdge && v.y1 < y + halfH && v.y2 > y - halfH);
+    const lo = Math.min(segX[0], anchor), hi = Math.max(segX[1], anchor);
+    const overhang = Math.max(0, pw / 2 - 10);
+    const domLo = lo - overhang, domHi = hi + overhang;
+    const conflicts = (x) => near.reduce((k, v) => k + (Math.abs(v.x - x) < pw / 2 + 3 ? 1 : 0), 0);
+    let bestX = Math.min(domHi, Math.max(domLo, anchor)), bestC = conflicts(bestX), bestD = Infinity;
+    if (bestC > 0) {
+      const cands = [domLo, domHi];
+      for (let x = domLo; x < domHi; x += 4) cands.push(x);
+      for (const v of near) cands.push(v.x + pw / 2 + 3.5, v.x - pw / 2 - 3.5); // just past each crosser
+      for (const c of cands) {
+        if (c < domLo - 1e-9 || c > domHi + 1e-9) continue;
+        const k = conflicts(c), d = Math.abs(c - anchor);
+        if (k < bestC || (k === bestC && d < bestD)) { bestX = c; bestC = k; bestD = d; }
+      }
+    }
+    return { x: bestX, conflicts: bestC };
+  }
+  // ----- pill placement, one mechanism: each pill tries its own row first, then every other
+  // pill row of its channel (row order changes which risers/trunks cross it — a purely
+  // combinatorial move), keeping the row with the fewest slide conflicts. Final xs are computed
+  // in a second sweep so every pill sees the settled row assignment.
+  const pillTs = tracked.filter((t) => t.pill);
+  const pillGeom = (t) => {
+    const c = t.channels.find((cc) => cc.g === t.pillChan);
+    const item = itemFor(t, c);
+    return { item, segX: [Math.min(c.xBelow, c.xAbove), Math.max(c.xBelow, c.xAbove)], anchor: c.xBelow };
+  };
+  for (const t of pillTs) {
+    const pg = pillGeom(t);
+    const chan = chans.get(t.pillChan);
+    const orig = pg.item.level;
+    const tryRows = [orig, ...chan.rows.map((_, i) => i).filter((i) => i >= chan.plainLevels && i !== orig)];
+    let best = null;
+    for (const row of tryRows) {
+      if (row !== orig && chan.items.some((it) => it !== pg.item && it.level === row && !(pg.item.xR < it.xL || pg.item.xL > it.xR))) continue;
+      pg.item.level = row;
+      const verts = collectVerticals().get(t.pillChan) || [];
+      const c = slidePill(t.pillW, pg.anchor, pg.segX, rowY(t.pillChan, row), verts, t.e, t.pillH).conflicts;
+      if (!best || c < best.c) best = { row, c };
+      if (c === 0) break;
+    }
+    pg.item.level = best.row;
+  }
+  const pills = [];
+  const settledVerts = collectVerticals();
+  for (const t of pillTs) {
+    const pg = pillGeom(t);
+    const y = rowY(t.pillChan, pg.item.level);
+    const sim = slidePill(t.pillW, pg.anchor, pg.segX, y, settledVerts.get(t.pillChan) || [], t.e, t.pillH);
+    if (sim.conflicts > 0)
+      diag.warn(`label pill "${t.e.label}" could not fully avoid crossing connectors — it may sit on one`);
+    pills.push({ t, x: sim.x, y });
+  }
+
+  // ----- build paths + geometry from the final assignment -----
+  const debug = { cards: [], pills: [], segs: [], texts: [], lanes: [] };
+  const paths = []; // { d, stroke, width, dash }
+  const stateRank = { healthy: 0, unknown: 1, degraded: 2, unhealthy: 3, alt: 1, signal: 1 };
+
+  for (const b of bundlePlans) {
+    const pb = box.get(b.pid);
+    const busBase = chanTop(b.chan) + 6;
+    for (const k of [...b.kids].sort((a, b2) => stateRank[g.nodes.get(a.e.from).state] - stateRank[g.nodes.get(b2.e.from).state])) {
+      const cb = box.get(k.e.from);
+      const st = T.state[g.nodes.get(k.e.from).state] || T.state.unknown;
+      const pts = k.straight
+        ? [{ x: k.x, y: cb.top }, { x: k.x, y: pb.bottom }]
+        : [{ x: k.stubX, y: cb.top }, { x: k.stubX, y: busBase + k.busLevel * 4 }, { x: k.entryX, y: busBase + k.busLevel * 4 }, { x: k.entryX, y: pb.bottom }];
+      paths.push({ d: roundedOrtho(pts, 7), stroke: st.border, width: 1.7 });
+      debug.segs.push(...segsOf(pts, `${k.e.from}->${k.e.to}`));
+    }
+  }
+
+  for (const t of tracked) {
+    const st = T.state[g.nodes.get(t.e.from).state] || T.state.unknown;
+    let pts;
+    if (t.sameLane) {
+      const cLo = box.get(t.loNode), cU = box.get(t.uNode);
+      const y = rowY(t.chan, itemFor(t, t.channels[0]).level);
+      pts = [{ x: t.exitLo, y: cLo.top }, { x: t.exitLo, y }, { x: t.exitU, y }, { x: t.exitU, y: cU.top }];
+    } else {
+      const cLo = box.get(t.loNode), cU = box.get(t.uNode);
+      pts = [{ x: t.exitLo, y: cLo.top }];
+      let prevX = t.exitLo;
+      for (let i = t.channels.length - 1; i >= 0; i--) {
+        const c = t.channels[i];
+        const y = rowY(c.g, itemFor(t, c).level);
+        pts.push({ x: prevX, y }, { x: c.xAbove, y });
+        prevX = c.xAbove;
+      }
+      pts.push({ x: t.entryU, y: cU.bottom });
+      pts = pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
+    }
+    paths.push({ d: roundedOrtho(pts, 7), stroke: st.border, width: t.e.dashed ? 1.6 : 1.7, dash: t.e.dashed ? "5 4" : null });
+    debug.segs.push(...segsOf(pts, `${t.e.from}->${t.e.to}`));
+  }
+
+  // ----- lane labels / title / legend measurement -----
+  const labels = laneLabels(L, opts.lanes);
   const labelWraps = labels.map((l) => wrapText(l, 150, 13, { weight: 600, maxLines: 3 }).lines);
-  // With labels off, the reserved right-edge gutter shrinks to zero — that reclaimed width goes
-  // straight into every row's packing budget below (C20) — while band fills/hairlines (painted
-  // in the render loop further down) stay exactly as they are; only the label <text> itself and
-  // its reserved width disappear.
-  const gutterW = laneLabelsOn
-    ? Math.max(120, ...labelWraps.map((ls) => Math.max(...ls.map((s) => textWidth(s, 13, 600))))) + 48
-    : 0;
+  const gutterW = Math.max(120, ...labelWraps.map((ls) => Math.max(...ls.map((s) => textWidth(s, 13, 600))))) + 48;
   const title = opts.title ?? "";
   const subtitle = opts.subtitle ?? "Signals live inside each entity; health rolls up to the workload root.";
   const legendOn = opts.legend !== false;
@@ -424,566 +759,17 @@ export function renderSwimlane(code, opts = {}) {
   let legendW = textWidth("Legend", 11.5, 600) + 12;
   for (const [lbl] of legendItems) legendW += 26 + textWidth(lbl, 11.5);
   legendW += 22 + textWidth("Metric", 11.5);
-  const subtitleW = textWidth(subtitle, 12);
+
+  // ----- global extents; translate if anything went left of 0 -----
+  let minX = 0, maxX = 0;
+  const scanX = (x) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); };
+  for (const b of box.values()) { scanX(b.x); scanX(b.x + b.w); }
+  for (const s of debug.segs) { scanX(s.x1); scanX(s.x2); }
+  for (const p of pills) { scanX(p.x - p.t.pillW / 2); scanX(p.x + p.t.pillW / 2); }
+  const tx = M.left - minX;
   const headW = M.left + textWidth(title, 18, 700) + 24 + (legendOn ? legendW : 0) + 40;
-
-  // ----- resolve maxWidth: default 1024, or a valid positive-finite override; clamp up (with a
-  // warning) when even that is below the diagram's own structural floor — chrome plus the widest
-  // single node that can never be split further (C4's exception; a whole atomic group may still
-  // exceed this floor without being infeasible, since it degrades to per-node placement). -----
-  const widestSingleItem = Math.max(0, ...[...size.values()].map((s) => s.w));
-  const minFeasibleW = Math.max(headW, M.left + 24 + gutterW + widestSingleItem, subtitleW + M.left + 40);
-  let maxWidth = Number.isFinite(opts.maxWidth) && opts.maxWidth > 0 ? opts.maxWidth : DEFAULT_MAX_WIDTH;
-  if (maxWidth < minFeasibleW) {
-    diag.warn(`maxWidth ${maxWidth} is below the diagram's computed minimum feasible width (${Math.ceil(minFeasibleW)}px, from fixed chrome and the widest unavoidable content) — clamped up to ${Math.ceil(minFeasibleW)}px`);
-    maxWidth = minFeasibleW;
-  }
-  // Row-budget floor: shrinking the budget below the single widest unavoidable card could never
-  // reduce the final width further (that card would occupy its own row unsplit regardless, per
-  // the C4 exception), so retries never probe below it.
-  const rowBudgetFloor = Math.max(1, widestSingleItem);
-
-  // ----- pack, position, route, and measure the final width — as a function of rowBudget so an
-  // over-budget result (routing/corridor geometry can, rarely, extend a few px past the packed
-  // card content — see the retry loop below) can be retried with a tighter budget instead of
-  // silently exceeding maxWidth. -----
-  function computeLayout(rowBudget) {
-    // ----- wrap each logical lane into physical rows that fit the row budget, grouping by each
-    // node's primary parent (first-declared edge) so sibling cards stay cohesive instead of
-    // splitting arbitrarily. laneOrigin maps a physical row back to its source logical lane, so
-    // rendering can still paint one continuous band/label per logical lane (see the render loop).
-    const primaryParentOf = (id) => (parents.get(id) || [])[0];
-    const laneNodes = [], laneOrigin = [];
-    logicalLaneNodes.forEach((ids, logicalIdx) => {
-      for (const row of packRows(ids, (id) => size.get(id).w, GAP, rowBudget, primaryParentOf)) {
-        laneNodes.push(row);
-        laneOrigin.push(logicalIdx);
-      }
-    });
-    const L = laneNodes.length;
-    const lane = new Map();
-    laneNodes.forEach((arr, li) => arr.forEach((id) => lane.set(id, li)));
-
-    // ----- x coordinates (variable widths, no overlap by construction) -----
-    const widths = new Map([...size].map(([id, s]) => [id, s.w]));
-    const neighbors = new Map();
-    for (const id of g.nodes.keys()) neighbors.set(id, []);
-    for (const e of g.edges) {
-      if (e.from === e.to) continue;
-      neighbors.get(e.from).push(e.to);
-      neighbors.get(e.to).push(e.from);
-    }
-    const X = relaxCoordinates(laneNodes, widths, neighbors, GAP);
-
-    // ----- re-anchor wrapped rows: relaxCoordinates pulls each row toward the average of its OWN
-    // members' neighbors, so sibling rows split from the same original lane (grouped by different
-    // primary parents) can drift to disjoint x-offsets even though each row's own internal content
-    // stays tight (no per-row overflow). Left uncorrected, the canvas would need to span the union
-    // of those disjoint offsets — silently busting the maxWidth bound this feature exists to
-    // enforce. Force every physical row of one original lane to share a single content-width-
-    // weighted centroid instead: each row's own tight internal arrangement (already guaranteed by
-    // packRows + projectPositions' no-slack behavior) is untouched, only its rigid block position
-    // shifts, so a wrapped lane's total horizontal footprint becomes its widest single row — never
-    // the sum of independently-drifted rows. Lanes that did not wrap (their common, pre-existing
-    // case) are left completely untouched: zero behavior change when nothing wrapped.
-    const rowExtent = (ri) => {
-      const row = laneNodes[ri];
-      let lo = Infinity, hi = -Infinity;
-      for (const id of row) { lo = Math.min(lo, X.get(id) - widths.get(id) / 2); hi = Math.max(hi, X.get(id) + widths.get(id) / 2); }
-      return { lo, hi, w: hi - lo, centroid: (lo + hi) / 2 };
-    };
-    const rowsByOrigin = new Map();
-    laneNodes.forEach((_, ri) => {
-      const o = laneOrigin[ri];
-      if (!rowsByOrigin.has(o)) rowsByOrigin.set(o, []);
-      rowsByOrigin.get(o).push(ri);
-    });
-    for (const rowIdxs of rowsByOrigin.values()) {
-      if (rowIdxs.length < 2) continue; // unwrapped lane: nothing to re-anchor
-      let sumW = 0, sumWC = 0;
-      const extents = rowIdxs.map(rowExtent);
-      extents.forEach((ext) => { sumW += ext.w; sumWC += ext.w * ext.centroid; });
-      const target = sumW ? sumWC / sumW : 0;
-      rowIdxs.forEach((ri, k) => {
-        const shift = target - extents[k].centroid;
-        for (const id of laneNodes[ri]) X.set(id, X.get(id) + shift);
-      });
-    }
-
-    // ----- classify edges -----
-    const bundlesByParent = new Map(); // parentId -> [edge]
-    const tracked = [];                // { e, u, l, sameLane, reverse, pill }
-    for (const e of g.edges) {
-      if (e.from === e.to) { diag.warn(`self-loop on "${e.from}" is not drawn`, { line: e.line }); continue; }
-      const lu = lane.get(e.to), ll = lane.get(e.from);
-      if (lu === ll) {
-        diag.warn(`edge ${e.from} → ${e.to} connects nodes in the same lane — routed over the top of the lane`, { line: e.line });
-        tracked.push({ e, u: lu, l: ll, sameLane: true, pill: !!e.label });
-      } else if (lu > ll) {
-        diag.warn(`edge ${e.from} → ${e.to} points downward (child sits above its parent) — drawn bottom-up`, { line: e.line });
-        tracked.push({ e, u: ll, l: lu, reverse: true, pill: !!e.label });
-      } else if (!e.label && !e.dashed) {
-        // Bundle-eligible at ANY physical-row distance (generalizes the old ll-lu===1-only
-        // gate, C24): every solid, unlabeled, upward edge sharing a target groups here,
-        // regardless of how many physical rows separate it from that target.
-        if (!bundlesByParent.has(e.to)) bundlesByParent.set(e.to, []);
-        bundlesByParent.get(e.to).push(e);
-      } else {
-        // Dashed and/or labelled edges always stay individually tracked (C25) — this branch
-        // now catches exactly that set, since every clean upward edge is bundle-eligible above.
-        tracked.push({ e, u: lu, l: ll, pill: !!e.label });
-      }
-    }
-
-    // ----- corridor + slot planning (x only; ys come after channel heights are known) -----
-    const cardsInLane = (j) => laneNodes[j].map((id) => ({ id, x: X.get(id) - size.get(id).w / 2, w: size.get(id).w }));
-    const corridorCache = new Map();
-    const corridorTaken = new Map(); // lane -> xs
-    const { pick: slots, used: slotsUsed } = makeSlots();
-    const claimSlot = (chan, x) => { if (!slotsUsed.has(chan)) slotsUsed.set(chan, []); slotsUsed.get(chan).push(x); };
-    // A lane-j corridor pick doubles as channel (j-1)'s "xBelow" and channel j's "xAbove" (see the
-    // channel-building loop below) — it shares those channels' vertical-x registries, not just its
-    // own lane's. Seed its avoidance list with whatever those two channels have already claimed, and
-    // claim its own pick back into both, so a later entry/exit slot in either channel avoids it too.
-    // Bidirectional: without this, a corridor crossing and an unrelated entry/exit riser could each
-    // be picked unaware of the other and land collinear.
-    const corr = (j, want) => {
-      if (!corridorCache.has(j)) corridorCache.set(j, corridorsOf(cardsInLane(j)));
-      if (!corridorTaken.has(j)) corridorTaken.set(j, []);
-      const taken = [...corridorTaken.get(j), ...(slotsUsed.get(j - 1) || []), ...(slotsUsed.get(j) || [])];
-      const x = pickCorridorX(corridorCache.get(j), want, taken);
-      if (x == null) return want; // no corridor: fall back (verifier will flag if it matters)
-      corridorTaken.get(j).push(x);
-      claimSlot(j - 1, x); claimSlot(j, x);
-      return x;
-    };
-    const nodeRange = (id) => { const s = size.get(id); return [X.get(id) - s.w / 2 + 12, X.get(id) + s.w / 2 - 12]; };
-    const topSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
-    const botSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
-
-    // bundles first (they own the space right under their parent) — generalized to ANY
-    // physical-row distance (C24). A group targeting `pid` rides one shared per-lane "spine":
-    // for every strictly-intermediate lane it skips over, one position validated against THAT
-    // lane's own cards (chained from the deepest lane up toward the parent so consecutive
-    // positions stay close, jogging only where two lanes genuinely disagree — a single constant
-    // x cannot be assumed valid everywhere, since different intermediate lanes hold different
-    // cards). When every member is directly adjacent (today's original shape, no intermediate
-    // lane at all), the trunk is simply centered under the parent, exactly as before. One shared
-    // pick per (group, lane) — not one per member — genuine geometric coincidence, and fewer
-    // total corridor picks than today's per-edge scheme (C32). Each member's own short branch
-    // stub joins the spine at ITS OWN row (its "peel channel", `ll-1`); everything from the join
-    // point up to the parent is the same for every member that reaches that far.
-    const bundlePlans = [];
-    const fitsFootprint = (cx, cw, x) => x >= cx - cw / 2 + 12 && x <= cx + cw / 2 - 12;
-    for (const [pid, es] of bundlesByParent) {
-      const lu = lane.get(pid);
-      const pcx = X.get(pid), pw = size.get(pid).w;
-      const kids = es.map((e) => ({ e, cx: X.get(e.from), cw: size.get(e.from).w, ll: lane.get(e.from) }))
-        .sort((a, b) => a.cx - b.cx);
-      const maxLl = Math.max(...kids.map((k) => k.ll));
-      const spine = new Map(); // lane index (lu+1..maxLl-1) -> validated x, deepest-first
-      let want = pcx;
-      for (let j = maxLl - 1; j >= lu + 1; j--) { want = corr(j, want); spine.set(j, want); }
-      const trunkX = spine.has(lu + 1) ? spine.get(lu + 1) : slots(lu, pcx, pcx - pw / 2 + 12, pcx + pw / 2 - 12, 3);
-      const groupStraight = fitsFootprint(pcx, pw, trunkX);
-      const entryX = groupStraight ? trunkX : botSlot(lu, pid, trunkX);
-      for (const k of kids) {
-        k.peelChan = k.ll - 1;
-        k.joinX = spine.has(k.peelChan) ? spine.get(k.peelChan) : trunkX;
-        k.ownStraight = fitsFootprint(k.cx, k.cw, k.joinX);
-        if (!k.ownStraight) k.stubX = topSlot(k.peelChan, k.e.from, k.cx);
-      }
-      // One shared jog per lane boundary where the spine genuinely bends (deliberately keyed
-      // by channel, not by member — every kid whose own row reaches this deep draws the exact
-      // same jog, by construction), so it can take part in the SAME channel-level assignment
-      // (below) as everything else that channel holds — including an unrelated sibling's own
-      // branch, whose fixed "+6" landing offset could otherwise coincidentally collide with it.
-      const jogs = new Map(); // channel (j-1) -> { here, up }
-      for (let j = maxLl - 1; j >= lu + 2; j--) {
-        const here = spine.get(j), up = spine.get(j - 1);
-        if (Math.abs(up - here) > 0.01) jogs.set(j - 1, { here, up });
-      }
-      bundlePlans.push({ pid, lu, kids, spine, jogs, trunkX, groupStraight, entryX });
-    }
-
-    // tracked edges: corridor chain bottom-up, then entry/exit slots.
-    // A child with several outgoing edges (tracked OR bundled — a bundle stub is just as much a
-    // "sibling riser" a wide pill could hug/cross) spreads its exits toward each edge's parent, so
-    // sibling risers don't hug each other (a wide pill would otherwise cover its sibling's line).
-    const edgesPerChild = new Map();
-    for (const e of g.edges) {
-      if (e.from === e.to) continue;
-      edgesPerChild.set(e.from, (edgesPerChild.get(e.from) || 0) + 1);
-    }
-    const trackedPerChild = edgesPerChild;
-    for (const t of tracked) {
-      const [uNode, loNode] = t.sameLane
-        ? [t.e.to, t.e.from]
-        : (t.reverse ? [t.e.from, t.e.to] : [t.e.to, t.e.from]);
-      t.uNode = uNode; t.loNode = loNode;
-      t.chan = t.sameLane ? t.u - 1 : t.u;      // channel adjacent to the upper node
-      t.pillChan = t.sameLane ? t.chan : t.l - 1; // pills live nearest the child (see assignTracks)
-      // Measure the pill FIRST (depends only on the fixed label text, not on any position computed
-      // below) so its width can widen the exit slot's own minimum spacing from sibling risers —
-      // a wide pill sliding a few px never has room to fully dodge a neighbor only 6px away.
-      if (t.pill) {
-        // long labels wrap to two lines: a 300px pill can never dodge risers ~200px apart,
-        // a 160px one can — and the full text stays visible
-        let wrap = wrapText(t.e.label, 170, PILL_FS, { weight: 600, maxLines: 2 });
-        if (wrap.clipped) wrap = wrapText(t.e.label, 280, PILL_FS, { weight: 600, maxLines: 2 });
-        if (wrap.clipped) diag.warn(`edge label "${t.e.label.slice(0, 40)}…" is too long even wrapped — clipped (full text kept as tooltip)`);
-        t.pillLines = wrap.lines;
-        t.pillClipped = wrap.clipped;
-        t.pillW = Math.max(...wrap.lines.map((l) => textWidth(l, PILL_FS, 600))) + 20;
-        t.pillH = wrap.lines.length === 1 ? 20 : 33;
-      }
-      // Widen the exit slot's own minimum spacing from sibling risers only when this child has
-      // competing siblings AND this edge carries a pill (a wide pill sliding a few px never has
-      // room to fully dodge a neighbor only 6px away) — narrowly scoped so a child with a single
-      // outgoing edge (the common case) never sees a spacing change.
-      const exitPitch = t.pill && edgesPerChild.get(loNode) > 1 ? Math.max(6, t.pillW / 2 + 8) : 6;
-      if (t.sameLane) {
-        t.exitLo = topSlot(t.chan, loNode, X.get(uNode));
-        t.exitU = topSlot(t.chan, uNode, X.get(loNode));
-        t.channels = [{ g: t.chan, xBelow: t.exitLo, xAbove: t.exitU }];
-      } else {
-        const ucx = X.get(uNode), locx = X.get(loNode);
-        t.corr = {}; // laneIdx -> x
-        for (let j = t.l - 1; j > t.u; j--) {
-          const frac = (t.l - j) / (t.l - t.u);
-          const want = locx + (ucx - locx) * frac;
-          t.corr[j] = corr(j, want);
-        }
-        t.entryU = botSlot(t.u, uNode, t.corr[t.u + 1] ?? locx);
-        // Exit at the child's own center when it has a single outgoing edge (keeps risers spread
-        // out across children); when the child has several, pull each exit toward its parent so
-        // sibling risers separate. Lane-skippers aim at their first corridor.
-        const loW = size.get(loNode).w;
-        const spread = trackedPerChild.get(loNode) > 1
-          ? locx + Math.sign(ucx - locx) * Math.min(Math.abs(ucx - locx), loW / 2 - 14)
-          : locx;
-        const [exLo, exHi] = nodeRange(loNode);
-        t.exitLo = slots(t.l - 1, t.corr[t.l - 1] ?? spread, exLo, exHi, exitPitch);
-        t.channels = [];
-        for (let gph = t.u; gph <= t.l - 1; gph++) {
-          const xAbove = gph === t.u ? t.entryU : t.corr[gph];
-          const xBelow = gph === t.l - 1 ? t.exitLo : t.corr[gph + 1];
-          t.channels.push({ g: gph, xBelow, xAbove });
-        }
-      }
-    }
-
-    // ----- per-channel structure: bus levels (bundles) + track rows (tracked edges) -----
-    const chanIdx = new Set();
-    for (const t of tracked) t.channels.forEach((c) => chanIdx.add(c.g));
-    for (const b of bundlePlans) {
-      chanIdx.add(b.lu);
-      for (const k of b.kids) chanIdx.add(k.peelChan);
-      for (const gph of b.jogs.keys()) chanIdx.add(gph);
-    }
-    const chans = new Map(); // g -> { busLevels, items, rows, h }
-    for (const gph of chanIdx) chans.set(gph, { busLevels: 0, items: [] });
-
-    // side-bus horizontals are interval-colored ACROSS parents so buses of different parents
-    // sharing a y can never overlap collinearly. Three flavors now share this mechanism: a
-    // member's own peel-off jog (in ITS OWN channel, `k.peelChan` — may be several channels
-    // below the parent for a multi-row skip), a group's shared spine jog at an intermediate
-    // lane boundary (one item per GROUP per boundary, not per member — every member deep enough
-    // to reach it rides the identical jog), and the group's single shared jog into the parent
-    // (in channel `b.lu`). Assigning all three through the same per-channel level pool is what
-    // keeps an unrelated sibling's own branch from coincidentally landing at the same fixed
-    // offset as a passing group's spine jog in that same channel.
-    for (const gph of chanIdx) {
-      const busItems = [];
-      for (const b of bundlePlans) {
-        for (const k of b.kids) {
-          if (k.ownStraight || k.peelChan !== gph) continue;
-          busItems.push({ target: k, prop: "ownBusLevel", xL: Math.min(k.stubX, k.joinX) - 4, xR: Math.max(k.stubX, k.joinX) + 4 });
-        }
-        if (b.jogs.has(gph)) {
-          const j = b.jogs.get(gph);
-          busItems.push({ target: j, prop: "level", xL: Math.min(j.here, j.up) - 4, xR: Math.max(j.here, j.up) + 4 });
-        }
-        if (!b.groupStraight && b.lu === gph)
-          busItems.push({ target: b, prop: "groupBusLevel", xL: Math.min(b.trunkX, b.entryX) - 4, xR: Math.max(b.trunkX, b.entryX) + 4 });
-      }
-      if (busItems.length) {
-        const { levelOf, count } = assignTracks(busItems.map((it, i) => ({ id: i, xL: it.xL, xR: it.xR })));
-        busItems.forEach((it, i) => { it.target[it.prop] = levelOf.get(i); });
-        chans.get(gph).busLevels = count;
-      }
-    }
-
-    for (const t of tracked) {
-      for (const c of t.channels) {
-        const isPill = t.pill && c.g === t.pillChan;
-        // pill pad covers the slide overhang (pw/2−10 past either segment end) plus margin
-        const pad = isPill ? Math.max(16, t.pillW - 6) : 6;
-        chans.get(c.g).items.push({
-          t, cRef: c,
-          xL: Math.min(c.xBelow, c.xAbove) - pad,
-          xR: Math.max(c.xBelow, c.xAbove) + pad,
-          pill: isPill,
-          span: Math.abs(c.xAbove - c.xBelow),
-        });
-      }
-    }
-    for (const [, c] of chans) {
-      const uniq = c.items.map((it, i) => ({ id: i, xL: it.xL, xR: it.xR, pill: it.pill, order: -it.span }));
-      const { levelOf, count, pillLevels, plainLevels } = assignTracks(uniq);
-      c.plainLevels = plainLevels;
-      uniq.forEach((u, i) => { c.items[i].level = levelOf.get(u.id); });
-      c.rows = [];
-      for (let i = 0; i < count; i++) {
-        const isPillRow = i >= count - pillLevels;
-        // pill rows grow to fit their tallest (possibly two-line) pill
-        const tallest = Math.max(20, ...c.items.filter((it) => it.level === i && it.pill).map((it) => it.t.pillH || 20));
-        c.rows.push({ h: isPillRow ? tallest + 7 : 12 });
-      }
-      const busH = c.busLevels ? 10 + c.busLevels * 4 : (count ? 6 : 0);
-      c.busH = busH;
-      c.h = busH + c.rows.reduce((a, r) => a + r.h, 0) + (count || c.busLevels ? 10 : 0);
-    }
-    const chanH = (gph) => chans.get(gph)?.h || 0;
-
-    // ----- vertical stacking -----
-    const laneMaxH = laneNodes.map((arr) => Math.max(58, ...arr.map((id) => size.get(id).h)));
-    const laneTop = [], laneBandH = [];
-    let cursorY = M.top + chanH(-1) + (chanH(-1) ? 6 : 0);
-    for (let i = 0; i < L; i++) {
-      laneTop.push(cursorY);
-      const bodyH = TOPPAD + laneMaxH[i] + 14;
-      laneBandH.push(bodyH + chanH(i));
-      cursorY += bodyH + chanH(i);
-    }
-    const totalH = cursorY + 18;
-    const chanTop = (gph) => (gph === -1 ? M.top : laneTop[gph] + TOPPAD + laneMaxH[gph] + 14);
-    const rowY = (gph, level) => {
-      const c = chans.get(gph);
-      let y = chanTop(gph) + (c.busH || 6);
-      for (let i = 0; i < level; i++) y += c.rows[i].h;
-      return y + c.rows[level].h / 2;
-    };
-
-    // card boxes
-    const box = new Map();
-    for (const [id, s] of size) {
-      const li = lane.get(id);
-      const x = X.get(id) - s.w / 2, y = laneTop[li] + TOPPAD;
-      box.set(id, { x, y, w: s.w, h: s.h, cx: X.get(id), top: y, bottom: y + s.h });
-    }
-
-    // ----- vertical bookkeeping (recomputable: crossings depend on row assignment) -----
-    const gEnd = (gph, side) => (side === "below" ? chanTop(gph) + chanH(gph) : chanTop(gph));
-    const itemFor = (t, c) => chans.get(c.g).items.find((it) => it.t === t && it.cRef === c);
-
-    // Shared per-(group,member) path geometry, used by both collectVerticals (pill-slide
-    // conflict detection) and the final path/segment emission below, so the two never drift
-    // apart. A member's own branch (state-colored, never trunk-tagged) exists ONLY when it
-    // needs an actual jog to reach the spine (`!k.ownStraight`) — when its card already sits on
-    // the spine's own x (the common "several direct siblings share one target" case, where every
-    // such member's card sits at the same lane row and would otherwise produce pixel-identical
-    // "branches"), its whole connector IS the shared trunk: no separate, necessarily-distinct
-    // branch to draw. Every edge still keeps its own state color on its CARD regardless
-    // (entityCard is unaffected), so no information is lost (C29). Above its own peel lane, the
-    // member rides the group's shared per-lane spine up to the parent, jogging only at the rare
-    // lane boundary where two consecutive validated positions actually differ.
-    function bundleGeom(b, k) {
-      const pb = box.get(b.pid), cb = box.get(k.e.from);
-      const finalY = b.groupStraight ? pb.bottom : chanTop(b.lu) + 6 + (b.groupBusLevel || 0) * 4;
-      let branchPts = [];
-      const trunkPts = [];
-      if (k.ownStraight) {
-        trunkPts.push({ x: k.joinX, y: cb.top });
-      } else {
-        const ownBusY = chanTop(k.peelChan) + 6 + (k.ownBusLevel || 0) * 4;
-        branchPts = [{ x: k.stubX, y: cb.top }, { x: k.stubX, y: ownBusY }, { x: k.joinX, y: ownBusY }];
-        trunkPts.push({ x: k.joinX, y: ownBusY });
-      }
-      for (let j = k.peelChan; j >= b.lu + 2; j--) {
-        const chan = j - 1;
-        if (!b.jogs.has(chan)) continue;
-        const jog = b.jogs.get(chan);
-        const y = chanTop(chan) + 6 + (jog.level || 0) * 4;
-        trunkPts.push({ x: jog.here, y }, { x: jog.up, y });
-      }
-      trunkPts.push({ x: b.trunkX, y: finalY });
-      if (!b.groupStraight) trunkPts.push({ x: b.entryX, y: finalY }, { x: b.entryX, y: pb.bottom });
-      const dedupe = (pts) => pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
-      return { branchPts: dedupe(branchPts), trunkPts: dedupe(trunkPts) };
-    }
-
-    function collectVerticals() {
-      const map = new Map(); // g -> [{x, y1, y2, owner}]
-      const add = (gph, x, y1, y2, owner) => {
-        if (!map.has(gph)) map.set(gph, []);
-        map.get(gph).push({ x, y1: Math.min(y1, y2), y2: Math.max(y1, y2), owner });
-      };
-      for (const b of bundlePlans) {
-        for (const k of b.kids) {
-          const { branchPts, trunkPts } = bundleGeom(b, k);
-          for (let i = 1; i < branchPts.length; i++)
-            if (branchPts[i].x === branchPts[i - 1].x) add(k.peelChan, branchPts[i].x, branchPts[i].y, branchPts[i - 1].y, k.e);
-          // every trunk vertical is registered across the member's WHOLE spanned channel range
-          // (its own peel channel up to the group's channel `lu`) — a pill in any intermediate
-          // channel sees the whole ride, not just whichever single lane a given jog happens to
-          // sit at; a broad, deliberately over-inclusive registration for this best-effort
-          // pill-avoidance mechanism (never a correctness gate).
-          for (let i = 1; i < trunkPts.length; i++)
-            if (trunkPts[i].x === trunkPts[i - 1].x)
-              for (let gc = b.lu; gc <= k.peelChan; gc++) add(gc, trunkPts[i].x, trunkPts[i].y, trunkPts[i - 1].y, k.e);
-        }
-      }
-      for (const t of tracked) {
-        if (t.sameLane) {
-          const c = t.channels[0], y = rowY(c.g, itemFor(t, c).level);
-          add(c.g, t.exitLo, y, gEnd(c.g, "below"), t.e);
-          add(c.g, t.exitU, y, gEnd(c.g, "below"), t.e);
-          continue;
-        }
-        let prevX = t.exitLo;
-        for (let i = t.channels.length - 1; i >= 0; i--) {
-          const c = t.channels[i], y = rowY(c.g, itemFor(t, c).level);
-          add(c.g, prevX, y, gEnd(c.g, "below"), t.e);      // riser below this row
-          add(c.g, c.xAbove, gEnd(c.g, "above"), y, t.e);   // continuation above this row
-          prevX = c.xAbove;
-        }
-      }
-      return map;
-    }
-
-    // slide simulation: best x for a pill along its horizontal (with overhang), given verticals
-    function slidePill(pw, anchor, segX, y, verts, ownerEdge, ph = 20) {
-      const halfH = ph / 2;
-      const near = verts.filter((v) => v.owner !== ownerEdge && v.y1 < y + halfH && v.y2 > y - halfH);
-      const lo = Math.min(segX[0], anchor), hi = Math.max(segX[1], anchor);
-      const overhang = Math.max(0, pw / 2 - 10);
-      const domLo = lo - overhang, domHi = hi + overhang;
-      const conflicts = (x) => near.reduce((k, v) => k + (Math.abs(v.x - x) < pw / 2 + 3 ? 1 : 0), 0);
-      let bestX = Math.min(domHi, Math.max(domLo, anchor)), bestC = conflicts(bestX), bestD = Infinity;
-      if (bestC > 0) {
-        const cands = [domLo, domHi];
-        for (let x = domLo; x < domHi; x += 4) cands.push(x);
-        for (const v of near) cands.push(v.x + pw / 2 + 3.5, v.x - pw / 2 - 3.5); // just past each crosser
-        for (const c of cands) {
-          if (c < domLo - 1e-9 || c > domHi + 1e-9) continue;
-          const k = conflicts(c), d = Math.abs(c - anchor);
-          if (k < bestC || (k === bestC && d < bestD)) { bestX = c; bestC = k; bestD = d; }
-        }
-      }
-      return { x: bestX, conflicts: bestC };
-    }
-    // ----- pill placement, one mechanism: each pill tries its own row first, then every other
-    // pill row of its channel (row order changes which risers/trunks cross it — a purely
-    // combinatorial move), keeping the row with the fewest slide conflicts. Final xs are computed
-    // in a second sweep so every pill sees the settled row assignment.
-    const pillTs = tracked.filter((t) => t.pill);
-    const pillGeom = (t) => {
-      const c = t.channels.find((cc) => cc.g === t.pillChan);
-      const item = itemFor(t, c);
-      return { item, segX: [Math.min(c.xBelow, c.xAbove), Math.max(c.xBelow, c.xAbove)], anchor: c.xBelow };
-    };
-    for (const t of pillTs) {
-      const pg = pillGeom(t);
-      const chan = chans.get(t.pillChan);
-      const orig = pg.item.level;
-      const tryRows = [orig, ...chan.rows.map((_, i) => i).filter((i) => i >= chan.plainLevels && i !== orig)];
-      let best = null;
-      for (const row of tryRows) {
-        if (row !== orig && chan.items.some((it) => it !== pg.item && it.level === row && !(pg.item.xR < it.xL || pg.item.xL > it.xR))) continue;
-        pg.item.level = row;
-        const verts = collectVerticals().get(t.pillChan) || [];
-        const c = slidePill(t.pillW, pg.anchor, pg.segX, rowY(t.pillChan, row), verts, t.e, t.pillH).conflicts;
-        if (!best || c < best.c) best = { row, c };
-        if (c === 0) break;
-      }
-      pg.item.level = best.row;
-    }
-    const pills = [];
-    const settledVerts = collectVerticals();
-    for (const t of pillTs) {
-      const pg = pillGeom(t);
-      const y = rowY(t.pillChan, pg.item.level);
-      const sim = slidePill(t.pillW, pg.anchor, pg.segX, y, settledVerts.get(t.pillChan) || [], t.e, t.pillH);
-      if (sim.conflicts > 0)
-        diag.warn(`label pill "${t.e.label}" could not fully avoid crossing connectors — it may sit on one`);
-      pills.push({ t, x: sim.x, y });
-    }
-
-    // ----- build paths + geometry from the final assignment -----
-    const debug = { cards: [], pills: [], segs: [], texts: [], lanes: [] };
-    const paths = []; // { d, stroke, width, dash }
-    const stateRank = { healthy: 0, unknown: 1, degraded: 2, unhealthy: 3, alt: 1, signal: 1 };
-
-    for (const b of bundlePlans) {
-      for (const k of [...b.kids].sort((a, b2) => stateRank[g.nodes.get(a.e.from).state] - stateRank[g.nodes.get(b2.e.from).state])) {
-        const st = T.state[g.nodes.get(k.e.from).state] || T.state.unknown;
-        const { branchPts, trunkPts } = bundleGeom(b, k);
-        const edgeKey = `${k.e.from}->${k.e.to}`;
-        // own branch: short, unshared, state-colored (C30) — never trunk-tagged, since it is
-        // never meant to coincide with any other edge's segment.
-        if (branchPts.length >= 2) {
-          paths.push({ d: roundedOrtho(branchPts, 7), stroke: st.border, width: 1.7 });
-          debug.segs.push(...segsOf(branchPts, edgeKey));
-        }
-        // shared trunk: neutral/structural color regardless of any member's own state (C30),
-        // tagged with the target's id so the verifier's collinearity checks recognize every
-        // other member's identical span here as an intentional coincidence, not a violation.
-        if (trunkPts.length >= 2) {
-          paths.push({ d: roundedOrtho(trunkPts, 7), stroke: T.muted, width: 1.7 });
-          debug.segs.push(...segsOf(trunkPts, edgeKey, b.pid));
-        }
-      }
-    }
-
-    for (const t of tracked) {
-      const st = T.state[g.nodes.get(t.e.from).state] || T.state.unknown;
-      let pts;
-      if (t.sameLane) {
-        const cLo = box.get(t.loNode), cU = box.get(t.uNode);
-        const y = rowY(t.chan, itemFor(t, t.channels[0]).level);
-        pts = [{ x: t.exitLo, y: cLo.top }, { x: t.exitLo, y }, { x: t.exitU, y }, { x: t.exitU, y: cU.top }];
-      } else {
-        const cLo = box.get(t.loNode), cU = box.get(t.uNode);
-        pts = [{ x: t.exitLo, y: cLo.top }];
-        let prevX = t.exitLo;
-        for (let i = t.channels.length - 1; i >= 0; i--) {
-          const c = t.channels[i];
-          const y = rowY(c.g, itemFor(t, c).level);
-          pts.push({ x: prevX, y }, { x: c.xAbove, y });
-          prevX = c.xAbove;
-        }
-        pts.push({ x: t.entryU, y: cU.bottom });
-        pts = pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
-      }
-      paths.push({ d: roundedOrtho(pts, 7), stroke: st.border, width: t.e.dashed ? 1.6 : 1.7, dash: t.e.dashed ? "5 4" : null });
-      debug.segs.push(...segsOf(pts, `${t.e.from}->${t.e.to}`));
-    }
-
-    // ----- global extents; translate if anything went left of 0 -----
-    let minX = 0, maxX = 0;
-    const scanX = (x) => { minX = Math.min(minX, x); maxX = Math.max(maxX, x); };
-    for (const b of box.values()) { scanX(b.x); scanX(b.x + b.w); }
-    for (const s of debug.segs) { scanX(s.x1); scanX(s.x2); }
-    for (const p of pills) { scanX(p.x - p.t.pillW / 2); scanX(p.x + p.t.pillW / 2); }
-    const tx = M.left - minX;
-    const W = Math.max(maxX + tx + 24 + gutterW, headW, subtitleW + M.left + 40);
-    return { W, H: totalH, L, laneOrigin, laneTop, laneBandH, lane, tx, box, paths, pills, debug };
-  }
-
-  // Packing/routing determines rowBudget-driven card content, but chrome-adjacent routing (a
-  // lane-skipping corridor riding a wide flank, a widened pill-slide domain) can occasionally push
-  // the *final* width a little past what the packed content alone implied. Retry with a tighter
-  // budget — bounded and deterministic, never a combinatorial search — until it fits maxWidth or
-  // shrinking the budget further could no longer help (rowBudgetFloor reached).
-  let rowBudget = maxWidth - (M.left + 24 + gutterW);
-  let built = computeLayout(rowBudget);
-  for (let attempt = 0; attempt < 6 && built.W > maxWidth + 0.5 && rowBudget > rowBudgetFloor + 0.5; attempt++) {
-    rowBudget = Math.max(rowBudgetFloor, rowBudget - (built.W - maxWidth) - 8);
-    built = computeLayout(rowBudget);
-  }
-  const { W, H, L, laneOrigin, laneTop, laneBandH, lane, tx, box, paths, pills, debug } = built;
-
+  const W = Math.max(maxX + tx + 24 + gutterW, headW, textWidth(subtitle, 12) + M.left + 40);
+  const H = totalH;
 
   const shift = (v) => v + tx;
   for (const b of box.values()) b.x = shift(b.x), b.cx = shift(b.cx);
@@ -999,29 +785,19 @@ export function renderSwimlane(code, opts = {}) {
   out.push(`<defs><filter id="cs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.3" flood-color="#000" flood-opacity="${T.shadowOpacity}"/></filter></defs>`);
   out.push(`<rect width="${Math.ceil(W)}" height="${Math.ceil(H)}" fill="${T.bg}"/>`);
 
-  // lane bands + labels: consecutive physical rows that wrapped from the same logical lane
-  // (same laneOrigin) paint as one continuous band with a single centered label — "multiple rows
-  // within one lane," not new lanes — while each row still keeps its own tight debug.lanes entry
-  // so the geometry verifier's per-row card-containment check is unaffected by the grouping.
+  // lane bands + labels
   for (let i = 0; i < L; i++) {
-    if (i === 0 || laneOrigin[i] !== laneOrigin[i - 1]) {
-      let j = i;
-      while (j + 1 < L && laneOrigin[j + 1] === laneOrigin[i]) j++;
-      const bandIdx = laneOrigin[i];
-      const top = laneTop[i];
-      const bh = laneTop[j] + laneBandH[j] - top;
-      out.push(`<rect x="0" y="${top.toFixed(1)}" width="${Math.ceil(W)}" height="${bh.toFixed(1)}" fill="${bandIdx % 2 ? T.band : T.bg}"/>`);
-      out.push(`<line x1="0" y1="${top.toFixed(1)}" x2="${Math.ceil(W)}" y2="${top.toFixed(1)}" stroke="${T.hair}"/>`);
-      if (laneLabelsOn) {
-        const lx = W - gutterW + 24, mid = top + bh / 2, ls = labelWraps[bandIdx];
-        ls.forEach((s, k) => {
-          const y = mid + (k - (ls.length - 1) / 2) * 17 + 4.5;
-          out.push(`<text x="${lx.toFixed(1)}" y="${y.toFixed(1)}" font-size="13" font-weight="700" fill="${T.laneLabel}">${esc(s)}</text>`);
-          debug.texts.push({ x: lx, y: y - 11, w: textWidth(s, 13, 600), h: 14, text: s });
-        });
-      }
-    }
-    debug.lanes.push({ top: laneTop[i], h: laneBandH[i], label: labels[laneOrigin[i]] });
+    const top = laneTop[i] - (i === 0 ? 0 : 0); // band starts at lane top; channel below belongs to it
+    const bh = laneBandH[i];
+    out.push(`<rect x="0" y="${top.toFixed(1)}" width="${Math.ceil(W)}" height="${bh.toFixed(1)}" fill="${i % 2 ? T.band : T.bg}"/>`);
+    out.push(`<line x1="0" y1="${top.toFixed(1)}" x2="${Math.ceil(W)}" y2="${top.toFixed(1)}" stroke="${T.hair}"/>`);
+    const lx = W - gutterW + 24, mid = top + bh / 2, ls = labelWraps[i];
+    ls.forEach((s, k) => {
+      const y = mid + (k - (ls.length - 1) / 2) * 17 + 4.5;
+      out.push(`<text x="${lx.toFixed(1)}" y="${y.toFixed(1)}" font-size="13" font-weight="700" fill="${T.laneLabel}">${esc(s)}</text>`);
+      debug.texts.push({ x: lx, y: y - 11, w: textWidth(s, 13, 600), h: 14, text: s });
+    });
+    debug.lanes.push({ top, h: bh, label: labels[i] });
   }
   out.push(`<line x1="0" y1="${(H - 0.5).toFixed(1)}" x2="${Math.ceil(W)}" y2="${(H - 0.5).toFixed(1)}" stroke="${T.hair}"/>`);
 

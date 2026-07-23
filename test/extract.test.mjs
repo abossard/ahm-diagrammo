@@ -72,30 +72,6 @@ test("extractBlocks: directives override frontmatter which overrides fence", () 
   assert.equal(b.options.theme, "candy");
 });
 
-test("extractBlocks: maxWidth is accepted via each option channel independently, as a number", () => {
-  const fence = extractBlocks("```mermaid maxWidth=1400\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(fence.options.maxWidth, 1400);
-  const directive = extractBlocks("```mermaid\n%%| maxWidth: 1400\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(directive.options.maxWidth, 1400);
-  const frontmatter = extractBlocks("```mermaid\n---\ndiagrammo:\n  maxWidth: 1400\n---\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(frontmatter.options.maxWidth, 1400);
-  // later source wins, same precedence as every other key
-  const overridden = extractBlocks("```mermaid maxWidth=900\n%%| maxWidth: 1400\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(overridden.options.maxWidth, 1400);
-});
-
-test("extractBlocks: laneLabels is accepted via each option channel independently, as a boolean (C22)", () => {
-  const fence = extractBlocks("```mermaid laneLabels=false\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(fence.options.laneLabels, false);
-  const directive = extractBlocks("```mermaid\n%%| laneLabels: false\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(directive.options.laneLabels, false);
-  const frontmatter = extractBlocks("```mermaid\n---\ndiagrammo:\n  laneLabels: false\n---\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(frontmatter.options.laneLabels, false);
-  // later source wins, same precedence as every other key
-  const overridden = extractBlocks("```mermaid laneLabels=true\n%%| laneLabels: false\nflowchart BT\na --> b\n```", THEME_NAMES)[0];
-  assert.equal(overridden.options.laneLabels, false);
-});
-
 test("extractBlocks: quoted fence values may contain spaces", () => {
   const doc = [
     '```mermaid title="Checkout flow" subtitle=\'Live status\'',
@@ -166,32 +142,6 @@ test("extractBlocks: `%%| alt:` override directive parsing (recognized, empty wa
     // `alt` never participates in slug derivation — identity stays heading/title/name-based.
     assert.equal(b.slug, "diagram", `${name}: alt must not change the slug`);
   }
-});
-
-test("extractBlocks: a non-positive-finite maxWidth warns (never errors) and is dropped from options, one call covering every bad shape", () => {
-  for (const bad of ['"wide"', "0", "-200", "NaN"]) {
-    const [b] = extractBlocks(`\`\`\`mermaid\n%%| maxWidth: ${bad}\nflowchart BT\na --> b\n\`\`\``, THEME_NAMES);
-    assert.ok(!("maxWidth" in b.options), `maxWidth ${bad} must be dropped from merged options`);
-    const warn = b.issues.find((i) => i.message.includes("maxWidth"));
-    assert.ok(warn, `expected a warning naming maxWidth for value ${bad}`);
-    assert.equal(warn.level, "warn", `maxWidth ${bad} must warn, never error`);
-  }
-  // dropping it still lets a DIFFERENT, still-valid earlier source's value apply through the merge
-  const [kept] = extractBlocks("```mermaid maxWidth=1400\n%%| maxWidth: oops\nflowchart BT\na --> b\n```", THEME_NAMES);
-  assert.ok(!("maxWidth" in kept.options), "the invalid later value still wins precedence and is dropped — not silently reverted to the earlier source");
-});
-
-test("extractBlocks: a non-boolean laneLabels warns (never errors) and is dropped from options, falling back to shown (C21)", () => {
-  for (const bad of ['"off"', "0", "1"]) {
-    const [b] = extractBlocks(`\`\`\`mermaid\n%%| laneLabels: ${bad}\nflowchart BT\na --> b\n\`\`\``, THEME_NAMES);
-    assert.ok(!("laneLabels" in b.options), `laneLabels ${bad} must be dropped from merged options`);
-    const warn = b.issues.find((i) => i.message.includes("laneLabels"));
-    assert.ok(warn, `expected a warning naming laneLabels for value ${bad}`);
-    assert.equal(warn.level, "warn", `laneLabels ${bad} must warn, never error`);
-  }
-  // dropping it still lets a DIFFERENT, still-valid earlier source's value apply through the merge
-  const [kept] = extractBlocks("```mermaid laneLabels=false\n%%| laneLabels: oops\nflowchart BT\na --> b\n```", THEME_NAMES);
-  assert.ok(!("laneLabels" in kept.options), "the invalid later value still wins precedence and is dropped — not silently reverted to the earlier source");
 });
 
 test("extractBlocks: unknown theme is a block-level error with fence line", () => {

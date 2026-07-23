@@ -33,22 +33,6 @@ class foo green;
 \`\`\`
 `;
 
-// A lane wide enough (10 leaves sharing one root) to exceed the 1024 default without any
-// maxWidth token — the same real-world shape as the browser editor's own health-model examples.
-const WIDE_LEAF_LIST = Array.from({ length: 10 }, (_, i) => `leaf${i + 1}`);
-const wideBlockLines = (fenceInfo = "") => [
-  "## Wide",
-  `\`\`\`mermaid${fenceInfo}`,
-  "flowchart BT",
-  ...WIDE_LEAF_LIST.map((id, i) => `${id}["Leaf service number ${i + 1}<br/>healthy"] --> root["Workload root<br/>healthy"]`),
-  "classDef green fill:#f2f8f2,stroke:#a0d8a0;",
-  `class ${WIDE_LEAF_LIST.join(",")},root green;`,
-  "```",
-  "",
-];
-const WIDE_BLOCK = wideBlockLines().join("\n");
-const WIDE_BLOCK_OVERRIDE = wideBlockLines(" maxWidth=1400").join("\n");
-
 test("convertMarkdown: a recognized health-model block renders an SVG via renderSwimlane", () => {
   const [result] = convertMarkdown(HEALTH_BLOCK);
   assert.equal(result.kind, "health");
@@ -74,36 +58,4 @@ test("convertMarkdown: a document mixing all three kinds classifies each block i
   const doc = [HEALTH_BLOCK, SEQUENCE_BLOCK, ZERO_NODE_HEALTH_SHAPED_BLOCK].join("\n");
   const results = convertMarkdown(doc);
   assert.deepEqual(results.map((r) => r.kind), ["health", "unsupported", "error"]);
-});
-
-// ---- maxWidth: default-bounded rendering, per-block override, no new browser UI control -------
-
-test("convertMarkdown: a wide block with no maxWidth token renders bounded to the 1024 default; a fence-info override threads through and changes the outcome", () => {
-  const [byDefault] = convertMarkdown(WIDE_BLOCK);
-  assert.equal(byDefault.kind, "health");
-  assert.ok(byDefault.meta.w <= 1024, `expected the default bound, got ${byDefault.meta.w}`);
-
-  const [overridden] = convertMarkdown(WIDE_BLOCK_OVERRIDE);
-  assert.equal(overridden.kind, "health");
-  assert.ok(overridden.meta.w <= 1400, `expected the 1400 override bound, got ${overridden.meta.w}`);
-  assert.notEqual(overridden.meta.w, byDefault.meta.w, "an accepted override must change the outcome, not be silently ignored");
-});
-
-// ---- laneLabels: default-on shown text, fence-info override removes it (C22) -------------------
-
-const WIDE_BLOCK_NO_LABELS = wideBlockLines(" laneLabels=false").join("\n");
-
-test("convertMarkdown: laneLabels=false threads through the browser converter and removes the lane-label text from the emitted SVG", () => {
-  // "Application components" (this fixture's second default lane label, for its leaf lane) is
-  // used rather than "Workload root" because the latter is ALSO this fixture's root card's own
-  // literal name — laneLabels=false must leave a card's own name untouched, so asserting on it
-  // here would be ambiguous. No leaf entity is named "Application components".
-  const [byDefault] = convertMarkdown(WIDE_BLOCK);
-  assert.equal(byDefault.kind, "health");
-  assert.match(byDefault.svg, />Application/, "default (labels shown) must include the lane-label text");
-
-  const [labelsOff] = convertMarkdown(WIDE_BLOCK_NO_LABELS);
-  assert.equal(labelsOff.kind, "health");
-  assert.doesNotMatch(labelsOff.svg, />Application/, "laneLabels=false must remove the lane-label text from the browser converter's emitted SVG");
-  assert.equal(labelsOff.meta.nodes, byDefault.meta.nodes, "node count must stay unchanged");
 });

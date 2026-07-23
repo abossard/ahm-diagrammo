@@ -12,7 +12,7 @@ import { readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from "
 import { basename, dirname, join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { extractBlocks, reserveSlug } from "../src/extract.mjs";
-import { renderSwimlane, looksLikeHealthModel, DEFAULT_MAX_WIDTH } from "../src/swimlane.mjs";
+import { renderSwimlane, looksLikeHealthModel } from "../src/swimlane.mjs";
 import { getTheme, THEME_NAMES } from "../src/themes.mjs";
 import { galleryHtml } from "../src/gallery.mjs";
 import { Diagnostics } from "../src/diag.mjs";
@@ -49,10 +49,7 @@ Per-block options (all optional, all invisible to GitHub's mermaid preview):
                     legend: false
                   ---
 
-Keys: renderer, theme, title, subtitle, name (file name), lanes, legend,
-      maxWidth (default ${DEFAULT_MAX_WIDTH}, CSS px — bounds the final SVG width; wraps a wide
-      lane onto multiple physical rows instead of drawing it ultra-wide),
-      laneLabels (default true — set false to hide lane label text and reclaim its gutter width).
+Keys: renderer, theme, title, subtitle, name (file name), lanes, legend.
 Signal rows may carry their own value and state:  P95 latency = 230 ms (degraded)
 `;
 
@@ -230,8 +227,6 @@ for (const file of args.files) {
           subtitle: b.options.subtitle,
           lanes: b.options.lanes,
           legend: b.options.legend,
-          maxWidth: b.options.maxWidth,
-          laneLabels: b.options.laneLabels,
           diag, baseLine: b.codeLine - 1,
         });
         svg = r.svg; meta = { nodes: r.nodes, lanes: r.lanes, w: r.W, h: r.H };
