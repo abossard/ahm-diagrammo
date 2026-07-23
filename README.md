@@ -277,6 +277,7 @@ flowchart BT
 | `title` / `subtitle` | figure header text (title defaults to the nearest Markdown heading) |
 | `lanes` | custom swimlane labels, top to bottom: `[Root, Flows, Services]` |
 | `legend` | `false` hides the legend |
+| `laneLabels` | `false` hides the lane label text and reclaims its right-hand gutter, making the diagram narrower without changing routing, edge colors, node layout, or height (swimlane only; default `true`) |
 | `name` | output file name (defaults to a slug of the title/heading) |
 | `background` | canvas background color (mermaid renderer only) |
 | `alt` | accessibility alt text for the `--sync-markdown` visible embed; overrides `title`/heading (see below) |

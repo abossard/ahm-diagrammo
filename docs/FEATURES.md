@@ -269,6 +269,7 @@ flowchart BT
 | `subtitle` | string | line under the title (swimlane only; set `""` to hide) |
 | `lanes` | list | custom swimlane labels, top to bottom |
 | `legend` | boolean | `false` hides the legend (swimlane only) |
+| `laneLabels` | boolean | `false` hides the lane label text and reclaims its right-hand gutter — a non-wrapping width reduction that leaves routing, edge colors, node layout, and height unchanged (swimlane only; default `true`). A non-boolean value warns and falls back to shown |
 | `name` | string | output file name (default: slug of title/heading; duplicates get `-2`, `-3`, …) |
 | `background` | color | canvas background (mermaid renderer only) |
 | `alt` | string | alt text for the `--sync-markdown` visible embed; overrides `title`/heading (precedence: `alt` → `title` → heading). Empty/whitespace-only warns and falls back |

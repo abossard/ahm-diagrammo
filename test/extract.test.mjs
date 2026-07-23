@@ -144,6 +144,51 @@ test("extractBlocks: `%%| alt:` override directive parsing (recognized, empty wa
   }
 });
 
+test("extractBlocks: `laneLabels` is a recognized boolean across all three channels; non-boolean warns and drops", () => {
+  const graph = "flowchart BT\na --> b\n```";
+  const cases = {
+    "fence-info laneLabels=false is a recognized boolean": {
+      doc: "```mermaid laneLabels=false\n" + graph,
+      laneLabels: false,
+      expectWarn: null,
+      noWarn: /unknown option|should be a boolean/,
+    },
+    "frontmatter laneLabels: false is a recognized boolean": {
+      doc: "```mermaid\n---\ndiagrammo:\n  laneLabels: false\n---\n" + graph,
+      laneLabels: false,
+      expectWarn: null,
+      noWarn: /unknown option|should be a boolean/,
+    },
+    "`%%| laneLabels: false` is a recognized boolean": {
+      doc: "```mermaid\n%%| laneLabels: false\n" + graph,
+      laneLabels: false,
+      expectWarn: null,
+      noWarn: /unknown option|should be a boolean/,
+    },
+    "`%%| laneLabels: true` is the recognized default-on value": {
+      doc: "```mermaid\n%%| laneLabels: true\n" + graph,
+      laneLabels: true,
+      expectWarn: null,
+      noWarn: /unknown option|should be a boolean/,
+    },
+    "non-boolean laneLabels warns and is dropped (falls back to shown), never errors": {
+      doc: "```mermaid\n%%| laneLabels: sometimes\n" + graph,
+      laneLabels: undefined,
+      expectWarn: /"laneLabels" should be a boolean — got "sometimes" — falling back to shown/,
+      noWarn: /unknown option/,
+    },
+  };
+  for (const [name, { doc, laneLabels, expectWarn, noWarn }] of Object.entries(cases)) {
+    const [b] = extractBlocks(doc, THEME_NAMES);
+    assert.equal(b.options.laneLabels, laneLabels, name);
+    const msgs = b.issues.map((i) => i.message).join("\n");
+    if (expectWarn) assert.match(msgs, expectWarn, name);
+    if (noWarn) assert.doesNotMatch(msgs, noWarn, `${name}: unexpected warning`);
+    assert.equal(b.issues.every((i) => i.level !== "error"), true, `${name}: laneLabels must never error`);
+    assert.equal(b.slug, "diagram", `${name}: laneLabels must not change the slug`);
+  }
+});
+
 test("extractBlocks: unknown theme is a block-level error with fence line", () => {
   const doc = "line1\n\n```mermaid theme=neon\nflowchart BT\na --> b\n```";
   const [b] = extractBlocks(doc, THEME_NAMES);

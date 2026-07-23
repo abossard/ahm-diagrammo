@@ -49,7 +49,9 @@ Per-block options (all optional, all invisible to GitHub's mermaid preview):
                     legend: false
                   ---
 
-Keys: renderer, theme, title, subtitle, name (file name), lanes, legend.
+Keys: renderer, theme, title, subtitle, name (file name), lanes, legend,
+      laneLabels (default true — set false to hide lane label text and reclaim its gutter width,
+      making the diagram narrower without changing routing, edge colors, or layout).
 Signal rows may carry their own value and state:  P95 latency = 230 ms (degraded)
 `;
 
@@ -227,6 +229,7 @@ for (const file of args.files) {
           subtitle: b.options.subtitle,
           lanes: b.options.lanes,
           legend: b.options.legend,
+          laneLabels: b.options.laneLabels,
           diag, baseLine: b.codeLine - 1,
         });
         svg = r.svg; meta = { nodes: r.nodes, lanes: r.lanes, w: r.W, h: r.H };

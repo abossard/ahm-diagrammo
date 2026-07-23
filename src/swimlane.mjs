@@ -370,7 +370,7 @@ export function looksLikeHealthModel(code) {
 }
 
 // ---------- main render ----------
-// opts: { theme, title, subtitle, lanes, legend, diag, baseLine, debug }
+// opts: { theme, title, subtitle, lanes, legend, laneLabels, diag, baseLine, debug }
 export function renderSwimlane(code, opts = {}) {
   const diag = opts.diag || new Diagnostics();
   const T = typeof opts.theme === "object" && opts.theme !== null ? opts.theme : getTheme(opts.theme);
@@ -749,9 +749,17 @@ export function renderSwimlane(code, opts = {}) {
   }
 
   // ----- lane labels / title / legend measurement -----
+  // `laneLabels` (default true) is an independent visibility toggle: it only decides whether the
+  // right-hand lane-label gutter is reserved and its text drawn. It is applied AFTER card x
+  // coordinates are fixed (relaxCoordinates, above), so it can never influence lane packing,
+  // routing, edge colors, node order, or height — false merely trims the reclaimed gutter off the
+  // right edge (W shrinks by exactly gutterW) and skips the label <text>. Bands/hairlines remain.
+  const showLabels = opts.laneLabels !== false;
   const labels = laneLabels(L, opts.lanes);
   const labelWraps = labels.map((l) => wrapText(l, 150, 13, { weight: 600, maxLines: 3 }).lines);
-  const gutterW = Math.max(120, ...labelWraps.map((ls) => Math.max(...ls.map((s) => textWidth(s, 13, 600))))) + 48;
+  const gutterW = showLabels
+    ? Math.max(120, ...labelWraps.map((ls) => Math.max(...ls.map((s) => textWidth(s, 13, 600))))) + 48
+    : 0;
   const title = opts.title ?? "";
   const subtitle = opts.subtitle ?? "Signals live inside each entity; health rolls up to the workload root.";
   const legendOn = opts.legend !== false;
@@ -791,12 +799,14 @@ export function renderSwimlane(code, opts = {}) {
     const bh = laneBandH[i];
     out.push(`<rect x="0" y="${top.toFixed(1)}" width="${Math.ceil(W)}" height="${bh.toFixed(1)}" fill="${i % 2 ? T.band : T.bg}"/>`);
     out.push(`<line x1="0" y1="${top.toFixed(1)}" x2="${Math.ceil(W)}" y2="${top.toFixed(1)}" stroke="${T.hair}"/>`);
-    const lx = W - gutterW + 24, mid = top + bh / 2, ls = labelWraps[i];
-    ls.forEach((s, k) => {
-      const y = mid + (k - (ls.length - 1) / 2) * 17 + 4.5;
-      out.push(`<text x="${lx.toFixed(1)}" y="${y.toFixed(1)}" font-size="13" font-weight="700" fill="${T.laneLabel}">${esc(s)}</text>`);
-      debug.texts.push({ x: lx, y: y - 11, w: textWidth(s, 13, 600), h: 14, text: s });
-    });
+    if (showLabels) {
+      const lx = W - gutterW + 24, mid = top + bh / 2, ls = labelWraps[i];
+      ls.forEach((s, k) => {
+        const y = mid + (k - (ls.length - 1) / 2) * 17 + 4.5;
+        out.push(`<text x="${lx.toFixed(1)}" y="${y.toFixed(1)}" font-size="13" font-weight="700" fill="${T.laneLabel}">${esc(s)}</text>`);
+        debug.texts.push({ x: lx, y: y - 11, w: textWidth(s, 13, 600), h: 14, text: s });
+      });
+    }
     debug.lanes.push({ top, h: bh, label: labels[i] });
   }
   out.push(`<line x1="0" y1="${(H - 0.5).toFixed(1)}" x2="${Math.ceil(W)}" y2="${(H - 0.5).toFixed(1)}" stroke="${T.hair}"/>`);
