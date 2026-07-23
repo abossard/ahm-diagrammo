@@ -305,6 +305,22 @@ function measureNode(n, diag) {
 }
 
 // ---------- geometry / routing ----------
+// A single-channel tracked edge whose two risers (exitLo, entryU) land this close together carries
+// only the anti-collinearity bump makeSlots adds (one pitch = 6px, below) — a redundant jog around
+// the label row, not real horizontal travel — so it is drawn as one straight vertical. 8 = one
+// pitch + rounding headroom, and stays strictly below two pitches (12px): 12 is the smallest gap
+// that can hide an intervening vertical, so a delta ≥ 12 signals a genuine obstacle/offset and is
+// left orthogonal. Coupled to makeSlots' pitch — revisit both together if that changes.
+const STRAIGHT_SNAP_DX = 8;
+
+// True when a single-channel tracked edge's risers are near-aligned enough to collapse to one
+// straight vertical at x = exitLo, AND that x still lands on the upper card ([uLo, uHi] = its slot
+// range from nodeRange) so the straightened riser can't fall off the parent. Pure so the exact
+// snap boundary can be exercised directly without contorting a diagram layout.
+export function straightenTrackedX(exitLo, entryU, uLo, uHi) {
+  return Math.abs(exitLo - entryU) <= STRAIGHT_SNAP_DX && exitLo >= uLo && exitLo <= uHi;
+}
+
 // One vertical-x registry per channel: every riser/trunk/stub in a channel draws from the same
 // pool, so two verticals of different edges can never be collinear. Each caller stays inside its
 // own card footprint via [lo, hi].
@@ -743,6 +759,13 @@ export function renderSwimlane(code, opts = {}) {
       }
       pts.push({ x: t.entryU, y: cU.bottom });
       pts = pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
+      // Near-aligned single-channel risers: collapse the redundant label-row jog to a straight
+      // vertical at the child's exit x (= the pill anchor, so the pill stays centred on the line).
+      if (t.channels.length === 1) {
+        const [uLo, uHi] = nodeRange(t.uNode);
+        if (straightenTrackedX(t.exitLo, t.entryU, uLo, uHi))
+          pts = [{ x: t.exitLo, y: cLo.top }, { x: t.exitLo, y: cU.bottom }];
+      }
     }
     paths.push({ d: roundedOrtho(pts, 7), stroke: st.border, width: t.e.dashed ? 1.6 : 1.7, dash: t.e.dashed ? "5 4" : null });
     debug.segs.push(...segsOf(pts, `${t.e.from}->${t.e.to}`));
