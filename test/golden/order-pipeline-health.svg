@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="895" height="462" viewBox="0 0 895 462" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="895" height="510" viewBox="0 0 895 510" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
 <defs><filter id="cs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.3" flood-color="#000" flood-opacity="0.1"/></filter></defs>
-<rect width="895" height="462" fill="#fffdfa"/>
+<rect width="895" height="510" fill="#fffdfa"/>
 <rect x="0" y="78.0" width="895" height="90.0" fill="#fffdfa"/>
 <line x1="0" y1="78.0" x2="895" y2="78.0" stroke="#f0e4ee"/>
 <text x="751.0" y="127.5" font-size="13" font-weight="700" fill="#5b3d5b">Storefront</text>
@@ -13,17 +13,17 @@
 <line x1="0" y1="461.5" x2="895" y2="461.5" stroke="#f0e4ee"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#3d2b3d">Order pipeline health</text>
 <text x="40" y="52" font-size="12" fill="#8a7a8a">Live measurements flow in from the collectors on the left.</text>
-<text x="492.1" y="48" font-size="11.5" font-weight="600" fill="#8a7a8a" text-anchor="end">Legend</text>
-<circle cx="510.1" cy="44" r="4.5" fill="#2eb884"/>
-<text x="520.1" y="48" font-size="11.5" fill="#5b3d5b">Healthy</text>
-<circle cx="575.9" cy="44" r="4.5" fill="#f39114"/>
-<text x="585.9" y="48" font-size="11.5" fill="#5b3d5b">Degraded</text>
-<circle cx="653.4" cy="44" r="4.5" fill="#ef476f"/>
-<text x="663.4" y="48" font-size="11.5" fill="#5b3d5b">Unhealthy</text>
-<circle cx="732.2" cy="44" r="4.5" fill="#9a8f9a"/>
-<text x="742.2" y="48" font-size="11.5" fill="#5b3d5b">Unknown</text>
-<g transform="translate(801.1,37.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#a78bfa"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#5eb0ef"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#7fd1ae"/></g>
-<text x="819.1" y="48" font-size="11.5" fill="#5b3d5b">Metric</text>
+<text x="40.0" y="500.0" font-size="11.5" font-weight="600" fill="#8a7a8a">Legend</text>
+<circle cx="99.7" cy="496.0" r="4.5" fill="#2eb884"/>
+<text x="109.7" y="500.0" font-size="11.5" fill="#5b3d5b">Healthy</text>
+<circle cx="165.5" cy="496.0" r="4.5" fill="#f39114"/>
+<text x="175.5" y="500.0" font-size="11.5" fill="#5b3d5b">Degraded</text>
+<circle cx="243.0" cy="496.0" r="4.5" fill="#ef476f"/>
+<text x="253.0" y="500.0" font-size="11.5" fill="#5b3d5b">Unhealthy</text>
+<circle cx="321.8" cy="496.0" r="4.5" fill="#9a8f9a"/>
+<text x="331.8" y="500.0" font-size="11.5" fill="#5b3d5b">Unknown</text>
+<g transform="translate(390.7,489.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#a78bfa"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#5eb0ef"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#7fd1ae"/></g>
+<text x="408.7" y="500.0" font-size="11.5" fill="#5b3d5b">Metric</text>
 <g transform="translate(40.0,0)">
 <g fill="none" stroke-linecap="butt" stroke-linejoin="round">
 <path d="M317.5 327.0 L317.5 244.0" stroke="#7fd1ae" stroke-width="1.7"/>
