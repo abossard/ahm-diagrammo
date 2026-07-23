@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1428" height="530" viewBox="0 0 1428 530" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="1428" height="578" viewBox="0 0 1428 578" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
 <defs><filter id="cs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.3" flood-color="#000" flood-opacity="0.1"/></filter></defs>
-<rect width="1428" height="530" fill="#ffffff"/>
+<rect width="1428" height="578" fill="#ffffff"/>
 <rect x="0" y="78.0" width="1428" height="114.0" fill="#ffffff"/>
 <line x1="0" y1="78.0" x2="1428" y2="78.0" stroke="#e6e4e2"/>
 <text x="1262.0" y="139.5" font-size="13" font-weight="700" fill="#323130">Workload root</text>
@@ -14,17 +14,17 @@
 <line x1="0" y1="529.5" x2="1428" y2="529.5" stroke="#e6e4e2"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#242424">Notification delivery platform health</text>
 <text x="40" y="52" font-size="12" fill="#605e5c">Signals live inside each entity; health rolls up to the workload root.</text>
-<text x="1024.6" y="48" font-size="11.5" font-weight="600" fill="#605e5c" text-anchor="end">Legend</text>
-<circle cx="1042.6" cy="44" r="4.5" fill="#4c9a2a"/>
-<text x="1052.6" y="48" font-size="11.5" fill="#323130">Healthy</text>
-<circle cx="1108.3" cy="44" r="4.5" fill="#c26a00"/>
-<text x="1118.3" y="48" font-size="11.5" fill="#323130">Degraded</text>
-<circle cx="1185.9" cy="44" r="4.5" fill="#c50f18"/>
-<text x="1195.9" y="48" font-size="11.5" fill="#323130">Unhealthy</text>
-<circle cx="1264.7" cy="44" r="4.5" fill="#8a8886"/>
-<text x="1274.7" y="48" font-size="11.5" fill="#323130">Unknown</text>
-<g transform="translate(1333.6,37.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
-<text x="1351.6" y="48" font-size="11.5" fill="#323130">Metric</text>
+<text x="40.0" y="568.0" font-size="11.5" font-weight="600" fill="#605e5c">Legend</text>
+<circle cx="99.7" cy="564.0" r="4.5" fill="#4c9a2a"/>
+<text x="109.7" y="568.0" font-size="11.5" fill="#323130">Healthy</text>
+<circle cx="165.5" cy="564.0" r="4.5" fill="#c26a00"/>
+<text x="175.5" y="568.0" font-size="11.5" fill="#323130">Degraded</text>
+<circle cx="243.0" cy="564.0" r="4.5" fill="#c50f18"/>
+<text x="253.0" y="568.0" font-size="11.5" fill="#323130">Unhealthy</text>
+<circle cx="321.8" cy="564.0" r="4.5" fill="#8a8886"/>
+<text x="331.8" y="568.0" font-size="11.5" fill="#323130">Unknown</text>
+<g transform="translate(390.7,557.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
+<text x="408.7" y="568.0" font-size="11.5" fill="#323130">Metric</text>
 <g transform="translate(40.0,0)">
 <g fill="none" stroke-linecap="butt" stroke-linejoin="round">
 <path d="M100.0 395.0 L100.0 322.0 Q100.0 315.0 107.0 315.0 L460.7 315.0 Q467.7 315.0 467.7 308.0 L467.7 268.0" stroke="#a0d8a0" stroke-width="1.7"/>

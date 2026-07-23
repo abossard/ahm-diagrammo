@@ -775,9 +775,19 @@ export function renderSwimlane(code, opts = {}) {
   for (const s of debug.segs) { scanX(s.x1); scanX(s.x2); }
   for (const p of pills) { scanX(p.x - p.t.pillW / 2); scanX(p.x + p.t.pillW / 2); }
   const tx = M.left - minX;
-  const headW = M.left + textWidth(title, 18, 700) + 24 + (legendOn ? legendW : 0) + 40;
-  const W = Math.max(maxX + tx + 24 + gutterW, headW, textWidth(subtitle, 12) + M.left + 40);
-  const H = totalH;
+  const contentH = totalH;
+  // Legend now lives in a dedicated footer row below all content (v3.1.0). It no longer contributes
+  // to the header width; instead it adds a width floor (so a narrow diagram can't clip it) and a
+  // fixed-height footer strip. Both are gated on legendOn so disabled diagrams keep old dims.
+  const legendGap = 20, legendRowH = 28;
+  const headW = M.left + textWidth(title, 18, 700) + 24 + 40;
+  const W = Math.max(
+    maxX + tx + 24 + gutterW,
+    headW,
+    textWidth(subtitle, 12) + M.left + 40,
+    legendOn ? M.left + legendW + 40 : 0
+  );
+  const H = legendOn ? contentH + legendGap + legendRowH : contentH;
 
   const shift = (v) => v + tx;
   for (const b of box.values()) b.x = shift(b.x), b.cx = shift(b.cx);
@@ -809,9 +819,9 @@ export function renderSwimlane(code, opts = {}) {
     }
     debug.lanes.push({ top, h: bh, label: labels[i] });
   }
-  out.push(`<line x1="0" y1="${(H - 0.5).toFixed(1)}" x2="${Math.ceil(W)}" y2="${(H - 0.5).toFixed(1)}" stroke="${T.hair}"/>`);
+  out.push(`<line x1="0" y1="${(contentH - 0.5).toFixed(1)}" x2="${Math.ceil(W)}" y2="${(contentH - 0.5).toFixed(1)}" stroke="${T.hair}"/>`);
 
-  // title + subtitle + legend
+  // title + subtitle
   if (title) {
     out.push(`<text x="${M.left}" y="34" font-size="18" font-weight="700" fill="${T.ink}">${esc(title)}</text>`);
     debug.texts.push({ x: M.left, y: 20, w: textWidth(title, 18, 700), h: 20, text: title });
@@ -820,16 +830,20 @@ export function renderSwimlane(code, opts = {}) {
     out.push(`<text x="${M.left}" y="52" font-size="12" fill="${T.muted}">${esc(subtitle)}</text>`);
     debug.texts.push({ x: M.left, y: 41, w: textWidth(subtitle, 12), h: 13, text: subtitle });
   }
+  // legend — dedicated bottom footer row, left-aligned at the title margin, below the content
+  // boundary hairline. Order: Legend, Healthy, Degraded, Unhealthy, Unknown, Metric.
   if (legendOn) {
-    let x = W - 40 - legendW + textWidth("Legend", 11.5, 600) + 12, yy = 44;
-    out.push(`<text x="${(x - 12).toFixed(1)}" y="${yy + 4}" font-size="11.5" font-weight="600" fill="${T.muted}" text-anchor="end">Legend</text>`);
+    let x = M.left;
+    const yy = contentH + legendGap + legendRowH / 2;
+    out.push(`<text x="${x.toFixed(1)}" y="${(yy + 4).toFixed(1)}" font-size="11.5" font-weight="600" fill="${T.muted}">Legend</text>`);
+    x += textWidth("Legend", 11.5, 600) + 12;
     for (const [lbl, color] of legendItems) {
-      out.push(`<circle cx="${(x + 6).toFixed(1)}" cy="${yy}" r="4.5" fill="${color}"/>`);
-      out.push(`<text x="${(x + 16).toFixed(1)}" y="${yy + 4}" font-size="11.5" fill="${T.laneLabel}">${lbl}</text>`);
+      out.push(`<circle cx="${(x + 6).toFixed(1)}" cy="${yy.toFixed(1)}" r="4.5" fill="${color}"/>`);
+      out.push(`<text x="${(x + 16).toFixed(1)}" y="${(yy + 4).toFixed(1)}" font-size="11.5" fill="${T.laneLabel}">${lbl}</text>`);
       x += 26 + textWidth(lbl, 11.5);
     }
     out.push(metricIcon(T, x, yy - 7, 14));
-    out.push(`<text x="${(x + 18).toFixed(1)}" y="${yy + 4}" font-size="11.5" fill="${T.laneLabel}">Metric</text>`);
+    out.push(`<text x="${(x + 18).toFixed(1)}" y="${(yy + 4).toFixed(1)}" font-size="11.5" fill="${T.laneLabel}">Metric</text>`);
   }
 
   // edges + pills + cards inside the translate group
