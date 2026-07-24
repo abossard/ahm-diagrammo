@@ -19,17 +19,17 @@
 <line x1="0" y1="814.5" x2="934" y2="814.5" stroke="#e6e4e2"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#242424">How ahm-diagrammo renders one Markdown file</text>
 <text x="40" y="52" font-size="12" fill="#605e5c">Read bottom-up, from Markdown input to the output bundle.</text>
-<text x="530.1" y="48" font-size="11.5" font-weight="600" fill="#605e5c" text-anchor="end">Legend</text>
-<circle cx="548.1" cy="44" r="4.5" fill="#4c9a2a"/>
-<text x="558.1" y="48" font-size="11.5" fill="#323130">Healthy</text>
-<circle cx="613.9" cy="44" r="4.5" fill="#c26a00"/>
-<text x="623.9" y="48" font-size="11.5" fill="#323130">Degraded</text>
-<circle cx="691.4" cy="44" r="4.5" fill="#c50f18"/>
-<text x="701.4" y="48" font-size="11.5" fill="#323130">Unhealthy</text>
-<circle cx="770.2" cy="44" r="4.5" fill="#8a8886"/>
-<text x="780.2" y="48" font-size="11.5" fill="#323130">Unknown</text>
-<g transform="translate(839.1,37.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
-<text x="857.1" y="48" font-size="11.5" fill="#323130">Metric</text>
+<text x="40.0" y="843.0" font-size="11.5" font-weight="600" fill="#605e5c">Legend</text>
+<circle cx="99.7" cy="839.0" r="4.5" fill="#4c9a2a"/>
+<text x="109.7" y="843.0" font-size="11.5" fill="#323130">Healthy</text>
+<circle cx="165.5" cy="839.0" r="4.5" fill="#c26a00"/>
+<text x="175.5" y="843.0" font-size="11.5" fill="#323130">Degraded</text>
+<circle cx="243.0" cy="839.0" r="4.5" fill="#c50f18"/>
+<text x="253.0" y="843.0" font-size="11.5" fill="#323130">Unhealthy</text>
+<circle cx="321.8" cy="839.0" r="4.5" fill="#8a8886"/>
+<text x="331.8" y="843.0" font-size="11.5" fill="#323130">Unknown</text>
+<g transform="translate(390.7,832.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
+<text x="408.7" y="843.0" font-size="11.5" fill="#323130">Metric</text>
 <g transform="translate(40.0,0)">
 <g fill="none" stroke-linecap="butt" stroke-linejoin="round">
 <path d="M249.2 725.0 L249.2 693.0" stroke="#605e5c" stroke-width="1.7"/>

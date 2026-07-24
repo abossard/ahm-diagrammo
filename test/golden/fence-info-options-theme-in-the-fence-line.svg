@@ -14,17 +14,17 @@
 <line x1="0" y1="420.5" x2="882" y2="420.5" stroke="#3b3a39"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#f3f2f1">Fence-info options: theme in the fence line</text>
 <text x="40" y="52" font-size="12" fill="#a19f9d">Signals live inside each entity; health rolls up to the workload root.</text>
-<text x="479.1" y="48" font-size="11.5" font-weight="600" fill="#a19f9d" text-anchor="end">Legend</text>
-<circle cx="497.1" cy="44" r="4.5" fill="#6ccb5f"/>
-<text x="507.1" y="48" font-size="11.5" fill="#d2d0ce">Healthy</text>
-<circle cx="562.9" cy="44" r="4.5" fill="#f7a350"/>
-<text x="572.9" y="48" font-size="11.5" fill="#d2d0ce">Degraded</text>
-<circle cx="640.4" cy="44" r="4.5" fill="#f1707b"/>
-<text x="650.4" y="48" font-size="11.5" fill="#d2d0ce">Unhealthy</text>
-<circle cx="719.2" cy="44" r="4.5" fill="#979593"/>
-<text x="729.2" y="48" font-size="11.5" fill="#d2d0ce">Unknown</text>
-<g transform="translate(788.1,37.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#a58fd8"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#4ba3e3"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#57c3bf"/></g>
-<text x="806.1" y="48" font-size="11.5" fill="#d2d0ce">Metric</text>
+<text x="40.0" y="431.0" font-size="11.5" font-weight="600" fill="#a19f9d">Legend</text>
+<circle cx="99.7" cy="427.0" r="4.5" fill="#6ccb5f"/>
+<text x="109.7" y="431.0" font-size="11.5" fill="#d2d0ce">Healthy</text>
+<circle cx="165.5" cy="427.0" r="4.5" fill="#f7a350"/>
+<text x="175.5" y="431.0" font-size="11.5" fill="#d2d0ce">Degraded</text>
+<circle cx="243.0" cy="427.0" r="4.5" fill="#f1707b"/>
+<text x="253.0" y="431.0" font-size="11.5" fill="#d2d0ce">Unhealthy</text>
+<circle cx="321.8" cy="427.0" r="4.5" fill="#979593"/>
+<text x="331.8" y="431.0" font-size="11.5" fill="#d2d0ce">Unknown</text>
+<g transform="translate(390.7,420.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#a58fd8"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#4ba3e3"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#57c3bf"/></g>
+<text x="408.7" y="431.0" font-size="11.5" fill="#d2d0ce">Metric</text>
 <g transform="translate(40.0,0)">
 <g fill="none" stroke-linecap="butt" stroke-linejoin="round">
 <path d="M98.5 304.0 L98.5 271.0 Q98.5 264.0 105.5 264.0 L211.5 264.0" stroke="#6ccb5f" stroke-width="1.7"/>

@@ -269,6 +269,20 @@ export function layout(g, diag = new Diagnostics()) {
 // ---------- measure ----------
 const CARD_MIN_W = 168, CARD_MAX_W = 480, GAP = 30, TOPPAD = 18;
 const NAME_FS = 12.5, QUAL_FS = 9, ROW_FS = 10.5, PILL_FS = 10.5;
+// Header qualifier (subtitle) layout. The subtitle is light-weight text under the bold title
+// that shares its header row with the right-aligned status pill. Rather than widening the card
+// without bound to fit a long subtitle on one line (which pushes the whole diagram wide and
+// crowds the pill), the subtitle is confined to a fixed text column: it wraps at word boundaries
+// into as many lines as it needs and the card grows *taller* instead of wider. The title still
+// drives the card's minimum (one-line) width.
+//   SUBTITLE_MAX_W — the subtitle's text-column width in estimator px. Long subtitles wrap to
+//     this column; the title-width path is untouched, so short/no-subtitle cards are unaffected.
+//   HEADER_SAFETY — the width estimator lands bold weights accurately but under-measures
+//     regular-weight glyphs ~6-9% on real Segoe UI / San Francisco stacks. It no longer grows the
+//     card (the column bound does the bounding); it only reserves headroom so the *bounded*
+//     column's real render still clears the pill.
+const SUBTITLE_MAX_W = 160;
+const HEADER_SAFETY = 1.12;
 
 // Default final-SVG-width budget (chrome-inclusive: margins, lane-label gutter, title, legend all
 // counted) when a caller supplies no valid `maxWidth` override. Any lane whose packed content
@@ -284,9 +298,11 @@ function measureNode(n, diag) {
   const statePillW = 20 + textWidth(STATE_LABEL[n.state] || "Unknown", PILL_FS) + 8;
   const sigs = n.signals || [];
 
-  // natural (unwrapped) width demands
+  // natural (unwrapped) width demands. The subtitle's width demand is capped at SUBTITLE_MAX_W so
+  // a long subtitle wraps (and the card grows taller) instead of widening the card to fit one line.
   const headerFixed = 34 + 8 + statePillW + 8;
-  const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), qualifierRaw ? textWidth(qualifierRaw, QUAL_FS) : 0);
+  const subCol = qualifierRaw ? Math.min(textWidth(qualifierRaw, QUAL_FS), SUBTITLE_MAX_W) : 0;
+  const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), subCol * HEADER_SAFETY);
   const rowFixed = 52 + 16 + 12;
   let rowsNat = 0;
   for (const r of sigs) rowsNat = Math.max(rowsNat, rowFixed + textWidth(r.name, ROW_FS) + textWidth(r.result ?? "", ROW_FS, 600));
@@ -297,11 +313,10 @@ function measureNode(n, diag) {
   // Entity titles are never truncated. Past the width cap they add header lines, preserving the
   // complete title while keeping the diagram horizontally compact.
   const nameWrap = wrapText(name, nameAvail, NAME_FS, { weight: 600, maxLines: Infinity });
+  // Subtitles are never truncated: wrap at word boundaries into the bounded column with no line
+  // limit, growing the card taller. Over-long unbroken tokens hard-break inside the column.
   let qualWrap = null;
-  if (qualifierRaw) {
-    qualWrap = wrapText(qualifierRaw, nameAvail, QUAL_FS, { maxLines: 2 });
-    if (qualWrap.clipped) diag.warn(`qualifier "${qualifierRaw.slice(0, 40)}…" on "${n.id}" clipped (full text kept as tooltip)`);
-  }
+  if (qualifierRaw) qualWrap = wrapText(qualifierRaw, Math.min(nameAvail, SUBTITLE_MAX_W), QUAL_FS, { maxLines: Infinity });
   const rows = sigs.map((r) => {
     const resultW = textWidth(r.result ?? "", ROW_FS, 600);
     const avail = w - rowFixed - resultW;
@@ -319,6 +334,22 @@ function measureNode(n, diag) {
 }
 
 // ---------- geometry / routing ----------
+// A single-channel tracked edge whose two risers (exitLo, entryU) land this close together carries
+// only the anti-collinearity bump makeSlots adds (one pitch = 6px, below) — a redundant jog around
+// the label row, not real horizontal travel — so it is drawn as one straight vertical. 8 = one
+// pitch + rounding headroom, and stays strictly below two pitches (12px): 12 is the smallest gap
+// that can hide an intervening vertical, so a delta ≥ 12 signals a genuine obstacle/offset and is
+// left orthogonal. Coupled to makeSlots' pitch — revisit both together if that changes.
+const STRAIGHT_SNAP_DX = 8;
+
+// True when a single-channel tracked edge's risers are near-aligned enough to collapse to one
+// straight vertical at x = exitLo, AND that x still lands on the upper card ([uLo, uHi] = its slot
+// range from nodeRange) so the straightened riser can't fall off the parent. Pure so the exact
+// snap boundary can be exercised directly without contorting a diagram layout.
+export function straightenTrackedX(exitLo, entryU, uLo, uHi) {
+  return Math.abs(exitLo - entryU) <= STRAIGHT_SNAP_DX && exitLo >= uLo && exitLo <= uHi;
+}
+
 // One vertical-x registry per channel: every riser/trunk/stub in a channel draws from the same
 // pool, so two verticals of different edges can never be collinear. Each caller stays inside its
 // own card footprint via [lo, hi]. Exposes `used` (channel -> already-picked xs) so a lane-
@@ -1064,9 +1095,9 @@ export function renderSwimlane(code, opts = {}) {
     }
     debug.lanes.push({ top: laneTop[i], h: laneBandH[i], label: labels[laneOrigin[i]] });
   }
-  out.push(`<line x1="0" y1="${(H - 0.5).toFixed(1)}" x2="${Math.ceil(W)}" y2="${(H - 0.5).toFixed(1)}" stroke="${T.hair}"/>`);
+  out.push(`<line x1="0" y1="${(contentH - 0.5).toFixed(1)}" x2="${Math.ceil(W)}" y2="${(contentH - 0.5).toFixed(1)}" stroke="${T.hair}"/>`);
 
-  // title + subtitle + legend
+  // title + subtitle
   if (title) {
     out.push(`<text x="${M.left}" y="34" font-size="18" font-weight="700" fill="${T.ink}">${esc(title)}</text>`);
     debug.texts.push({ x: M.left, y: 20, w: textWidth(title, 18, 700), h: 20, text: title });
@@ -1075,16 +1106,20 @@ export function renderSwimlane(code, opts = {}) {
     out.push(`<text x="${M.left}" y="52" font-size="12" fill="${T.muted}">${esc(subtitle)}</text>`);
     debug.texts.push({ x: M.left, y: 41, w: textWidth(subtitle, 12), h: 13, text: subtitle });
   }
+  // legend — dedicated bottom footer row, left-aligned at the title margin, below the content
+  // boundary hairline. Order: Legend, Healthy, Degraded, Unhealthy, Unknown, Metric.
   if (legendOn) {
-    let x = W - 40 - legendW + textWidth("Legend", 11.5, 600) + 12, yy = 44;
-    out.push(`<text x="${(x - 12).toFixed(1)}" y="${yy + 4}" font-size="11.5" font-weight="600" fill="${T.muted}" text-anchor="end">Legend</text>`);
+    let x = M.left;
+    const yy = contentH + legendGap + legendRowH / 2;
+    out.push(`<text x="${x.toFixed(1)}" y="${(yy + 4).toFixed(1)}" font-size="11.5" font-weight="600" fill="${T.muted}">Legend</text>`);
+    x += textWidth("Legend", 11.5, 600) + 12;
     for (const [lbl, color] of legendItems) {
-      out.push(`<circle cx="${(x + 6).toFixed(1)}" cy="${yy}" r="4.5" fill="${color}"/>`);
-      out.push(`<text x="${(x + 16).toFixed(1)}" y="${yy + 4}" font-size="11.5" fill="${T.laneLabel}">${lbl}</text>`);
+      out.push(`<circle cx="${(x + 6).toFixed(1)}" cy="${yy.toFixed(1)}" r="4.5" fill="${color}"/>`);
+      out.push(`<text x="${(x + 16).toFixed(1)}" y="${(yy + 4).toFixed(1)}" font-size="11.5" fill="${T.laneLabel}">${lbl}</text>`);
       x += 26 + textWidth(lbl, 11.5);
     }
     out.push(metricIcon(T, x, yy - 7, 14));
-    out.push(`<text x="${(x + 18).toFixed(1)}" y="${yy + 4}" font-size="11.5" fill="${T.laneLabel}">Metric</text>`);
+    out.push(`<text x="${(x + 18).toFixed(1)}" y="${(yy + 4).toFixed(1)}" font-size="11.5" fill="${T.laneLabel}">Metric</text>`);
   }
 
   // edges + pills + cards inside the translate group
@@ -1178,6 +1213,7 @@ function entityCard(T, n, b, s, debug, absB, interactive = false) {
   }
   if (interactive) p.push(`<g data-ahm-part="entity-state" data-ahm-final-state="${escAttr(n.state)}">`);
   p.push(`<rect x="${px.toFixed(1)}" y="${(headerMid - 9).toFixed(2)}" width="${s.statePillW.toFixed(1)}" height="18" rx="9" fill="${T.pillFill}" stroke="${st.border}" stroke-width="1"/>`);
+  debug.statusPills.push({ x: px + (absB.x - b.x), y: headerMid - 9, w: s.statePillW, h: 18, id: n.id, container: { x: absB.x, y: absB.y, w: absB.w, h: absB.h } });
   p.push(statusDot(T, n.state, px + 11, headerMid));
   const stLabel = STATE_LABEL[n.state] || "Unknown";
   p.push(`<text x="${(px + 20).toFixed(1)}" y="${(headerMid + PILL_FS * 0.34).toFixed(2)}" font-size="${PILL_FS}" fill="${T.laneLabel}">${stLabel}</text>`);

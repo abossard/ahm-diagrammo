@@ -126,6 +126,22 @@ export function verifyGeometry(result, { checkTexts = true, maxWidth } = {}) {
     }
   }
 
+  // 8. a status pill never overlaps the header text of its own card. The card is sized to
+  //    reserve the pill's horizontal band next to the title/subtitle; this guards that reservation.
+  if (checkTexts && debug.statusPills) {
+    const sameContainer = (a, b) => a && b && Math.abs(a.x - b.x) < 0.6 && Math.abs(a.y - b.y) < 0.6;
+    for (const pill of debug.statusPills) {
+      if (pill.x < -EPS || pill.x + pill.w > W + EPS || pill.y < -EPS || pill.y + pill.h > H + EPS)
+        problems.push(`status pill ${fmtRect(pill)} leaves the canvas ${W}×${H}`);
+      for (const t of debug.texts) {
+        if (!sameContainer(t.container, pill.container)) continue;
+        if (t.x >= pill.x) continue; // the pill's own centered label sits inside it — only left-aligned header text can intrude
+        if (rectsOverlap(pill, t))
+          problems.push(`status pill ${fmtRect(pill)} overlaps header text ${fmtRect(t)}`);
+      }
+    }
+  }
+
   return problems;
 }
 

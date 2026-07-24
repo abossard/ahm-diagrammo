@@ -374,8 +374,10 @@ model, on every stress fixture:
    to two lines.
 5. Text never leaves the canvas or its container (card, pill). Entity names widen their card up to
    480px, then add as many wrapped header lines as needed. Entity names are never ellipsized.
-   Qualifiers and signal rows keep their bounded two-line policy, with an SVG `<title>` tooltip and
-   warning if they exceed it.
+   A long **subtitle (qualifier)** no longer widens the card: it wraps at word boundaries into a
+   bounded text column and the card grows **taller**, so the title still drives one-line width and
+   the subtitle never slides under the status pill. Subtitles are never ellipsized. Signal rows
+   keep their bounded two-line policy, with an SVG `<title>` tooltip and warning if they exceed it.
 6. The SVG contains no `NaN`/`Infinity`, is well-formed, and rendering is deterministic
    (same input → byte-identical output).
 7. The final SVG width never exceeds `maxWidth` (default **1024** CSS px, chrome-inclusive) for a
@@ -431,7 +433,7 @@ only with `--verbose`.
 | warn | `cycle detected — the roll-up hierarchy is ambiguous…` / `self-loop on "x" is not drawn` |
 | warn | `edge a → b connects nodes in the same lane…` / `…points downward (child sits above its parent)…` |
 | warn | `signal node "x" has no outgoing edge to an entity — drawn as its own card` |
-| warn | `entity name / qualifier / signal row / edge label "…" clipped (full text kept as tooltip)` |
+| warn | `entity name / signal row / edge label "…" clipped (full text kept as tooltip)` |
 | warn | `label pill "…" could not fully avoid crossing connectors` (last-resort; the fixtures never trigger it) |
 | info | `edge a → b \|label\|`, `node x "Label"`, `folded signal "s" (3 rows) into e`, `graph: N nodes, M edges, L lanes` |
 
