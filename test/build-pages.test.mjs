@@ -31,14 +31,14 @@ function writeFile(root, relPath, content = "") {
   writeFileSync(full, content);
 }
 
-// A minimal fixture that satisfies buildSite's manifest, plus a handful of paths that *must
+// A minimal fixture that satisfies buildSite's allowlist, plus a handful of paths that *must
 // never* be copied (present on purpose, so their absence in _site proves an active exclusion,
 // not merely that the source lacked them).
 function makeFixtureRepo(root) {
   writeFile(root, "index.html", "<html>fixture</html>");
   for (const f of [
     "web/style.css", "web/app.mjs", "web/convert.mjs", "web/examples.mjs",
-    "web/markdown-preview.mjs", "web/export-zip.mjs",
+    "web/markdown-preview.mjs", "web/export-zip.mjs", "web/animation.mjs",
   ]) writeFile(root, f, `/* ${f} */`);
   for (const f of [
     "src/extract.mjs", "src/swimlane.mjs", "src/themes.mjs", "src/diag.mjs",
@@ -52,7 +52,8 @@ function makeFixtureRepo(root) {
   writeFile(root, "package-lock.json", "{}");
   writeFile(root, "src/index.mjs", "export {}");
   writeFile(root, "src/mermaid.mjs", "export {}");
-  writeFile(root, "src/gallery.mjs", "export {}");
+  writeFile(root, "gallery.html", "<html>obsolete</html>");
+  writeFile(root, "manifest.json", "{}");
   writeFile(root, "node_modules/should-not-copy/index.js", "//");
   writeFile(root, "test/should-not-copy.test.mjs", "//");
   writeFile(root, "scripts/should-not-copy.mjs", "//");
@@ -78,7 +79,7 @@ function makeFixtureNodeModules(root) {
 const REQUIRED_PATHS = [
   "index.html",
   "web/style.css", "web/app.mjs", "web/convert.mjs", "web/examples.mjs",
-  "web/markdown-preview.mjs", "web/export-zip.mjs",
+  "web/markdown-preview.mjs", "web/export-zip.mjs", "web/animation.mjs",
   "src/extract.mjs", "src/swimlane.mjs", "src/themes.mjs", "src/diag.mjs",
   "src/text.mjs", "src/layout.mjs", "src/font-metrics.mjs",
   "kitchen-sink.md", "pills-stress.md", "examples/showcase.md", "docs/how-it-works.md",
@@ -89,7 +90,7 @@ const REQUIRED_PATHS = [
 
 const FORBIDDEN_PATHS = [
   "node_modules", "package.json", "package-lock.json",
-  "src/index.mjs", "src/mermaid.mjs", "src/gallery.mjs",
+  "src/index.mjs", "src/mermaid.mjs", "gallery.html", "manifest.json",
   "test", "scripts", ".github",
 ];
 

@@ -12,7 +12,7 @@ Use the packaged CLI. Do not reimplement parsing, renderer selection, layout, th
    `npx --yes ahm-diagrammo "$INPUT" --list`
 3. Render into an explicit output directory:
    `npx --yes ahm-diagrammo "$INPUT" --out "$OUTPUT" --strict`
-4. Verify the command exited successfully. Parse `$OUTPUT/manifest.json`, confirm every listed `.svg` exists and is non-empty, and report the emitted files. Also confirm `gallery.html` when gallery generation is enabled.
+4. Verify the command exited successfully. Inspect `$OUTPUT` for `.svg` files, confirm each is non-empty, and report the emitted files.
 
 Preserve the user's Markdown. Surface CLI diagnostics and non-zero exits rather than masking
 them. `--sync-markdown` is the sole, explicit opt-in exception: only invoke it when the user asks

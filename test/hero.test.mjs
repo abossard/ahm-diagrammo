@@ -108,7 +108,7 @@ test("running the documented CLI command against hero.md reproduces svg/hero.svg
   const committedSvg = read("svg", "hero.svg");
 
   const out1 = tmp();
-  const r1 = await run(join(ROOT, "hero.md"), "-o", out1, "--no-gallery");
+  const r1 = await run(join(ROOT, "hero.md"), "-o", out1);
   assert.equal(r1.code, 0, r1.stderr || r1.stdout);
   assert.match(r1.stdout, /swimlane/, "expected the Chrome-free swimlane renderer, not mermaid-cli");
   const svgPath1 = join(out1, "diagram.svg");
@@ -118,7 +118,7 @@ test("running the documented CLI command against hero.md reproduces svg/hero.svg
 
   // rerun into a second tmp dir: byte-identical again (idempotent, no hidden nondeterminism)
   const out2 = tmp();
-  const r2 = await run(join(ROOT, "hero.md"), "-o", out2, "--no-gallery");
+  const r2 = await run(join(ROOT, "hero.md"), "-o", out2);
   assert.equal(r2.code, 0, r2.stderr || r2.stdout);
   const fresh2 = readFileSync(join(out2, "diagram.svg"), "utf8");
   assert.equal(fresh2, fresh1, "two independent regenerations of hero.md must be byte-identical");

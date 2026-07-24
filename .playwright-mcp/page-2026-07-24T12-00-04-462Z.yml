@@ -1,0 +1,243 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - heading "ahm-diagrammo editor" [level=1] [ref=e3]
+    - paragraph [ref=e4]: Edit Markdown and preview its Mermaid health-model blocks as ahm-diagrammo swimlane diagrams, entirely in the browser.
+    - generic [ref=e5]:
+      - generic [ref=e6]: Example
+      - combobox "Example" [ref=e7]:
+        - option "kitchen-sink.md — Kitchen sink health model" [selected]
+        - option "pills-stress.md — Pills stress test"
+        - option "examples/showcase.md — diagrammo showcase"
+        - option "docs/how-it-works.md — How ahm-diagrammo works"
+      - button "Export ZIP (1 diagram)" [ref=e8] [cursor=pointer]
+      - status [ref=e9]: Loaded kitchen-sink.md
+  - main [ref=e10]:
+    - generic [ref=e11]:
+      - generic [ref=e12]:
+        - heading "Markdown source" [level=2] [ref=e13]
+        - button "Maximize editor" [ref=e14] [cursor=pointer]
+      - textbox "Markdown source" [ref=e15]: "## Kitchen sink health model A synthetic health model that exercises every feature of the swimlane renderer. ```mermaid flowchart BT %% ---- signals (blue), multi-metric so tables have many rows ---- webSig[\"Web latency<br/>HTTP 5xx rate<br/>Request rate<br/>Availability\"] --> web[\"Web frontend<br/>healthy\"] apiSig[\"Request rate<br/>P95 latency<br/>429 rate<br/>Error rate\"] --> api[\"API service<br/>degraded\"] dbSig[\"Connection pool<br/>DTU utilization<br/>Failed connections<br/>Replication lag<br/>Deadlocks\"] --> db[\"Database<br/>healthy\"] cacheSig[\"Hit ratio<br/>Eviction rate<br/>Memory pressure\"] --> cache[\"Redis cache<br/>unhealthy\"] queueSig[\"Queue depth<br/>Oldest message age<br/>Dead-letter count\"] --> queue[\"Order queue<br/>degraded\"] stgSig[\"Availability<br/>Throttling rate\"] --> stg[\"Blob storage<br/>healthy\"] authSig[\"Token failures<br/>MFA challenges<br/>Sign-in latency\"] --> auth[\"Identity provider\"] searchSig[\"Index lag<br/>Query latency<br/>Error rate\"] --> search[\"Search service<br/>healthy\"] shipSig[\"Carrier API availability<br/>Carrier API latency<br/>Error rate\"] --> ship[\"Shipping service with a long name<br/>healthy\"] fnSig[\"Invocation errors<br/>Duration<br/>Throttles\"] --> fn[\"Background functions<br/>degraded\"] %% ---- components -> business flows ---- web --> shop[\"Shop and commerce<br/>(active-active)<br/>healthy\"] api --> shop db --> shop cache -. \"limited<br/>propagation\" .-> shop db --> reporting[\"Reporting<br/>(single region)<br/>degraded\"] search --> reporting queue --> logistics[\"Logistics and fulfillment<br/>degraded\"] ship --> logistics fn --> logistics auth --> account[\"Account and identity<br/>unknown\"] stg --> account %% ---- standby (purple) ---- secSig[\"Replication health<br/>Failover readiness\"] --> secondary[\"Secondary region<br/>standby\"] %% ---- flows -> root ---- shop --> root[\"Workload root<br/>(worstOf)<br/>degraded\"] reporting -. \"suppressed<br/>propagation\" .-> root logistics --> root account --> root secondary --> root classDef blue fill:#eff6fc,stroke:#0078D4; classDef green fill:#f2f8f2,stroke:#a0d8a0; classDef amber fill:#fbf2e7,stroke:#db7500; classDef red fill:#faeceb,stroke:#ba0d16; classDef purple fill:#f4f0fb,stroke:#8661c5; class webSig,apiSig,dbSig,cacheSig,queueSig,stgSig,authSig,searchSig,shipSig,fnSig,secSig blue; class web,db,stg,search,ship,shop green; class api,queue,fn,reporting,logistics,root amber; class cache red; class secondary purple; ```"
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - heading "Rendered diagrams" [level=2] [ref=e18]
+        - button "Maximize preview" [ref=e19] [cursor=pointer]
+      - region "Rendered diagrams" [ref=e20]:
+        - heading "Kitchen sink health model" [level=2] [ref=e21]
+        - paragraph [ref=e22]: A synthetic health model that exercises every feature of the swimlane renderer.
+        - generic [ref=e23]:
+          - region "Signal replay" [ref=e24]:
+            - generic [ref=e25]:
+              - generic [ref=e26]: Signal replay
+              - combobox "Signal replay" [ref=e27]:
+                - option "Web latency — Web frontend" [selected]
+                - option "HTTP 5xx rate — Web frontend"
+                - option "Request rate — Web frontend"
+                - option "Availability — Web frontend"
+                - option "Request rate — API service"
+                - option "P95 latency — API service"
+                - option "429 rate — API service"
+                - option "Error rate — API service"
+                - option "Connection pool — Database"
+                - option "DTU utilization — Database"
+                - option "Failed connections — Database"
+                - option "Replication lag — Database"
+                - option "Deadlocks — Database"
+                - option "Hit ratio — Redis cache"
+                - option "Eviction rate — Redis cache"
+                - option "Memory pressure — Redis cache"
+                - option "Queue depth — Order queue"
+                - option "Oldest message age — Order queue"
+                - option "Dead-letter count — Order queue"
+                - option "Availability — Blob storage"
+                - option "Throttling rate — Blob storage"
+                - option "Token failures — Identity provider"
+                - option "MFA challenges — Identity provider"
+                - option "Sign-in latency — Identity provider"
+                - option "Index lag — Search service"
+                - option "Query latency — Search service"
+                - option "Error rate — Search service"
+                - option "Carrier API availability — Shipping service with a long name"
+                - option "Carrier API latency — Shipping service with a long name"
+                - option "Error rate — Shipping service with a long name"
+                - option "Invocation errors — Background functions"
+                - option "Duration — Background functions"
+                - option "Throttles — Background functions"
+                - option "Replication health — Secondary region"
+                - option "Failover readiness — Secondary region"
+              - button "Play" [ref=e28] [cursor=pointer]
+              - button "Pause" [disabled] [ref=e29]
+              - button "Restart" [disabled] [ref=e30]
+            - paragraph [ref=e31]: Explanatory replay of authored static state. It does not calculate or monitor live health.
+            - status [ref=e32]: Ready. The selected signal starts at a neutral pending value.
+          - img [ref=e33]:
+            - generic [ref=e36]: Workload root
+            - generic [ref=e38]: Business & user flows
+            - generic [ref=e40]: Application
+            - generic [ref=e41]: components
+            - generic [ref=e42]: Kitchen sink health model
+            - generic [ref=e43]: Signals live inside each entity; health rolls up to the workload root.
+            - generic [ref=e44]: Legend
+            - generic [ref=e46]: Healthy
+            - generic [ref=e48]: Degraded
+            - generic [ref=e50]: Unhealthy
+            - generic [ref=e52]: Unknown
+            - generic [ref=e57]: Metric
+            - generic [ref=e58]:
+              - generic [ref=e83]: limited propagation
+              - generic [ref=e86]: suppressed propagation
+              - generic [ref=e89]:
+                - generic [ref=e95]: Web frontend
+                - generic [ref=e96]: Healthy
+                - generic [ref=e101]:
+                  - generic [ref=e109]: Web latency
+                  - generic [ref=e110]: —
+                - generic [ref=e111]:
+                  - generic [ref=e119]: HTTP 5xx rate
+                  - generic [ref=e120]: "1"
+                - generic [ref=e121]:
+                  - generic [ref=e129]: Request rate
+                  - generic [ref=e130]: "2"
+                - generic [ref=e131]:
+                  - generic [ref=e139]: Availability
+                  - generic [ref=e140]: "0"
+              - generic [ref=e141]:
+                - generic [ref=e146]: API service
+                - generic [ref=e147]: Degraded
+                - generic [ref=e151]:
+                  - generic [ref=e158]: Request rate
+                  - generic [ref=e159]: "19"
+                - generic [ref=e160]:
+                  - generic [ref=e168]: P95 latency
+                  - generic [ref=e169]: "2"
+                - generic [ref=e170]:
+                  - generic [ref=e178]: 429 rate
+                  - generic [ref=e179]: "0"
+                - generic [ref=e180]:
+                  - generic [ref=e188]: Error rate
+                  - generic [ref=e189]: "1"
+              - generic [ref=e190]:
+                - generic [ref=e197]: Database
+                - generic [ref=e198]: Healthy
+                - generic [ref=e203]:
+                  - generic [ref=e211]: Connection pool
+                  - generic [ref=e212]: "0"
+                - generic [ref=e213]:
+                  - generic [ref=e221]: DTU utilization
+                  - generic [ref=e222]: "0"
+                - generic [ref=e223]:
+                  - generic [ref=e231]: Failed connections
+                  - generic [ref=e232]: "2"
+                - generic [ref=e233]:
+                  - generic [ref=e241]: Replication lag
+                  - generic [ref=e242]: "0"
+                - generic [ref=e243]:
+                  - generic [ref=e251]: Deadlocks
+                  - generic [ref=e252]: "0"
+              - generic [ref=e253]:
+                - generic [ref=e259]: Redis cache
+                - generic [ref=e260]: Unhealthy
+                - generic [ref=e264]:
+                  - generic [ref=e271]: Hit ratio
+                  - generic [ref=e272]: "116"
+                - generic [ref=e273]:
+                  - generic [ref=e281]: Eviction rate
+                  - generic [ref=e282]: "1"
+                - generic [ref=e283]:
+                  - generic [ref=e291]: Memory pressure
+                  - generic [ref=e292]: "0"
+              - generic [ref=e293]:
+                - generic [ref=e300]: Order queue
+                - generic [ref=e301]: Degraded
+                - generic [ref=e305]:
+                  - generic [ref=e312]: Queue depth
+                  - generic [ref=e313]: "18"
+                - generic [ref=e314]:
+                  - generic [ref=e322]: Oldest message age
+                  - generic [ref=e323]: "0"
+                - generic [ref=e324]:
+                  - generic [ref=e332]: Dead-letter count
+                  - generic [ref=e333]: "2"
+              - generic [ref=e334]:
+                - generic [ref=e341]: Blob storage
+                - generic [ref=e342]: Healthy
+                - generic [ref=e347]:
+                  - generic [ref=e355]: Availability
+                  - generic [ref=e356]: "0"
+                - generic [ref=e357]:
+                  - generic [ref=e365]: Throttling rate
+                  - generic [ref=e366]: "1"
+              - generic [ref=e367]:
+                - generic [ref=e373]: Identity provider
+                - generic [ref=e374]: Unknown
+                - generic [ref=e378]:
+                  - generic [ref=e386]: Token failures
+                  - generic [ref=e387]: "2"
+                - generic [ref=e388]:
+                  - generic [ref=e396]: MFA challenges
+                  - generic [ref=e397]: "1"
+                - generic [ref=e398]:
+                  - generic [ref=e406]: Sign-in latency
+                  - generic [ref=e407]: "2"
+              - generic [ref=e408]:
+                - generic [ref=e413]: Search service
+                - generic [ref=e414]: Healthy
+                - generic [ref=e419]:
+                  - generic [ref=e427]: Index lag
+                  - generic [ref=e428]: "0"
+                - generic [ref=e429]:
+                  - generic [ref=e437]: Query latency
+                  - generic [ref=e438]: "1"
+                - generic [ref=e439]:
+                  - generic [ref=e447]: Error rate
+                  - generic [ref=e448]: "1"
+              - generic [ref=e449]:
+                - generic [ref=e455]: Shipping service with a long name
+                - generic [ref=e456]: Healthy
+                - generic [ref=e461]:
+                  - generic [ref=e469]: Carrier API availability
+                  - generic [ref=e470]: "2"
+                - generic [ref=e471]:
+                  - generic [ref=e479]: Carrier API latency
+                  - generic [ref=e480]: "1"
+                - generic [ref=e481]:
+                  - generic [ref=e489]: Error rate
+                  - generic [ref=e490]: "1"
+              - generic [ref=e491]:
+                - generic [ref=e496]: Background functions
+                - generic [ref=e497]: Degraded
+                - generic [ref=e501]:
+                  - generic [ref=e508]: Invocation errors
+                  - generic [ref=e509]: "9"
+                - generic [ref=e510]:
+                  - generic [ref=e518]: Duration
+                  - generic [ref=e519]: "0"
+                - generic [ref=e520]:
+                  - generic [ref=e528]: Throttles
+                  - generic [ref=e529]: "1"
+              - generic [ref=e530]:
+                - generic [ref=e538]: Shop and commerce
+                - generic [ref=e539]: active-active
+                - generic [ref=e540]: Pending
+              - generic [ref=e545]:
+                - generic [ref=e550]: Reporting
+                - generic [ref=e551]: single region
+                - generic [ref=e552]: Degraded
+              - generic [ref=e556]:
+                - generic [ref=e562]: Logistics and fulfillment
+                - generic [ref=e563]: Degraded
+              - generic [ref=e567]:
+                - generic [ref=e573]: Account and identity
+                - generic [ref=e574]: Unknown
+              - generic [ref=e578]:
+                - generic [ref=e584]: Secondary region
+                - generic [ref=e585]: Standby
+                - generic [ref=e589]:
+                  - generic [ref=e597]: Replication health
+                  - generic [ref=e598]: "0"
+                - generic [ref=e599]:
+                  - generic [ref=e607]: Failover readiness
+                  - generic [ref=e608]: "1"
+              - generic [ref=e609]:
+                - generic [ref=e615]: Workload root
+                - generic [ref=e616]: worstOf
+                - generic [ref=e617]: Pending

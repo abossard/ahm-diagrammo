@@ -35,10 +35,20 @@ function classifyBlock(b, defaultTheme) {
       subtitle: b.options.subtitle,
       lanes: b.options.lanes,
       legend: b.options.legend,
+      maxWidth: b.options.maxWidth,
+      laneLabels: b.options.laneLabels,
+      interactive: true,
       diag,
       baseLine: b.codeLine - 1,
     });
-    return { ...base, kind: "health", svg: r.svg, theme: themeName, meta: { nodes: r.nodes, lanes: r.lanes, w: r.W, h: r.H } };
+    return {
+      ...base,
+      kind: "health",
+      svg: r.svg,
+      animation: r.animation,
+      theme: themeName,
+      meta: { nodes: r.nodes, lanes: r.lanes, w: r.W, h: r.H },
+    };
   } catch (e) {
     return { ...base, kind: "error", message: e.message };
   }

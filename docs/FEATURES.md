@@ -27,18 +27,15 @@ npx ahm-diagrammo <file.md> [more.md ...] [options]
   -l, --list             list detected blocks and options, render nothing
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
-      --no-gallery       don't write gallery.html
       --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden source
       --image-format <fmt>  visible embed for --sync-markdown: commonmark | learn (default: commonmark)
   -h, --help             this help
   -V, --version          print version
 ```
 
-Each run writes one `<slug>.svg` per mermaid block, a `manifest.json` (slug, file, source,
-fence line, renderer, theme, title, node/lane counts, dimensions), and a `gallery.html` that
-shows every diagram with its title, renderer, and theme. Multiple input files aggregate into one
-output directory and one manifest. Progress goes to **stdout**; warnings and errors go to
-**stderr**, prefixed with `file:line`.
+Each run writes one `<slug>.svg` per mermaid block. Multiple input files aggregate their SVGs into
+one output directory, with duplicate slugs receiving `-2`, `-3`, and so on. Progress goes to
+**stdout**; warnings and errors go to **stderr**, prefixed with `file:line`.
 
 `--list` is a dry run — it prints what each block would become and writes nothing, even combined
 with `--sync-markdown`:
@@ -52,8 +49,8 @@ examples/showcase.md: 6 mermaid blocks
 ```
 
 *Verified by:* `cli.test.mjs` — "renders a healthy file", "--list explains detection without
-writing files", "--no-gallery skips gallery.html", "multiple files aggregate into one manifest",
-"bad CLI arguments fail fast".
+writing files", "multiple files emit every expected SVG", "duplicate slugs across input files get
+distinct output names", "bad CLI arguments fail fast".
 
 ## Sync SVGs into Markdown
 
@@ -81,7 +78,7 @@ to `--&gt;` — an HTML comment ends at the first `-->` it meets, and Mermaid ed
 otherwise truncate it early and leak the remainder as visible content. Escaping is exact and
 minimal (only the 3-character string `-->`, never a broad HTML-entity decode) and fully reversible;
 decoding is the same substitution in reverse. A fence whose raw text already contains the literal
-`--&gt;` token is rejected — before any SVG/manifest/gallery/Markdown write — because decoding it
+`--&gt;` token is rejected — before any SVG or Markdown write — because decoding it
 back later would be ambiguous.
 
 The recommended loop:
@@ -182,7 +179,7 @@ mutated only after every block in it has rendered with no failures; a real rende
 malformed pre-existing managed block (missing end marker, mismatched slug, duplicate slug,
 malformed hidden-source comment), a fence that already contains the reserved `--&gt;` token, or a
 managed slug duplicated across two input files in the same run, leaves every affected file's bytes
-completely unchanged and reports a nonzero exit *before* any SVG/manifest/gallery write — never a
+completely unchanged and reports a nonzero exit *before* any SVG write — never a
 guessed repair, never a newly orphaned asset. `--list` always wins: combined with `--sync-markdown`
 it still writes nothing.
 
@@ -269,13 +266,17 @@ flowchart BT
 | `subtitle` | string | line under the title (swimlane only; set `""` to hide) |
 | `lanes` | list | custom swimlane labels, top to bottom |
 | `legend` | boolean | `false` hides the legend (swimlane only) |
+| `laneLabels` | boolean | `false` hides the lane label text and reclaims its gutter width for row content (swimlane only); band fills/hairlines stay visible. **Default shown** |
 | `name` | string | output file name (default: slug of title/heading; duplicates get `-2`, `-3`, …) |
 | `background` | color | canvas background (mermaid renderer only) |
 | `alt` | string | alt text for the `--sync-markdown` visible embed; overrides `title`/heading (precedence: `alt` → `title` → heading). Empty/whitespace-only warns and falls back |
+| `maxWidth` | number (CSS px) | swimlane only; bounds the final SVG width, chrome (margins, lane-label gutter, title, legend) included. **Default `1024`** — not unbounded; there is no way to disable the bound, only override it with a larger number. A lane whose packed cards would exceed it wraps onto multiple physical rows, grouped by parent so siblings stay together. If the resolved value is below the diagram's own structural minimum (e.g. the legend alone is wider than the request), the renderer warns — naming both numbers — and clamps up to that minimum instead of throwing or under-shooting. |
 
 Unknown keys warn (listing the valid ones); unknown `renderer`/`theme` values are **errors** that
-fail the block with its fence line; a non-list `lanes` warns and is ignored. Values parse as
-YAML-ish scalars: quotes, numbers, `true/false/on/off/yes/no`, `[inline, lists]`.
+fail the block with its fence line; a non-list `lanes` warns and is ignored; a non-positive-finite
+`maxWidth` or a non-boolean `laneLabels` warns and is dropped, so the default (or another
+still-valid source) applies. Values parse as YAML-ish scalars: quotes, numbers,
+`true/false/on/off/yes/no`, `[inline, lists]`.
 
 *Verified by:* `extract.test.mjs` — option merge/precedence, line numbers, unknown-key/value
 issues, `stripDiagrammoKey`, yamlite scalars/nesting/lists, `~~~` fences, duplicate slugs,
@@ -312,17 +313,33 @@ qualifier. Entity icons are picked from name keywords (web, api, database, queue
 
 Lanes come from the longest path to the root: 1–3 lanes get the standard labels (Workload root /
 Business & user flows / Application components), deeper models add Dependencies, Subsystems,
-`Layer n` — or set your own with `lanes:`. Edge visuals: unlabeled solid edges between adjacent
-lanes bundle tightly under their parent; labeled and dashed edges route individually with the
-label in a pill; connectors take the **child's** state color so a tolerated failure stays
-traceable under a green parent.
+`Layer n` — or set your own with `lanes:` (or hide the label text entirely with
+`laneLabels: false`, reclaiming its gutter width for row content). Edge visuals: unlabeled solid
+edges sharing a target bundle into one shared trunk regardless of how many physical rows separate
+them, branching onto a short per-edge stub near their own source and the shared target; labeled
+and dashed edges route individually with the label in a pill; connectors take the **child's**
+state color, and a bundle's shared trunk span renders in the theme's neutral color so it never
+implies a merged health state.
+
+Every lane is width-bounded by default: if a lane's packed cards would push the final SVG past
+`maxWidth` (**1024 CSS px** unless overridden — see the option table above), it automatically
+wraps onto multiple stacked physical rows instead of growing the canvas indefinitely. Wrapping is
+graph-aware, not row-by-row: cards are grouped by their primary parent (the first-declared edge)
+so siblings land together rather than splitting arbitrarily, and a bounded rebalance pass avoids
+leaving an avoidably sparse trailing row. This is the default behavior, not an opt-in — the same
+diagram that used to render one very wide row now renders several narrower, readable ones.
+Turning off the lane labels (`laneLabels: false`) reclaims their gutter width too, an independent
+second lever for the same goal.
 
 Graph oddities never crash a render, they warn and degrade gracefully: cycles (layering breaks
 them arbitrarily), self-loops (not drawn), same-lane edges (routed over the lane), downward
 edges (drawn bottom-up), signal nodes with no entity target (drawn as their own card).
 
 *Verified by:* `swimlane.test.mjs` — parse/fold tests, "torture-weird" (single node, two-node,
-cycles, self-loop, orphan signals), geometry over every fixture; `docs.test.mjs`.
+cycles, self-loop, orphan signals), geometry over every fixture, `maxWidth` default/override/
+infeasible-clamp/grouping/balance tests, `laneLabels` default/false/invalid-value tests, and the
+routing-readability tests (shared-trunk generalization, crossing/Manhattan bounds, trunk-color
+neutrality) on `kitchen-sink.md`, `torture-dense.md`, and `torture-deep.md`; `docs.test.mjs`.
 
 ## Signal rows
 
@@ -350,7 +367,9 @@ model, on every stress fixture:
 1. Cards never overlap each other, never leave their lane band or the canvas.
 2. Connectors never pass through a card's interior — lane-skipping edges ride corridors between
    cards of intermediate lanes.
-3. No two horizontal or vertical connector segments of different edges are ever collinear.
+3. No two horizontal or vertical connector segments of different edges are ever collinear —
+   *unless* both belong to the same intentionally-shared bundle trunk (see guarantee 8 below),
+   tagged and verified as such, never a general loosening of this rule.
 4. Label pills never overlap other pills, cards, or any other edge's connector; long labels wrap
    to two lines.
 5. Text never leaves the canvas or its container (card, pill). Entity names widen their card up to
@@ -359,13 +378,25 @@ model, on every stress fixture:
    warning if they exceed it.
 6. The SVG contains no `NaN`/`Infinity`, is well-formed, and rendering is deterministic
    (same input → byte-identical output).
+7. The final SVG width never exceeds `maxWidth` (default **1024** CSS px, chrome-inclusive) for a
+   feasible request — a lane that would otherwise overflow it wraps onto multiple physical rows,
+   grouped by primary parent so a group never splits across rows while its own width still fits.
+   `laneLabels: false` reclaims the label gutter's width for row content too.
+8. Solid, unlabeled edges sharing a target ride one genuinely-coincident shared trunk, at any
+   physical-row distance — not just adjacent rows — branching onto a short per-edge stub only near
+   their own source and the shared target; every edge still keeps its own complete, independently
+   keyed geometry (no information loss), the shared trunk renders in the theme's neutral color
+   (never implying a merged health state), and dashed/labeled edges are always excluded, routed
+   individually exactly as before.
 
 Density costs height, not legibility: channels between lanes grow rows to fit their edges.
 
 *Verified by:* `swimlane.test.mjs` — every `geometry:` test, "torture-text: long content wraps
 instead of vanishing", "entity titles remain complete beyond the card width cap", "rendering is
-deterministic"; `layout.test.mjs` — projection separations,
-track disjointness, corridor picking.
+deterministic", the `maxWidth default`/`maxWidth override`/`maxWidth infeasible override`/
+`maxWidth C4 exception` tests, the `laneLabels` tests, and the `routing readability` tests;
+`layout.test.mjs` — projection separations, track disjointness, corridor picking, `packRows`
+group-aware wrapping and its rebalance sweep.
 
 ## Plain mermaid blocks
 
@@ -422,7 +453,7 @@ fail fast".
 ```js
 import {
   extractBlocks, renderSwimlane, renderMermaid, looksLikeHealthModel,
-  getTheme, THEMES, THEME_NAMES, galleryHtml, Diagnostics,
+  getTheme, THEMES, THEME_NAMES, Diagnostics,
   parseGraph, foldSignals, layout, textWidth, wrapText,
 } from "ahm-diagrammo";
 
@@ -442,8 +473,8 @@ The original commands are deprecated shims: they print a deprecation note on std
 to the CLI, so old workflows keep producing the same files in the same places:
 
 ```bash
-node swimlane-auto.mjs <article.md> <outDir>   # → diagrammo <md> -o <outDir> -r swimlane --no-gallery
-node convert.mjs <article.md> <outDir>         # → diagrammo <md> -o <outDir> -r mermaid --no-gallery
+node swimlane-auto.mjs <article.md> <outDir>   # → diagrammo <md> -o <outDir> -r swimlane
+node convert.mjs <article.md> <outDir>         # → diagrammo <md> -o <outDir> -r mermaid
 ```
 
 *Verified by:* `cli.test.mjs` — "legacy wrappers forward to the CLI with a deprecation note".

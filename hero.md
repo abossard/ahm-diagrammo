@@ -8,7 +8,7 @@ workload)`) and cross-checked against the original screenshot pixel-for-pixel, i
 auto-generated per-metric numbers. Left without a heading on purpose, so the rendered
 title/subtitle stay the renderer's own defaults — exactly what the original screenshot shows.
 
-Regenerate: `node bin/diagrammo.mjs hero.md -o <dir> --no-gallery`, then copy the emitted SVG over
+Regenerate: `node bin/diagrammo.mjs hero.md -o <dir>`, then copy the emitted SVG over
 `svg/hero.svg`.
 
 ```mermaid

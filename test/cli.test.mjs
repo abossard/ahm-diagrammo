@@ -25,6 +25,12 @@ function tmp() {
   cleanupDirs.push(d);
   return d;
 }
+function svgDimensions(path) {
+  const svg = readFileSync(path, "utf8");
+  const match = svg.match(/^<svg\b[^>]*\bwidth="(\d+)"[^>]*\bheight="(\d+)"/);
+  assert.ok(match, `expected numeric SVG dimensions in ${path}`);
+  return { width: Number(match[1]), height: Number(match[2]) };
+}
 // run CLI, never throw on nonzero exit
 async function run(...argv) {
   try {
@@ -44,26 +50,28 @@ async function runIn(cwd, ...argv) {
   }
 }
 
-test("renders a healthy file: exit 0, svg + manifest + gallery, technical log", async () => {
+test("renders a healthy file: exit 0, SVG only, technical log", async () => {
   const out = tmp();
   const r = await run(join(ROOT, "kitchen-sink.md"), "-o", out);
   assert.equal(r.code, 0, r.stderr);
   assert.match(r.stdout, /kitchen-sink\.md: 1 mermaid block/);
   assert.match(r.stdout, /ok\s+.*kitchen-sink\.md:\d+\s+kitchen-sink-health-model\.svg\s+\[swimlane · portal\]\s+\(\d+ nodes, \d+ lanes, \d+×\d+\)/);
-  assert.ok(existsSync(join(out, "kitchen-sink-health-model.svg")));
-  assert.ok(existsSync(join(out, "gallery.html")));
-  const manifest = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8"));
-  assert.equal(manifest.length, 1);
-  assert.equal(manifest[0].renderer, "swimlane");
-  assert.ok(manifest[0].line >= 1);
+  const svgPath = join(out, "kitchen-sink-health-model.svg");
+  assert.ok(existsSync(svgPath));
+  assert.ok(!existsSync(join(out, "gallery.html")));
+  assert.ok(!existsSync(join(out, "manifest.json")));
+  // maxWidth: no token anywhere in kitchen-sink.md, yet its already-wide health model (2699px
+  // before this default existed) still comes out bounded — the 1024 default applies with zero
+  // extra CLI wiring beyond passing b.options.maxWidth through unchanged.
+  assert.ok(svgDimensions(svgPath).width <= 1024);
 });
 
 test("--list explains detection without writing files", async () => {
-  const out = tmp();
+  const out = join(tmp(), "out");
   const r = await run(join(FIX, "torture-deep.md"), "--list", "-o", out);
   assert.equal(r.code, 0, r.stderr);
   assert.match(r.stdout, /torture-deep\.md:\d+\s+deep-model-with-lane-skipping-edges\s+→\s+swimlane · portal/);
-  assert.ok(!existsSync(join(out, "manifest.json")), "--list must not write");
+  assert.ok(!existsSync(out), "--list must not create the output directory");
 });
 
 test("broken blocks fail with file:line and per-line parse warnings; exit 1", async () => {
@@ -125,23 +133,27 @@ test("bad CLI arguments fail fast with clear messages", async () => {
   }
 });
 
-test("--no-gallery skips gallery.html but keeps svg + manifest", async () => {
+test("--no-gallery is absent from help and rejected as an unknown option", async () => {
+  const help = await run("--help");
+  assert.doesNotMatch(help.stdout, /--no-gallery|gallery\.html/);
   const out = tmp();
   const r = await run(join(ROOT, "kitchen-sink.md"), "-o", out, "--no-gallery");
-  assert.equal(r.code, 0, r.stderr);
-  assert.ok(existsSync(join(out, "kitchen-sink-health-model.svg")));
-  assert.ok(existsSync(join(out, "manifest.json")));
-  assert.ok(!existsSync(join(out, "gallery.html")));
+  assert.notEqual(r.code, 0);
+  assert.match(r.stderr, /unknown option --no-gallery/);
+  assert.ok(!existsSync(join(out, "kitchen-sink-health-model.svg")));
 });
 
-test("multiple files aggregate into one manifest with per-file sources", async () => {
+test("multiple files emit every expected SVG and report each source without sidecars", async () => {
   const out = tmp();
   const r = await run(join(ROOT, "kitchen-sink.md"), join(ROOT, "pills-stress.md"), "-o", out);
   assert.equal(r.code, 0, r.stderr);
-  const manifest = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8"));
-  assert.equal(manifest.length, 2);
-  assert.ok(manifest.some((m) => m.source.includes("kitchen-sink.md")));
-  assert.ok(manifest.some((m) => m.source.includes("pills-stress.md")));
+  assert.match(r.stdout, /kitchen-sink\.md:\d+\s+kitchen-sink-health-model\.svg/);
+  assert.match(r.stdout, /pills-stress\.md:\d+\s+pills-stress-test\.svg/);
+  for (const name of ["kitchen-sink-health-model.svg", "pills-stress-test.svg"]) {
+    assert.ok(existsSync(join(out, name)), `expected ${name}`);
+  }
+  assert.ok(!existsSync(join(out, "manifest.json")));
+  assert.ok(!existsSync(join(out, "gallery.html")));
 });
 
 test("duplicate slugs across input files get distinct output names", async () => {
@@ -149,10 +161,10 @@ test("duplicate slugs across input files get distinct output names", async () =>
   const source = join(ROOT, "kitchen-sink.md");
   const r = await run(source, source, "-o", out);
   assert.equal(r.code, 0, r.stderr);
-  const manifest = JSON.parse(readFileSync(join(out, "manifest.json"), "utf8"));
-  assert.deepEqual(manifest.map((m) => m.svg), ["kitchen-sink-health-model.svg", "kitchen-sink-health-model-2.svg"]);
-  assert.ok(existsSync(join(out, manifest[0].svg)));
-  assert.ok(existsSync(join(out, manifest[1].svg)));
+  const names = ["kitchen-sink-health-model.svg", "kitchen-sink-health-model-2.svg"];
+  for (const name of names) assert.ok(existsSync(join(out, name)), `expected ${name}`);
+  assert.match(r.stdout, /kitchen-sink-health-model\.svg/);
+  assert.match(r.stdout, /kitchen-sink-health-model-2\.svg/);
 });
 
 test("legacy wrappers forward to the CLI with a deprecation note", async () => {
@@ -161,7 +173,8 @@ test("legacy wrappers forward to the CLI with a deprecation note", async () => {
   assert.match(sw.stderr, /deprecated — forwarding to: diagrammo/);
   assert.match(sw.stdout, /Rendered 1\/1 diagrams/);
   assert.ok(existsSync(join(out, "kitchen-sink-health-model.svg")));
-  assert.ok(existsSync(join(out, "manifest.json")));
+  assert.ok(!existsSync(join(out, "manifest.json")));
+  assert.ok(!existsSync(join(out, "gallery.html")));
   // missing args still fail with usage
   const bad = await run(); // reuse: no-arg CLI covered elsewhere; check the shim directly
   assert.equal(bad.code, 1);
@@ -349,7 +362,7 @@ test("--sync-markdown: an existing OLD <details>-shape managed block (from any p
 
 // ---- Ambiguity guard: a fence already containing the reserved "--&gt;" token must be rejected --
 
-test("--sync-markdown: a fence whose raw text already contains the reserved '--&gt;' token is rejected in preflight, before any SVG/manifest/gallery/Markdown write", async () => {
+test("--sync-markdown: a fence whose raw text already contains the reserved '--&gt;' token is rejected in preflight, before any SVG or Markdown write", async () => {
   const dir = tmp();
   const mdPath = join(dir, "doc.md");
   const original = [
@@ -365,7 +378,7 @@ test("--sync-markdown: a fence whose raw text already contains the reserved '--&
   assert.notEqual(r.code, 0);
   assert.match(r.stderr, /error: cannot sync .*doc\.md.*reserved token/);
   assert.equal(readFileSync(mdPath, "utf8"), original, "input bytes must stay unchanged");
-  assert.ok(!existsSync(outDir), "must fail before any render/manifest/gallery write");
+  assert.ok(!existsSync(outDir), "must fail before any render or sync write");
 });
 
 // ---- extractBlocks()/the renderer must never see escaped text — proven via an observable SVG ---
@@ -476,7 +489,7 @@ test("--sync-markdown: combined with --list writes nothing (--list always wins)"
   const r = await run(mdPath, "--list", "--sync-markdown", "-o", outDir);
   assert.equal(r.code, 0, r.stderr);
   assert.equal(readFileSync(mdPath, "utf8"), original);
-  assert.ok(!existsSync(join(outDir, "manifest.json")));
+  assert.ok(!existsSync(outDir));
   assert.ok(!existsSync(join(outDir, "checkout.svg")));
 });
 
@@ -508,8 +521,7 @@ test("--sync-markdown: renaming the heading after a first sync keeps the marker/
   assert.ok(!existsSync(join(outDir, "payment.svg")), "must not create an orphan payment.svg");
   const svgAfter = readFileSync(svgPath, "utf8");
   assert.notEqual(svgAfter, svgBefore, "checkout.svg content should reflect the edited diagram");
-  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8"));
-  assert.ok(manifest.some((m) => m.slug === "checkout" && m.svg === "checkout.svg"));
+  assert.deepEqual(readdirSync(outDir), ["checkout.svg"]);
 });
 
 test("--sync-markdown: adding/changing in-fence title=/name= options after a first sync keeps the stable filename and marker", async () => {
@@ -612,7 +624,7 @@ test("--sync-markdown: a managed slug duplicated across two input files targetin
   const r = await run(aPath, bPath, "-o", outDir, "--sync-markdown");
   assert.notEqual(r.code, 0);
   assert.match(r.stderr, /managed slug "checkout" is already used by/);
-  assert.ok(!existsSync(outDir), "must fail before any render/manifest/gallery write");
+  assert.ok(!existsSync(outDir), "must fail before any render or sync write");
   assert.equal(readFileSync(aPath, "utf8"), managed("a --> b"));
   assert.equal(readFileSync(bPath, "utf8"), managed("c --> d"));
 });
@@ -774,4 +786,41 @@ test("--sync-markdown: an empty `%%| alt:` override falls back to the heading an
   assert.match(synced, /!\[Checkout\]\(out\/checkout\.svg\)/, "empty override falls back to heading");
   assert.doesNotMatch(synced, /!\[\]\(/, "never an empty commonmark alt");
   assert.match(r.stderr, /empty "alt" override/, "the empty override is warned via the existing issues channel");
+});
+
+// ---- maxWidth: default-bounded rendering, per-block override, no new CLI flag -----------------
+
+test("maxWidth: a fence-info override threads through unchanged (C13) and produces a measurably different, still-bounded width than the 1024 default", async () => {
+  const dir = tmp();
+  const defaultPath = join(dir, "default.md");
+  writeFileSync(defaultPath, readFileSync(join(ROOT, "kitchen-sink.md"), "utf8"), "utf8");
+  const overridePath = join(dir, "override.md");
+  const overridden = readFileSync(join(ROOT, "kitchen-sink.md"), "utf8").replace("```mermaid\n", "```mermaid maxWidth=1400\n");
+  writeFileSync(overridePath, overridden, "utf8");
+
+  const outDefault = tmp(), outOverride = tmp();
+  const rDefault = await run(defaultPath, "-o", outDefault);
+  const rOverride = await run(overridePath, "-o", outOverride);
+  assert.equal(rDefault.code, 0, rDefault.stderr);
+  assert.equal(rOverride.code, 0, rOverride.stderr);
+
+  const defaultWidth = svgDimensions(join(outDefault, "kitchen-sink-health-model.svg")).width;
+  const overrideWidth = svgDimensions(join(outOverride, "kitchen-sink-health-model.svg")).width;
+  assert.ok(defaultWidth <= 1024, `default run: ${defaultWidth}`);
+  assert.ok(overrideWidth <= 1400, `override run: ${overrideWidth}`);
+  assert.notEqual(overrideWidth, defaultWidth, "an accepted override must change the outcome, not be silently ignored");
+});
+
+test("laneLabels=false: a fence-info override threads through unchanged (C22) and removes the lane-label text from the emitted SVG", async () => {
+  const dir = tmp();
+  const path = join(dir, "off.md");
+  const off = readFileSync(join(ROOT, "kitchen-sink.md"), "utf8").replace("```mermaid\n", "```mermaid laneLabels=false\n");
+  writeFileSync(path, off, "utf8");
+
+  const out = tmp();
+  const r = await run(path, "-o", out);
+  assert.equal(r.code, 0, r.stderr);
+  const svg = readFileSync(join(out, "kitchen-sink-health-model.svg"), "utf8");
+  assert.doesNotMatch(svg, />Business &amp; user flows</, "laneLabels=false must remove the lane-label text from the CLI's emitted SVG");
+  assert.doesNotMatch(svg, />Application</, "laneLabels=false must remove the lane-label text from the CLI's emitted SVG");
 });

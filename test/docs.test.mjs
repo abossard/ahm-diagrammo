@@ -9,7 +9,6 @@ import { fileURLToPath } from "node:url";
 import { extractBlocks, KNOWN_OPTIONS } from "../src/extract.mjs";
 import { renderSwimlane, looksLikeHealthModel } from "../src/swimlane.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
-import { galleryHtml } from "../src/gallery.mjs";
 import { verifyGeometry, verifySvgString } from "./helpers/geo.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -72,19 +71,6 @@ test("showcase measurement syntax lands in the output (value + state per row)", 
   assert.match(r.svg, /0\.4%/);
   assert.match(r.svg, /12 min/);
   assert.match(r.svg, />Storefront</); // custom lane label
-});
-
-test("gallery.html lists every rendered diagram with title, renderer, and theme", () => {
-  const html = galleryHtml(
-    [{ svg: "a.svg", title: "First <figure>", renderer: "swimlane", theme: "candy", nodes: 5 },
-     { svg: "b.svg", title: "Second", renderer: "mermaid", theme: "slate" }],
-    { source: "doc.md" },
-  );
-  assert.match(html, /<img src="a\.svg"/);
-  assert.match(html, /First &lt;figure&gt;/); // titles are escaped
-  assert.match(html, /swimlane · candy · 5 nodes/);
-  assert.match(html, /mermaid · slate/);
-  assert.match(html, /2 diagrams from doc\.md/);
 });
 
 // ---- Precision guards: docs stay in lock-step with the code they describe --------------------

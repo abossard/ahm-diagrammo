@@ -1,6 +1,6 @@
 # diagrammo showcase
 
-Run `npx ahm-diagrammo examples/showcase.md -o out-showcase` and open `out-showcase/gallery.html`.
+Run `npx ahm-diagrammo examples/showcase.md -o out-showcase` and inspect the emitted SVG files.
 Every block below is plain mermaid — GitHub and VS Code still preview it — but each one carries
 diagrammo options a different way.
 
@@ -132,6 +132,6 @@ flowchart LR
     cli --> auto{health model?}
     auto -- yes --> swim[Swimlane SVG]
     auto -- no --> mmd[Themed mermaid SVG]
-    swim --> gallery[gallery.html]
-    mmd --> gallery
+    swim --> svgs[SVG files]
+    mmd --> svgs
 ```

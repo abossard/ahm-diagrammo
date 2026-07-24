@@ -23,12 +23,13 @@ const WEB_FILES = [
   "web/convert.mjs",
   "web/examples.mjs",
   "web/markdown-preview.mjs",
+  "web/animation.mjs",
   "web/export-zip.mjs",
 ];
 
 // Exactly the 7-module browser-safe closure: swimlane -> extract/themes/text/diag/layout;
-// text -> font-metrics. src/index.mjs, src/mermaid.mjs (node: builtins), and src/gallery.mjs are
-// deliberately excluded.
+// text -> font-metrics. src/index.mjs and src/mermaid.mjs (node: builtins) are deliberately
+// excluded.
 const SRC_FILES = [
   "src/extract.mjs",
   "src/swimlane.mjs",

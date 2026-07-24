@@ -419,12 +419,7 @@ node bin/diagrammo.mjs \
   --out out-aks-anbksto2dassie89 \
   --strict
 
-jq -e \
-  'length == 1
-   and .[0].slug == "aks-anbksto2dassie89-health-model"
-   and .[0].svg == "aks-anbksto2dassie89-health-model.svg"
-   and .[0].renderer == "swimlane"' \
-  out-aks-anbksto2dassie89/manifest.json >/dev/null
+test "$(find out-aks-anbksto2dassie89 -maxdepth 1 -type f -name '*.svg' | wc -l | tr -d ' ')" -eq 1
 test -s out-aks-anbksto2dassie89/aks-anbksto2dassie89-health-model.svg
 rg -q '<text' out-aks-anbksto2dassie89/aks-anbksto2dassie89-health-model.svg
 if rg -q '<foreignObject' \

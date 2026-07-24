@@ -118,7 +118,11 @@ test("mapSlotsToOutcomes: maps showcase.md's slots to convertMarkdown's own per-
   assert.deepEqual(slots.map((s) => s.slotId), results.map((_, i) => `${nonce}-${i}`));
   // every health outcome carries the trusted SVG string from convertMarkdown, verbatim
   slots.forEach((s, i) => {
-    if (s.outcome.kind === "health") assert.equal(s.outcome.svg, results[i].svg);
+    if (s.outcome.kind === "health") {
+      assert.equal(s.outcome.svg, results[i].svg);
+      assert.equal(s.outcome.animation, results[i].animation);
+      assert.equal(s.outcome.theme, results[i].theme);
+    }
   });
 });
 

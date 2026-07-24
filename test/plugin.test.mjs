@@ -48,7 +48,7 @@ test("the diagrammo skill uses the packaged CLI and verifies its outputs", () =>
   assert.match(skill, /npx --yes ahm-diagrammo/);
   assert.match(skill, /--list/);
   assert.match(skill, /inspect before render/i);
-  assert.match(skill, /manifest\.json/);
+  assert.doesNotMatch(skill, /manifest\.json|gallery\.html|--no-gallery/);
   assert.match(skill, /\.svg/);
   assert.match(skill, /verify/i);
   assert.match(skill, /do not reimplement/i);

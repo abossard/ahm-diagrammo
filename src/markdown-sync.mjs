@@ -165,7 +165,7 @@ export function decodeManagedSpans(source) {
 
 // Preflight guard: given an already-decoded source and its already-extracted mermaid blocks
 // (`.line`/`.closeLine` as extractBlocks() reports them), throws if ANY block's raw fence text
-// already contains the reserved encoded token — before any SVG/manifest/gallery/Markdown write
+// already contains the reserved encoded token — before any SVG or Markdown write
 // happens for this file. Mirrors the same per-block guard buildManagedBlockLines() applies during
 // the real rebuild, so a file with several blocks and an ambiguous one deep inside it fails here,
 // before the first block's SVG is ever written, not partway through the render loop.
@@ -219,7 +219,7 @@ export function validateManagedSpans(source) {
       spans.push({ slug, beginLine: open.line, endLine: i + 1 });
       open = null;
     } else if (MARKER_INTENT_RE.test(line)) {
-      // This preflight check runs before any SVG/manifest/gallery/Markdown/temp write for the
+      // This preflight check runs before any SVG, Markdown, or temp-file write for the
       // file — fail loudly here rather than let a malformed marker be treated as ordinary prose
       // and silently re-wrapped into a second, nested managed block around the same fence.
       throw new Error(`markdown-sync: line ${i + 1} looks like a managed marker but is not a valid one ("${line}") — expected exactly <!-- diagrammo:sync SLUG --> or <!-- /diagrammo:sync SLUG --> with SLUG restricted to the charset [a-z0-9-]+ (lowercase letters, digits, hyphens only, non-empty) — malformed managed block, refusing to guess/repair`);

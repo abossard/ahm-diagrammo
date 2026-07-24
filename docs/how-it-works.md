@@ -10,8 +10,7 @@ Regenerate the figure from this file:
 npx ahm-diagrammo docs/how-it-works.md -o docs/assets
 ```
 
-That writes `docs/assets/how-it-works-pipeline.svg` (plus a `manifest.json` and
-`gallery.html`). This page and the README embed only the SVG.
+That writes `docs/assets/how-it-works-pipeline.svg`, which this page and the README embed.
 
 ## The pipeline, as a health model
 
@@ -42,7 +41,7 @@ flowchart BT
 
     swim --> out["Output bundle<br/>healthy"]
     mmd --> out
-    artifacts["per block = one .svg<br/>manifest.json = slug + metadata<br/>gallery.html = browse everything<br/>validation = native text only"] --> out
+    artifacts["per block = one .svg<br/>filenames = stable unique slugs<br/>validation = native text only"] --> out
 
     classDef blue fill:#eff6fc,stroke:#0078D4;
     classDef green fill:#f2f8f2,stroke:#a0d8a0;
@@ -59,7 +58,7 @@ flowchart BT
 | Extraction | Merge options from three channels, validate keys and values | `buildBlock` in `src/extract.mjs` | `extract.test.mjs` — option merge, precedence, issues |
 | Selection | Pick the renderer: a `flowchart BT` with a health class goes to swimlane, everything else to mermaid | `pickRenderer` in `bin/diagrammo.mjs`, `looksLikeHealthModel` in `src/swimlane.mjs` | `swimlane.test.mjs` — "looksLikeHealthModel detects health flowcharts only" |
 | Renderers | Draw the SVG: the pure-Node swimlane engine, or themed mermaid through `mmdc` | `renderSwimlane` in `src/swimlane.mjs`, `renderMermaid` in `src/mermaid.mjs` | `swimlane.test.mjs`; `mermaid.test.mjs` |
-| Output bundle | Write one SVG per block, `manifest.json`, and `gallery.html` | `bin/diagrammo.mjs`, `galleryHtml` in `src/gallery.mjs` | `cli.test.mjs`; `docs.test.mjs` — "gallery.html lists every rendered diagram" |
+| Output bundle | Write one SVG per block with stable, unique names | `bin/diagrammo.mjs` | `cli.test.mjs` — healthy, multi-file, duplicate-slug, and sync-identity subprocess cases |
 
 The three signal channels merge with later channels winning: **fence info < frontmatter
 `diagrammo:` < `%%|` directives**. See [FEATURES.md](FEATURES.md#per-block-options) for the

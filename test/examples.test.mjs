@@ -119,23 +119,22 @@ test("running the documented command against a tmp copy reproduces byte-identica
   const dir = tmp();
   mkdirSync(join(dir, "assets"), { recursive: true });
   cpSync(join(EXAMPLE_DIR, "README.md"), join(dir, "README.md"));
-  cpSync(join(EXAMPLE_DIR, "assets", ".gitignore"), join(dir, "assets", ".gitignore"));
   cpSync(join(EXAMPLE_DIR, href), join(dir, href));
 
-  // exact documented args (README.md -o assets --sync-markdown --no-gallery), only the bin's own
+  // exact documented args (README.md -o assets --sync-markdown), only the bin's own
   // absolute path differs so the subprocess can be spawned from a tmp cwd
-  const r1 = await runIn(dir, "README.md", "-o", "assets", "--sync-markdown", "--no-gallery");
+  const r1 = await runIn(dir, "README.md", "-o", "assets", "--sync-markdown");
   assert.equal(r1.code, 0, r1.stderr || r1.stdout);
   assert.match(r1.stdout, /swimlane/, "expected the Chrome-free swimlane renderer, not mermaid-cli");
   const mdAfterFirst = readFileSync(join(dir, "README.md"), "utf8");
   const svgAfterFirst = readFileSync(join(dir, href), "utf8");
   assert.equal(mdAfterFirst, committedMd, "regenerated Markdown drifted from the committed file");
   assert.equal(svgAfterFirst, committedSvg, "regenerated SVG drifted from the committed file");
-  assert.ok(existsSync(join(dir, "assets", "manifest.json")), "manifest.json is always written");
-  assert.ok(!existsSync(join(dir, "assets", "gallery.html")), "--no-gallery must skip gallery.html");
+  assert.ok(!existsSync(join(dir, "assets", "manifest.json")));
+  assert.ok(!existsSync(join(dir, "assets", "gallery.html")));
 
   // rerun: byte-identical again (idempotent)
-  const r2 = await runIn(dir, "README.md", "-o", "assets", "--sync-markdown", "--no-gallery");
+  const r2 = await runIn(dir, "README.md", "-o", "assets", "--sync-markdown");
   assert.equal(r2.code, 0, r2.stderr || r2.stdout);
   const mdAfterSecond = readFileSync(join(dir, "README.md"), "utf8");
   const svgAfterSecond = readFileSync(join(dir, href), "utf8");

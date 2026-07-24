@@ -12,14 +12,14 @@ never ends early — just wrapped in a machine-owned managed block that stays in
 To regenerate it yourself, from this folder:
 
 ```bash
-node ../../bin/diagrammo.mjs README.md -o assets --sync-markdown --no-gallery
+node ../../bin/diagrammo.mjs README.md -o assets --sync-markdown
 ```
 
 The general/published-package equivalent (documented for reference — not independently resolved
 against a live registry in this session, unlike the command above):
 
 ```bash
-npx ahm-diagrammo README.md -o assets --sync-markdown --no-gallery
+npx ahm-diagrammo README.md -o assets --sync-markdown
 ```
 
 Reruns are idempotent: nothing changes if the fence hasn't.

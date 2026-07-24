@@ -12,9 +12,8 @@ import { readFileSync, writeFileSync, mkdirSync, renameSync, unlinkSync } from "
 import { basename, dirname, join, resolve } from "node:path";
 import { randomBytes } from "node:crypto";
 import { extractBlocks, reserveSlug } from "../src/extract.mjs";
-import { renderSwimlane, looksLikeHealthModel } from "../src/swimlane.mjs";
+import { renderSwimlane, looksLikeHealthModel, DEFAULT_MAX_WIDTH } from "../src/swimlane.mjs";
 import { getTheme, THEME_NAMES } from "../src/themes.mjs";
-import { galleryHtml } from "../src/gallery.mjs";
 import { Diagnostics } from "../src/diag.mjs";
 import { syncMarkdown, svgHref, preferredIdentities, decodeManagedSpans, assertBlocksEncodable } from "../src/markdown-sync.mjs";
 
@@ -30,7 +29,6 @@ Options:
   -l, --list             list detected blocks and options, render nothing
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
-      --no-gallery       don't write gallery.html
       --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden, still-editable
                          Mermaid source; leaves the file untouched if any of its blocks fails
       --image-format <fmt>  visible embed for --sync-markdown: commonmark | learn   (default: commonmark)
@@ -49,12 +47,15 @@ Per-block options (all optional, all invisible to GitHub's mermaid preview):
                     legend: false
                   ---
 
-Keys: renderer, theme, title, subtitle, name (file name), lanes, legend.
+Keys: renderer, theme, title, subtitle, name (file name), lanes, legend,
+      maxWidth (default ${DEFAULT_MAX_WIDTH}, CSS px — bounds the final SVG width; wraps a wide
+      lane onto multiple physical rows instead of drawing it ultra-wide),
+      laneLabels (default true — set false to hide lane label text and reclaim its gutter width).
 Signal rows may carry their own value and state:  P95 latency = 230 ms (degraded)
 `;
 
 function parseArgs(argv) {
-  const a = { files: [], out: "diagrams", theme: "portal", renderer: "auto", gallery: true, list: false, verbose: false, strict: false, syncMarkdown: false, imageFormat: "commonmark" };
+  const a = { files: [], out: "diagrams", theme: "portal", renderer: "auto", list: false, verbose: false, strict: false, syncMarkdown: false, imageFormat: "commonmark" };
   for (let i = 0; i < argv.length; i++) {
     const v = argv[i];
     if (v === "-h" || v === "--help") a.help = true;
@@ -75,7 +76,6 @@ function parseArgs(argv) {
     else if (v === "-l" || v === "--list") a.list = true;
     else if (v === "-v" || v === "--verbose") a.verbose = true;
     else if (v === "--strict") a.strict = true;
-    else if (v === "--no-gallery") a.gallery = false;
     else if (v === "--sync-markdown") a.syncMarkdown = true;
     else if (v.startsWith("-")) { console.error(`unknown option ${v}\n`); a.help = true; a.bad = true; }
     else a.files.push(v);
@@ -125,7 +125,7 @@ function atomicWriteFileSync(path, content) {
 
 const outDir = resolve(args.out);
 let ok = 0, total = 0, warnCount = 0;
-const manifest = [], failures = [], galleryEntries = [];
+const failures = [];
 const usedSlugs = new Map();
 
 // --sync-markdown: preflight every input file's existing managed markers *before* any block in
@@ -139,7 +139,7 @@ const usedSlugs = new Map();
 // fence's stable slug by its exact open line so the render loop below names its SVG correctly the
 // first time — never guessing, never renaming. A malformed marker, an unencodable fence, or a
 // managed slug duplicated across two input files targeting this same output directory fails
-// loudly right here, before any SVG/manifest/gallery/Markdown write happens.
+// loudly right here, before any SVG or Markdown write happens.
 const mdCache = new Map();
 const rawCache = new Map(); // file -> original on-disk bytes, for the write-skip comparison below
 const preferredByFile = new Map();
@@ -227,6 +227,8 @@ for (const file of args.files) {
           subtitle: b.options.subtitle,
           lanes: b.options.lanes,
           legend: b.options.legend,
+          maxWidth: b.options.maxWidth,
+          laneLabels: b.options.laneLabels,
           diag, baseLine: b.codeLine - 1,
         });
         svg = r.svg; meta = { nodes: r.nodes, lanes: r.lanes, w: r.W, h: r.H };
@@ -238,8 +240,6 @@ for (const file of args.files) {
       }
       const outName = `${b.slug}.svg`;
       writeFileSync(join(outDir, outName), svg, "utf8");
-      manifest.push({ slug: b.slug, svg: outName, source: file, line: b.line, renderer, theme: themeName, title, ...meta });
-      galleryEntries.push({ svg: outName, title, renderer, theme: themeName, nodes: meta.nodes });
       ok++;
       console.log(`  ok   ${file}:${b.line}  ${outName}  [${renderer} · ${themeName}]${meta.nodes ? `  (${meta.nodes} nodes, ${meta.lanes} lanes, ${meta.w}×${meta.h})` : ""}`);
       if (args.syncMarkdown) {
@@ -277,13 +277,8 @@ for (const file of args.files) {
 }
 
 if (!args.list && total > 0) {
-  writeFileSync(join(outDir, "manifest.json"), JSON.stringify(manifest, null, 2));
-  if (args.gallery && galleryEntries.length) {
-    const source = args.files.map((f) => basename(f)).join(", ");
-    writeFileSync(join(outDir, "gallery.html"), galleryHtml(galleryEntries, { source }));
-  }
   const warnNote = warnCount ? `, ${warnCount} warning${warnCount === 1 ? "" : "s"}` : "";
-  console.log(`\nRendered ${ok}/${total} diagrams into ${outDir}${warnNote}${args.gallery && galleryEntries.length ? " (open gallery.html to browse)" : ""}`);
+  console.log(`\nRendered ${ok}/${total} diagrams into ${outDir}${warnNote}`);
 } else if (args.list && warnCount) {
   console.error(`\n${warnCount} warning${warnCount === 1 ? "" : "s"}`);
 }
