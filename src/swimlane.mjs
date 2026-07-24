@@ -262,6 +262,13 @@ export function layout(g, diag = new Diagnostics()) {
 // ---------- measure ----------
 const CARD_MIN_W = 168, CARD_MAX_W = 480, GAP = 30, TOPPAD = 18;
 const NAME_FS = 12.5, QUAL_FS = 9, ROW_FS = 10.5, PILL_FS = 10.5;
+// The width estimator (textWidth) is calibrated so bold weights land accurately, but
+// regular-weight glyphs render ~6-9% wider than estimated on real Segoe UI / San Francisco
+// stacks. The header qualifier (subtitle) sits on the same row as the right-aligned status
+// pill, so under-reserving its width lets long subtitles slide under the pill. Reserve a
+// weight buffer only for the qualifier demand — bold titles need no buffer — so cards without
+// a subtitle stay byte-identical while subtitle-heavy cards widen just enough to clear the pill.
+const HEADER_SAFETY = 1.12;
 
 function measureNode(n, diag) {
   const rawLines = n.lines.filter((l) => !STATE_WORDS.has(l.toLowerCase()));
@@ -272,7 +279,7 @@ function measureNode(n, diag) {
 
   // natural (unwrapped) width demands
   const headerFixed = 34 + 8 + statePillW + 8;
-  const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), qualifierRaw ? textWidth(qualifierRaw, QUAL_FS) : 0);
+  const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), qualifierRaw ? textWidth(qualifierRaw, QUAL_FS) * HEADER_SAFETY : 0);
   const rowFixed = 52 + 16 + 12;
   let rowsNat = 0;
   for (const r of sigs) rowsNat = Math.max(rowsNat, rowFixed + textWidth(r.name, ROW_FS) + textWidth(r.result ?? "", ROW_FS, 600));
@@ -722,7 +729,7 @@ export function renderSwimlane(code, opts = {}) {
   }
 
   // ----- build paths + geometry from the final assignment -----
-  const debug = { cards: [], pills: [], segs: [], texts: [], lanes: [] };
+  const debug = { cards: [], pills: [], statusPills: [], segs: [], texts: [], lanes: [] };
   const paths = []; // { d, stroke, width, dash }
   const stateRank = { healthy: 0, unknown: 1, degraded: 2, unhealthy: 3, alt: 1, signal: 1 };
 
@@ -946,6 +953,7 @@ function entityCard(T, n, b, s, debug, absB) {
     });
   }
   p.push(`<rect x="${px.toFixed(1)}" y="${(headerMid - 9).toFixed(2)}" width="${s.statePillW.toFixed(1)}" height="18" rx="9" fill="${T.pillFill}" stroke="${st.border}" stroke-width="1"/>`);
+  debug.statusPills.push({ x: px + (absB.x - b.x), y: headerMid - 9, w: s.statePillW, h: 18, id: n.id, container: { x: absB.x, y: absB.y, w: absB.w, h: absB.h } });
   p.push(statusDot(T, n.state, px + 11, headerMid));
   const stLabel = STATE_LABEL[n.state] || "Unknown";
   p.push(`<text x="${(px + 20).toFixed(1)}" y="${(headerMid + PILL_FS * 0.34).toFixed(2)}" font-size="${PILL_FS}" fill="${T.laneLabel}">${stLabel}</text>`);
