@@ -491,14 +491,19 @@ export function renderSwimlane(code, opts = {}) {
   for (const [lbl] of legendItems) legendW += 26 + textWidth(lbl, 11.5);
   legendW += 22 + textWidth("Metric", 11.5);
   const subtitleW = textWidth(subtitle, 12);
-  const headW = M.left + textWidth(title, 18, 700) + 24 + (legendOn ? legendW : 0) + 40;
+  const headW = M.left + textWidth(title, 18, 700) + 24 + 40;
 
   // ----- resolve maxWidth: default 1024, or a valid positive-finite override; clamp up (with a
   // warning) when even that is below the diagram's own structural floor — chrome plus the widest
   // single node that can never be split further (C4's exception; a whole atomic group may still
   // exceed this floor without being infeasible, since it degrades to per-node placement). -----
   const widestSingleItem = Math.max(0, ...[...size.values()].map((s) => s.w));
-  const minFeasibleW = Math.max(headW, M.left + 24 + gutterW + widestSingleItem, subtitleW + M.left + 40);
+  const minFeasibleW = Math.max(
+    headW,
+    M.left + 24 + gutterW + widestSingleItem,
+    subtitleW + M.left + 40,
+    legendOn ? M.left + legendW + 40 : 0,
+  );
   let maxWidth = Number.isFinite(opts.maxWidth) && opts.maxWidth > 0 ? opts.maxWidth : DEFAULT_MAX_WIDTH;
   if (maxWidth < minFeasibleW) {
     diag.warn(`maxWidth ${maxWidth} is below the diagram's computed minimum feasible width (${Math.ceil(minFeasibleW)}px, from fixed chrome and the widest unavoidable content) — clamped up to ${Math.ceil(minFeasibleW)}px`);
@@ -977,7 +982,7 @@ export function renderSwimlane(code, opts = {}) {
     }
 
     // ----- build paths + geometry from the final assignment -----
-    const debug = { cards: [], pills: [], segs: [], texts: [], lanes: [] };
+    const debug = { cards: [], pills: [], statusPills: [], segs: [], texts: [], lanes: [] };
     const paths = []; // { d, stroke, width, dash }
     const stateRank = { healthy: 0, unknown: 1, degraded: 2, unhealthy: 3, alt: 1, signal: 1 };
 
@@ -1021,6 +1026,11 @@ export function renderSwimlane(code, opts = {}) {
         }
         pts.push({ x: t.entryU, y: cU.bottom });
         pts = pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
+        if (t.channels.length === 1) {
+          const [uLo, uHi] = nodeRange(t.uNode);
+          if (straightenTrackedX(t.exitLo, t.entryU, uLo, uHi))
+            pts = [{ x: t.exitLo, y: cLo.top }, { x: t.exitLo, y: cU.bottom }];
+        }
       }
       paths.push({
         d: roundedOrtho(pts, 7),
@@ -1039,8 +1049,16 @@ export function renderSwimlane(code, opts = {}) {
     for (const s of debug.segs) { scanX(s.x1); scanX(s.x2); }
     for (const p of pills) { scanX(p.x - p.t.pillW / 2); scanX(p.x + p.t.pillW / 2); }
     const tx = M.left - minX;
-    const W = Math.max(maxX + tx + 24 + gutterW, headW, subtitleW + M.left + 40);
-    return { W, H: totalH, L, laneOrigin, laneTop, laneBandH, lane, tx, box, paths, pills, debug };
+    const contentH = totalH;
+    const legendGap = 20, legendRowH = 28;
+    const W = Math.max(
+      maxX + tx + 24 + gutterW,
+      headW,
+      subtitleW + M.left + 40,
+      legendOn ? M.left + legendW + 40 : 0,
+    );
+    const H = legendOn ? contentH + legendGap + legendRowH : contentH;
+    return { W, H, contentH, legendGap, legendRowH, L, laneOrigin, laneTop, laneBandH, lane, tx, box, paths, pills, debug };
   }
 
   // Packing/routing determines rowBudget-driven card content, but chrome-adjacent routing (a
@@ -1054,7 +1072,10 @@ export function renderSwimlane(code, opts = {}) {
     rowBudget = Math.max(rowBudgetFloor, rowBudget - (built.W - maxWidth) - 8);
     built = computeLayout(rowBudget);
   }
-  const { W, H, L, laneOrigin, laneTop, laneBandH, lane, tx, box, paths, pills, debug } = built;
+  const {
+    W, H, contentH, legendGap, legendRowH, L, laneOrigin, laneTop, laneBandH,
+    lane, tx, box, paths, pills, debug,
+  } = built;
 
 
   const shift = (v) => v + tx;
@@ -1150,7 +1171,10 @@ export function renderSwimlane(code, opts = {}) {
   for (const [id, n] of g.nodes) {
     const b = box.get(id), s = size.get(id);
     out.push(entityCard(T, n, { ...b, x: b.x - tx, cx: b.cx - tx }, s, debug, b, interactive));
-    debug.cards.push({ id, x: b.x, y: b.y, w: b.w, h: b.h, lane: lane.get(id) });
+    debug.cards.push({
+      id, x: b.x, y: b.y, w: b.w, h: b.h, headerH: s.headerH,
+      qualLines: s.qualWrap ? s.qualWrap.lines.length : 0, lane: lane.get(id),
+    });
   }
   out.push(`</g></svg>`);
   const svg = out.join("\n");

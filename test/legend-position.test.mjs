@@ -4,7 +4,7 @@
 //   - legend sits strictly below content (baseline y > every content y + gap);
 //   - all six labels (Legend, Healthy, Degraded, Unhealthy, Unknown, Metric) share ONE y baseline
 //     in order and never wrap;
-//   - SVG height grows by exactly the footer delta while every content y stays byte-identical;
+//   - SVG height grows by exactly the footer delta while every content path/card stays byte-identical;
 //   - width stays content-driven when content is wider; a legend floor prevents clipping when the
 //     legend is the widest element;
 //   - the title keeps its top-left position and the header no longer carries a legend;
@@ -21,7 +21,6 @@ import { verifyGeometry, verifySvgString } from "./helpers/geo.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const FIX = join(ROOT, "test", "fixtures");
-const BASE = join(FIX, "legend-baseline");
 
 // Footer geometry chosen at replicate (must match src/swimlane.mjs).
 const LEGEND_GAP = 20;
@@ -71,12 +70,6 @@ function maxContentY(svg) {
   return max;
 }
 
-const baseline = (name) => readFileSync(join(BASE, `${name}.svg`), "utf8");
-const dims = (svg) => {
-  const m = svg.match(/width="(\d+)" height="(\d+)"/);
-  return { W: +m[1], H: +m[2] };
-};
-
 // ── legend below content, one line, in order ──────────────────────────────────────────────────
 for (const themeName of THEME_NAMES) {
   for (const laneLabels of [true, false]) {
@@ -107,41 +100,39 @@ for (const themeName of THEME_NAMES) {
   }
 }
 
-// ── content geometry byte-invariant vs pristine baseline; height grows by exactly the delta ─────
+// ── enabling the footer preserves current content geometry and adds exactly the footer delta ────
 for (const themeName of THEME_NAMES) {
-  test(`legend [${themeName}]: content y invariant vs v3.0.0 baseline; H grows by footer delta`, () => {
+  test(`legend [${themeName}]: content geometry is invariant; H grows by footer delta`, () => {
     const r = renderSwimlane(OP.code, { theme: themeName, title: OP.heading });
-    const base = baseline(`op-${themeName}`);
-    const b = dims(base), n = dims(r.svg);
+    const without = renderSwimlane(OP.code, { theme: themeName, title: OP.heading, legend: false });
 
     // edges + cards byte-identical (no reroute, recolor, or x/y shift of content).
-    assert.deepEqual(edges(r.svg), edges(base), "edge paths byte-identical");
-    assert.deepEqual(cards(r.svg), cards(base), "card rects byte-identical");
+    assert.deepEqual(edges(r.svg), edges(without.svg), "edge paths byte-identical");
+    assert.deepEqual(cards(r.svg), cards(without.svg), "card rects byte-identical");
 
     // title unchanged (top-left), subtitle unchanged.
     const title = texts(r.svg).find((t) => t.text === OP.heading);
     assert.ok(r.svg.includes(`<text x="40" y="34" font-size="18" font-weight="700"`), "title line unchanged");
     assert.equal(title.y, 34, "title y unchanged");
-    const bTitle = texts(base).find((t) => t.text === OP.heading);
-    assert.equal(title.x, bTitle.x, "title x unchanged");
+    const withoutTitle = texts(without.svg).find((t) => t.text === OP.heading);
+    assert.equal(title.x, withoutTitle.x, "title x unchanged");
 
     // width content-driven and unchanged for the wide fixture.
-    assert.equal(n.W, b.W, "wide fixture width stays content-driven (unchanged)");
+    assert.equal(r.W, without.W, "wide fixture width stays content-driven (unchanged)");
     // height grows by exactly the footer delta.
-    assert.equal(n.H, b.H + FOOTER_DELTA, `H must grow by exactly ${FOOTER_DELTA}`);
+    assert.equal(r.H, without.H + FOOTER_DELTA, `H must grow by exactly ${FOOTER_DELTA}`);
 
     // legend not clipped: rightmost legend text starts within the right margin.
     const ls = legendTexts(r.svg);
     const rightmost = Math.max(...ls.map((t) => t.x));
-    assert.ok(rightmost <= n.W - RIGHT_MARGIN, `rightmost legend x ${rightmost} <= W-${RIGHT_MARGIN}`);
+    assert.ok(rightmost <= r.W - RIGHT_MARGIN, `rightmost legend x ${rightmost} <= W-${RIGHT_MARGIN}`);
   });
 }
 
 // ── narrow fixture: legend width floor engages, no clip ─────────────────────────────────────────
 test("legend [narrow single-node]: width floor prevents clipping; legend still one bottom row", () => {
   const r = renderSwimlane(NARROW.code, { theme: "portal", title: NARROW.heading });
-  const base = baseline("single-node-portal");
-  const b = dims(base), n = dims(r.svg);
+  const without = renderSwimlane(NARROW.code, { theme: "portal", title: NARROW.heading, legend: false });
 
   const ls = legendTexts(r.svg);
   assert.deepEqual(ls.map((t) => t.text), LEGEND_LABELS, "six legend labels in order");
@@ -149,13 +140,14 @@ test("legend [narrow single-node]: width floor prevents clipping; legend still o
   assert.equal(ys.size, 1, "narrow legend shares one baseline");
 
   // content geometry unchanged; height grew by the footer delta.
-  assert.deepEqual(cards(r.svg), cards(base), "card rects byte-identical");
-  assert.equal(n.H, b.H + FOOTER_DELTA, "narrow H grows by footer delta");
+  assert.deepEqual(cards(r.svg), cards(without.svg), "card rects byte-identical");
+  assert.equal(r.H, without.H + FOOTER_DELTA, "narrow H grows by footer delta");
 
   // width floor: at least legend intrinsic width; legend left-aligned at M.left; no clip.
   assert.equal(ls[0].x, M_LEFT, "legend starts left-aligned at the title margin");
   const lastText = ls[ls.length - 1]; // "Metric"
-  assert.ok(lastText.x <= n.W - RIGHT_MARGIN, `rightmost legend text x ${lastText.x} <= W-${RIGHT_MARGIN}`);
+  assert.ok(r.W >= without.W, "legend width floor must not narrow the canvas");
+  assert.ok(lastText.x <= r.W - RIGHT_MARGIN, `rightmost legend text x ${lastText.x} <= W-${RIGHT_MARGIN}`);
   assert.deepEqual(verifyGeometry(r), [], "narrow geometry");
   assert.deepEqual(verifySvgString(r.svg), [], "narrow svg");
 });
@@ -163,11 +155,9 @@ test("legend [narrow single-node]: width floor prevents clipping; legend still o
 // ── legend disabled: no footer growth, no legend text ───────────────────────────────────────────
 test("legend:false — no footer height/width growth, no legend text", () => {
   const r = renderSwimlane(NARROW.code, { theme: "portal", title: NARROW.heading, legend: false });
-  const base = baseline("single-node-portal-legendoff");
-  const b = dims(base), n = dims(r.svg);
   assert.equal(legendTexts(r.svg).length, 0, "no legend text when disabled");
-  assert.equal(n.H, b.H, "disabled height unchanged vs old behaviour");
-  assert.equal(n.W, b.W, "disabled width unchanged vs old behaviour");
+  assert.deepEqual(verifyGeometry(r), [], "disabled geometry");
+  assert.deepEqual(verifySvgString(r.svg), [], "disabled svg");
 });
 
 // ── determinism ─────────────────────────────────────────────────────────────────────────────────

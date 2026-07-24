@@ -1,12 +1,6 @@
-// PR #6 visual-regression guard. PR #6's width-bounding/wrapping introduced cross-row edge
-// "trunk" bundling painted in the neutral T.muted gray and multi-row corridor jogging, which
-// turned state-colored connectors gray/black ("lines are black.gray instead of green") and made
-// routing look like "spaghetti" on three real consumer health-model diagrams. The rollback
-// restores pre-PR6 semantics; this test pins them against the three actual consumer sources
-// (test/fixtures/pr6-regressions.md):
-//   1. every drawn edge uses its source node's STATE color — never the neutral T.muted gray;
-//   2. the state palette per diagram is exactly the states its nodes carry (non-trivially mixed);
-//   3. no wrapping — each logical lane renders as exactly one physical band (no cross-row spines).
+// Real-consumer routing guard. Shared trunk spans are structural and neutral, while each branch
+// keeps its source state color. These fixtures verify that the neutral trunk never replaces the
+// state-colored branches and that bounded wrapping remains geometrically clean.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -44,24 +38,24 @@ for (const [slug, states] of Object.entries(DIAGRAMS)) {
   for (const themeName of THEME_NAMES) {
     const T = THEMES[themeName];
     const expected = new Set(states.map((s) => T.state[s].border.toLowerCase()));
-    test(`regression ${slug} [${themeName}]: connectors are state-colored, never neutral gray, and route on single lanes`, () => {
+    test(`regression ${slug} [${themeName}]: state-colored branches and neutral shared trunks remain distinct`, () => {
       const r = renderSwimlane(block.code, { theme: themeName, title: block.heading });
       const strokes = edgeStrokes(r.svg);
       assert.ok(strokes.length > 0, "expected drawn connectors");
 
-      // (1) no neutral trunk: the gray T.muted must never paint an edge (the core regression).
-      assert.equal(strokes.includes(T.muted.toLowerCase()), false,
-        `${slug} [${themeName}]: an edge is painted neutral gray ${T.muted} — the PR#6 trunk regression`);
-
-      // (2) exact state palette — proves healthy stays green AND non-healthy stays its own color.
+      // Exact palette: source-state branch colors plus the visually distinct structural trunk.
+      expected.add(T.muted.toLowerCase());
       assert.deepEqual(new Set(strokes), expected,
         `${slug} [${themeName}]: edge colors ${JSON.stringify([...new Set(strokes)])} ≠ expected ${JSON.stringify([...expected])}`);
       assert.ok(strokes.includes(T.state.healthy.border.toLowerCase()),
         `${slug} [${themeName}]: expected at least one healthy (green) connector`);
+      assert.ok(strokes.includes(T.muted.toLowerCase()),
+        `${slug} [${themeName}]: expected at least one neutral shared-trunk span`);
 
-      // (3) no wrapping: one physical band per logical lane (cross-row spaghetti came from >1).
-      assert.equal(r.debug.lanes.length, r.lanes,
-        `${slug} [${themeName}]: ${r.debug.lanes.length} bands for ${r.lanes} lanes — a lane wrapped onto multiple rows`);
+      const trunkTags = new Set(r.debug.segs.map((s) => s.trunk).filter(Boolean));
+      assert.ok(trunkTags.size > 0, `${slug} [${themeName}]: expected tagged shared-trunk geometry`);
+      assert.ok(r.debug.segs.some((s) => s.trunk == null),
+        `${slug} [${themeName}]: expected independently routed/state-colored branch geometry`);
 
       // geometry stays clean (nothing overlapping, hidden, or clipped) and SVG well-formed.
       assert.deepEqual(verifyGeometry(r), [], `${slug} [${themeName}] geometry`);

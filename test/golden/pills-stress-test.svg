@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="895" height="983" viewBox="0 0 895 983" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+<svg xmlns="http://www.w3.org/2000/svg" width="895" height="1031" viewBox="0 0 895 1031" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
 <defs><filter id="cs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.3" flood-color="#000" flood-opacity="0.1"/></filter></defs>
-<rect width="895" height="983" fill="#ffffff"/>
+<rect width="895" height="1031" fill="#ffffff"/>
 <rect x="0" y="78.0" width="895" height="185.0" fill="#ffffff"/>
 <line x1="0" y1="78.0" x2="895" y2="78.0" stroke="#e6e4e2"/>
 <text x="728.6" y="175.0" font-size="13" font-weight="700" fill="#323130">Workload root</text>
@@ -14,21 +14,21 @@
 <line x1="0" y1="982.5" x2="895" y2="982.5" stroke="#e6e4e2"/>
 <text x="40" y="34" font-size="18" font-weight="700" fill="#242424">Pills stress test</text>
 <text x="40" y="52" font-size="12" fill="#605e5c">Signals live inside each entity; health rolls up to the workload root.</text>
-<text x="491.2" y="48" font-size="11.5" font-weight="600" fill="#605e5c" text-anchor="end">Legend</text>
-<circle cx="509.2" cy="44" r="4.5" fill="#4c9a2a"/>
-<text x="519.2" y="48" font-size="11.5" fill="#323130">Healthy</text>
-<circle cx="575.0" cy="44" r="4.5" fill="#c26a00"/>
-<text x="585.0" y="48" font-size="11.5" fill="#323130">Degraded</text>
-<circle cx="652.5" cy="44" r="4.5" fill="#c50f18"/>
-<text x="662.5" y="48" font-size="11.5" fill="#323130">Unhealthy</text>
-<circle cx="731.3" cy="44" r="4.5" fill="#8a8886"/>
-<text x="741.3" y="48" font-size="11.5" fill="#323130">Unknown</text>
-<g transform="translate(800.2,37.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
-<text x="818.2" y="48" font-size="11.5" fill="#323130">Metric</text>
+<text x="40.0" y="1021.0" font-size="11.5" font-weight="600" fill="#605e5c">Legend</text>
+<circle cx="99.7" cy="1017.0" r="4.5" fill="#4c9a2a"/>
+<text x="109.7" y="1021.0" font-size="11.5" fill="#323130">Healthy</text>
+<circle cx="165.5" cy="1017.0" r="4.5" fill="#c26a00"/>
+<text x="175.5" y="1021.0" font-size="11.5" fill="#323130">Degraded</text>
+<circle cx="243.0" cy="1017.0" r="4.5" fill="#c50f18"/>
+<text x="253.0" y="1021.0" font-size="11.5" fill="#323130">Unhealthy</text>
+<circle cx="321.8" cy="1017.0" r="4.5" fill="#8a8886"/>
+<text x="331.8" y="1021.0" font-size="11.5" fill="#323130">Unknown</text>
+<g transform="translate(390.7,1010.0) scale(0.875)"><rect x="1.5" y="8" width="2.6" height="6" rx="0.6" fill="#8661c5"/><rect x="5.7" y="4.5" width="2.6" height="9.5" rx="0.6" fill="#0078D4"/><rect x="9.9" y="6.5" width="2.6" height="7.5" rx="0.6" fill="#3fb0ac"/></g>
+<text x="408.7" y="1021.0" font-size="11.5" fill="#323130">Metric</text>
 <g transform="translate(40.0,0)">
 <g fill="none" stroke-linecap="butt" stroke-linejoin="round">
 <path d="M106.6 486.0 L106.6 424.5 Q106.6 417.5 113.6 417.5 L172.9 417.5 Q179.9 417.5 179.9 410.5 L179.9 339.0" stroke="#a0d8a0" stroke-width="1.7"/>
-<path d="M321.1 486.0 L321.1 447.5 Q321.1 444.5 318.1 444.5 L318.1 444.5 Q315.1 444.5 315.1 441.5 L315.1 339.0" stroke="#db7500" stroke-width="1.7"/>
+<path d="M321.1 486.0 L321.1 339.0" stroke="#db7500" stroke-width="1.7"/>
 <path d="M523.6 486.0 L523.6 424.5 Q523.6 417.5 516.6 417.5 L357.9 417.5 Q350.9 417.5 350.9 410.5 L350.9 339.0" stroke="#a0d8a0" stroke-width="1.7"/>
 <path d="M181.6 697.0 L181.6 635.5 Q181.6 628.5 188.6 628.5 L196.1 628.5 Q203.1 628.5 203.1 621.5 L203.1 377.0 Q203.1 374.0 206.1 374.0 L206.1 374.0 Q209.1 374.0 209.1 371.0 L209.1 339.0" stroke="#a0d8a0" stroke-width="1.7"/>
 <path d="M395.6 697.0 L395.6 662.5 Q395.6 655.5 402.6 655.5 L410.1 655.5 Q417.1 655.5 417.1 648.5 L417.1 405.0 Q417.1 398.0 410.1 398.0 L351.9 398.0 Q344.9 398.0 344.9 391.0 L344.9 339.0" stroke="#ba0d16" stroke-width="1.6" stroke-dasharray="5 4"/>
