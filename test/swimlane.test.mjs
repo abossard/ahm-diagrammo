@@ -304,3 +304,124 @@ test("browser: the Shop subtitle's real glyph box clears the status pill by >= 1
     const gap = pillX - subRight;
     assert.ok(gap >= 12, `real-render gap ${gap.toFixed(2)}px must be >= 12 (subtitle right ${subRight.toFixed(1)}, pill left ${pillX.toFixed(1)})`);
   });
+
+// ---------- bounded subtitle wrapping (v3.1.3) ----------
+// Supersedes v3.1.2's width-only fix: a subtitle wider than a bounded text column now WRAPS at
+// word boundaries and the card grows TALLER, instead of the card widening to fit one long line.
+// The title still drives one-line minimum width; the pill stays clear; nothing is ever truncated.
+const CARD_MAX_W = 480;
+const svgHeight = (svg) => Number(svg.match(/height="(\d+)"/)[1]);
+const SUB1 = "single region";
+const SUB2 = "active-active · minimum healthy: · min 2 of 3 regions";
+const SUB3 = "active-active across many regions · minimum healthy is min 2 of 3 regions worldwide plus standby";
+const UNBROKEN_TOKEN = "supercalifragilisticexpialidocioushyperultramegatokenthatcannotbebrokenonspaces";
+
+// A middle-lane service with its own signal row (so its card height is not clamped) plus a leaf
+// lane below and a root lane above — exercises coherent downstream shift when the middle grows.
+function dsSource(sub) {
+  const mid = ["Mid service", "healthy", ...(sub ? [sub] : [])].join("<br/>");
+  return [
+    "flowchart BT",
+    `    leafSig["Leaf availability<br/>Region signal"] --> leaf["Leaf node<br/>healthy"]`,
+    `    leaf --> mid["${mid}"]`,
+    `    midSig["Mid availability<br/>Region signal"] --> mid`,
+    `    mid --> root["Root service<br/>healthy"]`,
+    "    class leafSig,midSig blue;",
+    "    class leaf,mid,root green;",
+    "    classDef blue fill:none,stroke:#4A90D9;",
+    "    classDef green fill:none,stroke:#7ED321;",
+  ].join("\n");
+}
+
+test("a long subtitle wraps to >=2 lines and the card stays within the bounded width (no widen-to-fit)", () => {
+  const [b] = extractBlocks(read("shop-commerce-pill.md"), THEME_NAMES);
+  const r = renderSwimlane(b.code, { theme: "portal", title: b.heading, laneLabels: false });
+  const shop = r.debug.cards.find((c) => c.id === "shop");
+  assert.ok(shop.qualLines >= 2, `expected a wrapped subtitle, got ${shop.qualLines} line(s)`);
+  assert.ok(shop.w < CARD_MAX_W, `card must not hit the max width (got ${shop.w})`);
+  // header width is bounded: headerFixed(Healthy≈114.3) + SUBTITLE_MAX_W*HEADER_SAFETY ⇒ ~294px
+  assert.ok(shop.w <= 295, `subtitle must not widen the card past the bounded column (got ${shop.w})`);
+  assert.doesNotMatch(r.svg, /…/, "subtitle is never truncated");
+});
+
+test("subtitle line count grows headerH by exactly 11px per line, deterministically", () => {
+  const card = (sub) => renderSwimlane(svcSource({ lines: sub ? [sub] : [] }), { theme: "portal" })
+    .debug.cards.find((c) => c.id === "svc");
+  const c1 = card(SUB1), c2 = card(SUB2), c3 = card(SUB3);
+  assert.deepEqual([c1.qualLines, c2.qualLines, c3.qualLines], [1, 2, 3], "fixtures must wrap to 1/2/3 lines");
+  assert.equal(c2.headerH - c1.headerH, 11, "2 lines grows one line-height over 1 line");
+  assert.equal(c3.headerH - c1.headerH, 22, "3 lines grows two line-heights over 1 line");
+  const a = renderSwimlane(svcSource({ lines: [SUB2] }), { theme: "portal" }).svg;
+  const d = renderSwimlane(svcSource({ lines: [SUB2] }), { theme: "portal" }).svg;
+  assert.equal(a, d, "re-render is byte-identical");
+});
+
+test("a taller card shifts every following lane, edge, and the footer down by the exact same delta", () => {
+  const g = (r, id) => r.debug.cards.find((c) => c.id === id);
+  const r1 = renderSwimlane(dsSource(SUB1), { theme: "portal", laneLabels: false });
+  const r2 = renderSwimlane(dsSource(SUB2), { theme: "portal", laneLabels: false });
+  const D = g(r2, "mid").h - g(r1, "mid").h;
+  assert.ok(D > 0, "the growing card must actually get taller");
+  assert.equal(g(r2, "mid").y - g(r1, "mid").y, 0, "the growing card's own top does not move");
+  assert.equal(g(r2, "leaf").y - g(r1, "leaf").y, D, "the lane below shifts down by the delta");
+  assert.equal(g(r2, "root").y - g(r1, "root").y, 0, "the lane above does not move");
+  assert.equal(svgHeight(r2.svg) - svgHeight(r1.svg), D, "the footer/total height shifts by the delta");
+  assert.deepEqual(verifyGeometry(r2), [], "edges stay connected and nothing overlaps after growth");
+  assert.deepEqual(verifySvgString(r2.svg), []);
+});
+
+test("subtitle bbox (real Chrome): every wrapped line clears the status pill by >= 12px",
+  { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
+    const [b] = extractBlocks(read("shop-commerce-pill.md"), THEME_NAMES);
+    const r = renderSwimlane(b.code, { theme: "portal", title: b.heading, laneLabels: false });
+    const page = `<!doctype html><meta charset="utf-8"><body>${r.svg}<script>
+      const texts=[...document.querySelectorAll('text')];
+      const subs=texts.filter(t=>/active-active|minimum healthy|regions|min/.test(t.textContent));
+      const pills=[...document.querySelectorAll('rect')].filter(x=>x.getAttribute('rx')==='9')
+        .map(x=>({x:+x.getAttribute('x'),y:+x.getAttribute('y')}));
+      const out=subs.map(t=>{const bb=t.getBBox();
+        const pill=pills.slice().sort((p,q)=>Math.abs(p.y-bb.y)-Math.abs(q.y-bb.y))[0];
+        return {text:t.textContent,gap:pill.x-(bb.x+bb.width)};});
+      document.body.textContent=JSON.stringify(out);
+    <\/script></body>`;
+    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
+    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", url], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const m = dom.match(/\[.*\]/s);
+    assert.ok(m, "could not read getBBox measurements from Chrome");
+    const lines = JSON.parse(m[0]);
+    assert.ok(lines.length >= 2, `expected >=2 wrapped subtitle lines, got ${lines.length}`);
+    for (const l of lines)
+      assert.ok(l.gap >= 12, `line "${l.text}" real gap ${l.gap.toFixed(2)}px must be >= 12`);
+  });
+
+test("nodes in one lane wrapping to different line counts: lane sizes to the tallest, none overlap", () => {
+  const code = [
+    "flowchart BT",
+    `    sA["Sig A<br/>Region signal"] --> nodeA["Node A<br/>${SUB2}"]`,
+    `    sB["Sig B<br/>Region signal"] --> nodeB["Node B<br/>${SUB1}"]`,
+    "    nodeA --> root[\"Root<br/>healthy\"]",
+    "    nodeB --> root",
+    "    class sA,sB blue;",
+    "    class nodeA,nodeB,root green;",
+    "    classDef blue fill:none,stroke:#4A90D9;",
+    "    classDef green fill:none,stroke:#7ED321;",
+  ].join("\n");
+  const r = renderSwimlane(code, { theme: "portal", laneLabels: false });
+  const A = r.debug.cards.find((c) => c.id === "nodeA"), B = r.debug.cards.find((c) => c.id === "nodeB");
+  assert.equal(A.lane, B.lane, "both nodes share a lane");
+  assert.ok(A.qualLines > B.qualLines, "the two nodes wrap to different line counts");
+  const lane = r.debug.lanes[A.lane];
+  assert.ok(lane.h >= Math.max(A.h, B.h) - 0.5, "lane sizes to the tallest card");
+  assert.deepEqual(verifyGeometry(r), [], "no node/pill/subtitle overlaps another");
+});
+
+test("a long unbroken token hard-breaks inside the column: no ellipsis, no widening past the cap", () => {
+  const r = renderSwimlane(svcSource({ lines: [UNBROKEN_TOKEN] }), { theme: "portal" });
+  const svc = r.debug.cards.find((c) => c.id === "svc");
+  assert.ok(svc.qualLines >= 2, `over-long token must hard-break across lines (got ${svc.qualLines})`);
+  assert.ok(svc.w < CARD_MAX_W, `token must not widen the card to the max (got ${svc.w})`);
+  assert.doesNotMatch(r.svg, /…/, "hard-break never ellipsizes");
+  const { texts, card } = nodeParts(r, "svc");
+  const joined = texts.filter((t) => sameBox(t.container, card)).map((t) => t.text).join("");
+  assert.ok(joined.includes(UNBROKEN_TOKEN), "the full token survives, split across lines");
+});
