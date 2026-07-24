@@ -262,12 +262,19 @@ export function layout(g, diag = new Diagnostics()) {
 // ---------- measure ----------
 const CARD_MIN_W = 168, CARD_MAX_W = 480, GAP = 30, TOPPAD = 18;
 const NAME_FS = 12.5, QUAL_FS = 9, ROW_FS = 10.5, PILL_FS = 10.5;
-// The width estimator (textWidth) is calibrated so bold weights land accurately, but
-// regular-weight glyphs render ~6-9% wider than estimated on real Segoe UI / San Francisco
-// stacks. The header qualifier (subtitle) sits on the same row as the right-aligned status
-// pill, so under-reserving its width lets long subtitles slide under the pill. Reserve a
-// weight buffer only for the qualifier demand — bold titles need no buffer — so cards without
-// a subtitle stay byte-identical while subtitle-heavy cards widen just enough to clear the pill.
+// Header qualifier (subtitle) layout. The subtitle is light-weight text under the bold title
+// that shares its header row with the right-aligned status pill. Rather than widening the card
+// without bound to fit a long subtitle on one line (which pushes the whole diagram wide and
+// crowds the pill), the subtitle is confined to a fixed text column: it wraps at word boundaries
+// into as many lines as it needs and the card grows *taller* instead of wider. The title still
+// drives the card's minimum (one-line) width.
+//   SUBTITLE_MAX_W — the subtitle's text-column width in estimator px. Long subtitles wrap to
+//     this column; the title-width path is untouched, so short/no-subtitle cards are unaffected.
+//   HEADER_SAFETY — the width estimator lands bold weights accurately but under-measures
+//     regular-weight glyphs ~6-9% on real Segoe UI / San Francisco stacks. It no longer grows the
+//     card (the column bound does the bounding); it only reserves headroom so the *bounded*
+//     column's real render still clears the pill.
+const SUBTITLE_MAX_W = 160;
 const HEADER_SAFETY = 1.12;
 
 function measureNode(n, diag) {
@@ -277,9 +284,11 @@ function measureNode(n, diag) {
   const statePillW = 20 + textWidth(STATE_LABEL[n.state] || "Unknown", PILL_FS) + 8;
   const sigs = n.signals || [];
 
-  // natural (unwrapped) width demands
+  // natural (unwrapped) width demands. The subtitle's width demand is capped at SUBTITLE_MAX_W so
+  // a long subtitle wraps (and the card grows taller) instead of widening the card to fit one line.
   const headerFixed = 34 + 8 + statePillW + 8;
-  const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), qualifierRaw ? textWidth(qualifierRaw, QUAL_FS) * HEADER_SAFETY : 0);
+  const subCol = qualifierRaw ? Math.min(textWidth(qualifierRaw, QUAL_FS), SUBTITLE_MAX_W) : 0;
+  const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), subCol * HEADER_SAFETY);
   const rowFixed = 52 + 16 + 12;
   let rowsNat = 0;
   for (const r of sigs) rowsNat = Math.max(rowsNat, rowFixed + textWidth(r.name, ROW_FS) + textWidth(r.result ?? "", ROW_FS, 600));
@@ -290,11 +299,10 @@ function measureNode(n, diag) {
   // Entity titles are never truncated. Past the width cap they add header lines, preserving the
   // complete title while keeping the diagram horizontally compact.
   const nameWrap = wrapText(name, nameAvail, NAME_FS, { weight: 600, maxLines: Infinity });
+  // Subtitles are never truncated: wrap at word boundaries into the bounded column with no line
+  // limit, growing the card taller. Over-long unbroken tokens hard-break inside the column.
   let qualWrap = null;
-  if (qualifierRaw) {
-    qualWrap = wrapText(qualifierRaw, nameAvail, QUAL_FS, { maxLines: 2 });
-    if (qualWrap.clipped) diag.warn(`qualifier "${qualifierRaw.slice(0, 40)}…" on "${n.id}" clipped (full text kept as tooltip)`);
-  }
+  if (qualifierRaw) qualWrap = wrapText(qualifierRaw, Math.min(nameAvail, SUBTITLE_MAX_W), QUAL_FS, { maxLines: Infinity });
   const rows = sigs.map((r) => {
     const resultW = textWidth(r.result ?? "", ROW_FS, 600);
     const avail = w - rowFixed - resultW;
@@ -898,7 +906,7 @@ export function renderSwimlane(code, opts = {}) {
   for (const [id, n] of g.nodes) {
     const b = box.get(id), s = size.get(id);
     out.push(entityCard(T, n, { ...b, x: b.x - tx, cx: b.cx - tx }, s, debug, b));
-    debug.cards.push({ id, x: b.x, y: b.y, w: b.w, h: b.h, lane: lane.get(id) });
+    debug.cards.push({ id, x: b.x, y: b.y, w: b.w, h: b.h, headerH: s.headerH, qualLines: s.qualWrap ? s.qualWrap.lines.length : 0, lane: lane.get(id) });
   }
   out.push(`</g></svg>`);
   const svg = out.join("\n");
