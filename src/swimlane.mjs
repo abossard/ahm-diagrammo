@@ -341,6 +341,14 @@ function measureNode(n, diag) {
 // that can hide an intervening vertical, so a delta ≥ 12 signals a genuine obstacle/offset and is
 // left orthogonal. Coupled to makeSlots' pitch — revisit both together if that changes.
 const STRAIGHT_SNAP_DX = 8;
+const ROUTE_TRACK = 12;
+const ROUTE_SLOT_PITCH = ROUTE_TRACK + 0.5;
+// Two card centers this close are indistinguishable in any public/debug output (relaxation and
+// its re-anchoring pass can leave ~1e-14-level float noise between centers a caller-facing check
+// treats as equal); 1e-6 clears that noise by many orders of magnitude while staying far below
+// any meaningful pixel distance, so it never masks a genuine positional difference. Exported so a
+// caller-facing "visible order" check can apply the identical tolerance (see swimlane.test.mjs).
+export const CENTER_TIE_EPS = 1e-6;
 
 // True when a single-channel tracked edge's risers are near-aligned enough to collapse to one
 // straight vertical at x = exitLo, AND that x still lands on the upper card ([uLo, uHi] = its slot
@@ -385,6 +393,14 @@ function roundedOrtho(pts, r = 8) {
   const last = pts[pts.length - 1];
   d += ` L${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
   return d;
+}
+
+function withoutCollinearPoints(pts) {
+  return pts.filter((p, i) => {
+    if (i === 0 || i === pts.length - 1) return true;
+    const a = pts[i - 1], b = pts[i + 1];
+    return !((a.x === p.x && p.x === b.x) || (a.y === p.y && p.y === b.y));
+  });
 }
 // `trunk` (default null) tags a segment as part of an intentionally-shared bundle span (see
 // C24/C29): the geometry verifier's collinearity checks treat two different edges' segments
@@ -605,12 +621,37 @@ export function renderSwimlane(code, opts = {}) {
         tracked.push({ e, u: lu, l: ll, pill: !!e.label });
       }
     }
+    for (const [pid, es] of bundlesByParent) {
+      if (es.length > 1) continue;
+      bundlesByParent.delete(pid);
+      const [e] = es;
+      tracked.push({ e, u: lane.get(e.to), l: lane.get(e.from), pill: false });
+    }
+    const edgesPerChild = new Map();
+    for (const e of g.edges) {
+      if (e.from === e.to) continue;
+      edgesPerChild.set(e.from, (edgesPerChild.get(e.from) || 0) + 1);
+    }
+    const pillPitchByChild = new Map();
+    for (const t of tracked) {
+      if (!t.pill) continue;
+      let wrap = wrapText(t.e.label, 170, PILL_FS, { weight: 600, maxLines: 2 });
+      if (wrap.clipped) wrap = wrapText(t.e.label, 280, PILL_FS, { weight: 600, maxLines: 2 });
+      if (wrap.clipped) diag.warn(`edge label "${t.e.label.slice(0, 40)}…" is too long even wrapped — clipped (full text kept as tooltip)`);
+      t.pillLines = wrap.lines;
+      t.pillClipped = wrap.clipped;
+      t.pillW = Math.max(...wrap.lines.map((l) => textWidth(l, PILL_FS, 600))) + 20;
+      t.pillH = wrap.lines.length === 1 ? 20 : 33;
+      const siblingClearance = 4;
+      pillPitchByChild.set(t.e.from, Math.max(pillPitchByChild.get(t.e.from) || 0, t.pillW / 2 + siblingClearance));
+    }
 
     // ----- corridor + slot planning (x only; ys come after channel heights are known) -----
     const cardsInLane = (j) => laneNodes[j].map((id) => ({ id, x: X.get(id) - size.get(id).w / 2, w: size.get(id).w }));
     const corridorCache = new Map();
     const corridorTaken = new Map(); // lane -> xs
     const { pick: slots, used: slotsUsed } = makeSlots();
+    const useWideCorridors = tracked.filter((t) => t.pill).length <= 8;
     const claimSlot = (chan, x) => { if (!slotsUsed.has(chan)) slotsUsed.set(chan, []); slotsUsed.get(chan).push(x); };
     // A lane-j corridor pick doubles as channel (j-1)'s "xBelow" and channel j's "xAbove" (see the
     // channel-building loop below) — it shares those channels' vertical-x registries, not just its
@@ -622,15 +663,77 @@ export function renderSwimlane(code, opts = {}) {
       if (!corridorCache.has(j)) corridorCache.set(j, corridorsOf(cardsInLane(j)));
       if (!corridorTaken.has(j)) corridorTaken.set(j, []);
       const taken = [...corridorTaken.get(j), ...(slotsUsed.get(j - 1) || []), ...(slotsUsed.get(j) || [])];
-      const x = pickCorridorX(corridorCache.get(j), want, taken);
+      const corridors = corridorCache.get(j);
+      // A busy shared boundary (many lane-skippers converging on one "wanted" x) can exhaust both
+      // the wide and default pitches against the full cross-channel ledger. Rather than fall back to
+      // an unguarded raw `want` — which can land squarely inside lane j's own card — retry once more
+      // at a tighter pitch against the SAME full `taken` set (never dropping the cross-channel
+      // collinearity guard, only packing closer) before giving up. This tier still guarantees a real
+      // corridor slot with at least `spacing` clearance from every existing pick, so distinctness
+      // (still > the verifier's 1.5px collinearity tolerance) is never sacrificed, only tightness
+      // (already user-permitted below the nominal 12.5px pitch) (C4-R1). A still-tighter (`1.6px`)
+      // fourth tier was tried alongside this one when the corridor-exhaustion defect was first fixed,
+      // but is unreachable in the accepted corpus — this `3px` tier alone already resolves every
+      // committed corridor-exhaustion case (confirmed live: zero fallthroughs to a fourth tier across
+      // the full public test suite, sweep included) — so it was removed rather than shipped untested
+      // (C5-R3).
+      const x = (useWideCorridors ? pickCorridorX(corridors, want, taken, { spacing: ROUTE_TRACK }) : null) ??
+        pickCorridorX(corridors, want, taken) ??
+        pickCorridorX(corridors, want, taken, { spacing: 3 });
       if (x == null) return want; // no corridor: fall back (verifier will flag if it matters)
       corridorTaken.get(j).push(x);
       claimSlot(j - 1, x); claimSlot(j, x);
       return x;
     };
     const nodeRange = (id) => { const s = size.get(id); return [X.get(id) - s.w / 2 + 12, X.get(id) + s.w / 2 - 12]; };
-    const topSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
-    const botSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
+    const topSlot = (chan, id, want, pitch = ROUTE_SLOT_PITCH) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi, pitch); };
+    const botSlot = (chan, id, want, pitch = ROUTE_SLOT_PITCH) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi, pitch); };
+    for (const t of tracked) {
+      const [uNode, loNode] = t.sameLane
+        ? [t.e.to, t.e.from]
+        : (t.reverse ? [t.e.from, t.e.to] : [t.e.to, t.e.from]);
+      t.uNode = uNode; t.loNode = loNode;
+      t.chan = t.sameLane ? t.u - 1 : t.u;
+      t.pillChan = t.sameLane ? t.chan : t.l - 1;
+    }
+
+    // Claims into a shared per-channel/per-lane ledger (exit slots, corridor picks) must not
+    // depend on source-declaration order: whichever edge is processed first wins its exact
+    // "wanted" spot, and later edges sharing that ledger get bumped outward from it — inverting
+    // visible left-to-right order whenever source order doesn't already match visible order
+    // (C-R1). Every claim below (pill-preloop, corridor chain, exit slots) therefore iterates
+    // `claimOrder` — farthest-from-parent-center first, the same rule the entry-side sort uses
+    // below, so exit/corridor priority agrees with entry priority — tie-broken by physical lane
+    // then authored edge index. A raw (unresolved) child/parent interpolation is fine here since
+    // this only decides claim *priority*, never a final position.
+    const rawEntryWant = (t) => {
+      const locx = X.get(t.loNode);
+      if (t.sameLane || t.l === t.u + 1) return locx;
+      const ucx = X.get(t.uNode);
+      const frac = (t.l - (t.u + 1)) / (t.l - t.u);
+      return locx + (ucx - locx) * frac;
+    };
+    const claimOrder = tracked
+      .map((t, i) => ({ t, i }))
+      .sort((a, b) => {
+        const da = Math.abs(rawEntryWant(a.t) - X.get(a.t.uNode));
+        const db = Math.abs(rawEntryWant(b.t) - X.get(b.t.uNode));
+        if (db !== da) return db - da;
+        if (a.t.l !== b.t.l) return a.t.l - b.t.l;
+        return a.i - b.i;
+      })
+      .map(({ t }) => t);
+
+    for (const t of claimOrder) {
+      if (!useWideCorridors || !t.pill || t.sameLane) continue;
+      const { uNode, loNode } = t;
+      const ucx = X.get(uNode), locx = X.get(loNode), loW = size.get(loNode).w;
+      const spread = edgesPerChild.get(loNode) > 1
+        ? locx + Math.sign(ucx - locx) * Math.min(Math.abs(ucx - locx), loW / 2 - 14)
+        : locx;
+      const [exLo, exHi] = nodeRange(loNode);
+      t.exitLo = slots(t.l - 1, spread, exLo, exHi, Math.max(ROUTE_SLOT_PITCH, t.pillW / 2 + 8));
+    }
 
     // bundles first (they own the space right under their parent) — generalized to ANY
     // physical-row distance (C24). A group targeting `pid` rides one shared per-lane "spine":
@@ -655,15 +758,19 @@ export function renderSwimlane(code, opts = {}) {
       const spine = new Map(); // lane index (lu+1..maxLl-1) -> validated x, deepest-first
       let want = pcx;
       for (let j = maxLl - 1; j >= lu + 1; j--) { want = corr(j, want); spine.set(j, want); }
-      const trunkX = spine.has(lu + 1) ? spine.get(lu + 1) : slots(lu, pcx, pcx - pw / 2 + 12, pcx + pw / 2 - 12, 3);
+      const trunkX = spine.has(lu + 1) ? spine.get(lu + 1) : slots(lu, pcx, pcx - pw / 2 + 12, pcx + pw / 2 - 12, ROUTE_SLOT_PITCH);
       const groupStraight = fitsFootprint(pcx, pw, trunkX);
       const entryX = groupStraight ? trunkX : botSlot(lu, pid, trunkX);
-      for (const k of kids) {
+      kids.forEach((k, index) => {
         k.peelChan = k.ll - 1;
         k.joinX = spine.has(k.peelChan) ? spine.get(k.peelChan) : trunkX;
-        k.ownStraight = fitsFootprint(k.cx, k.cw, k.joinX);
-        if (!k.ownStraight) k.stubX = topSlot(k.peelChan, k.e.from, k.cx);
-      }
+        const delta = k.cx - k.joinX;
+        const side = Math.abs(delta) > 0.01 ? Math.sign(delta) : (index % 2 ? 1 : -1);
+        const wantedStub = Math.abs(delta) >= ROUTE_TRACK ? k.cx : k.joinX + side * ROUTE_TRACK;
+        const stubPitch = Math.max(ROUTE_SLOT_PITCH, pillPitchByChild.get(k.e.from) || 0);
+        k.stubX = topSlot(k.peelChan, k.e.from, wantedStub, stubPitch);
+        k.ownStraight = false;
+      });
       // One shared jog per lane boundary where the spine genuinely bends (deliberately keyed
       // by channel, not by member — every kid whose own row reaches this deep draws the exact
       // same jog, by construction), so it can take part in the SAME channel-level assignment
@@ -681,37 +788,16 @@ export function renderSwimlane(code, opts = {}) {
     // A child with several outgoing edges (tracked OR bundled — a bundle stub is just as much a
     // "sibling riser" a wide pill could hug/cross) spreads its exits toward each edge's parent, so
     // sibling risers don't hug each other (a wide pill would otherwise cover its sibling's line).
-    const edgesPerChild = new Map();
-    for (const e of g.edges) {
-      if (e.from === e.to) continue;
-      edgesPerChild.set(e.from, (edgesPerChild.get(e.from) || 0) + 1);
-    }
     const trackedPerChild = edgesPerChild;
-    for (const t of tracked) {
-      const [uNode, loNode] = t.sameLane
-        ? [t.e.to, t.e.from]
-        : (t.reverse ? [t.e.from, t.e.to] : [t.e.to, t.e.from]);
-      t.uNode = uNode; t.loNode = loNode;
-      t.chan = t.sameLane ? t.u - 1 : t.u;      // channel adjacent to the upper node
-      t.pillChan = t.sameLane ? t.chan : t.l - 1; // pills live nearest the child (see assignTracks)
-      // Measure the pill FIRST (depends only on the fixed label text, not on any position computed
-      // below) so its width can widen the exit slot's own minimum spacing from sibling risers —
-      // a wide pill sliding a few px never has room to fully dodge a neighbor only 6px away.
-      if (t.pill) {
-        // long labels wrap to two lines: a 300px pill can never dodge risers ~200px apart,
-        // a 160px one can — and the full text stays visible
-        let wrap = wrapText(t.e.label, 170, PILL_FS, { weight: 600, maxLines: 2 });
-        if (wrap.clipped) wrap = wrapText(t.e.label, 280, PILL_FS, { weight: 600, maxLines: 2 });
-        if (wrap.clipped) diag.warn(`edge label "${t.e.label.slice(0, 40)}…" is too long even wrapped — clipped (full text kept as tooltip)`);
-        t.pillLines = wrap.lines;
-        t.pillClipped = wrap.clipped;
-        t.pillW = Math.max(...wrap.lines.map((l) => textWidth(l, PILL_FS, 600))) + 20;
-        t.pillH = wrap.lines.length === 1 ? 20 : 33;
-      }
-      // Widen the exit slot's own minimum spacing from sibling risers only when this child has
-      // competing siblings AND this edge carries a pill (a wide pill sliding a few px never has
-      // room to fully dodge a neighbor only 6px away) — narrowly scoped so a child with a single
-      // outgoing edge (the common case) never sees a spacing change.
+    for (const t of claimOrder) {
+      const { uNode, loNode } = t;
+      // This exit slot's pitch is intentionally the pre-existing bare `6`, not `ROUTE_SLOT_PITCH`
+      // (12.5) — a prior attempt widened it to close a suspected unowned-T-junction defect at a
+      // parent boundary, but independent inspection found zero exact unowned junctions in either
+      // variant: widening bought nothing here and cost 7 new crossings / +557px on `pill-flood`
+      // alone (C-R2's no-new-crossings requirement). The actual junction risk is guarded directly
+      // by `findUnownedJunctions()` (test/helpers/geo.mjs) and the C-R4 regression test below,
+      // not by a numeric spacing proxy on this exit floor.
       const exitPitch = t.pill && edgesPerChild.get(loNode) > 1 ? Math.max(6, t.pillW / 2 + 8) : 6;
       if (t.sameLane) {
         t.exitLo = topSlot(t.chan, loNode, X.get(uNode));
@@ -725,7 +811,6 @@ export function renderSwimlane(code, opts = {}) {
           const want = locx + (ucx - locx) * frac;
           t.corr[j] = corr(j, want);
         }
-        t.entryU = botSlot(t.u, uNode, t.corr[t.u + 1] ?? locx);
         // Exit at the child's own center when it has a single outgoing edge (keeps risers spread
         // out across children); when the child has several, pull each exit toward its parent so
         // sibling risers separate. Lane-skippers aim at their first corridor.
@@ -734,13 +819,203 @@ export function renderSwimlane(code, opts = {}) {
           ? locx + Math.sign(ucx - locx) * Math.min(Math.abs(ucx - locx), loW / 2 - 14)
           : locx;
         const [exLo, exHi] = nodeRange(loNode);
-        t.exitLo = slots(t.l - 1, t.corr[t.l - 1] ?? spread, exLo, exHi, exitPitch);
-        t.channels = [];
-        for (let gph = t.u; gph <= t.l - 1; gph++) {
-          const xAbove = gph === t.u ? t.entryU : t.corr[gph];
-          const xBelow = gph === t.l - 1 ? t.exitLo : t.corr[gph + 1];
-          t.channels.push({ g: gph, xBelow, xAbove });
+        t.exitLo ??= slots(t.l - 1, t.corr[t.l - 1] ?? spread, exLo, exHi, exitPitch);
+      }
+    }
+
+    // Entry-slot claims into a shared parent must be solved per (channel, parent) GROUP all at
+    // once, not one edge at a time in some priority order: a sequential greedy claim — whoever is
+    // processed first wins their exact "wanted" spot outright, and every later claimant reacts to
+    // whatever already landed — can strand a later-processed claimant on the wrong side of an
+    // earlier one's now-fixed position even though each individual claim looks locally valid
+    // (confirmed live: a far-boundary-clamped child needed to fit between that boundary and an
+    // unrelated sibling's own untouched center — only one channel-pitch apart — and got shoved
+    // PAST that sibling instead, since the sibling's position was already "claimed" territory the
+    // clamped child's independent search had no choice but to route around, even though the
+    // sibling itself sits farther from the boundary and hadn't even taken its own entry turn yet;
+    // ordering claims by distance-from-center, tried first, only rearranges WHICH edge hits this
+    // failure mode, it can't remove it, because the failure is inherent to resolving claims one at
+    // a time against whatever partial state happens to exist so far).
+    // Solve each group as a whole instead: sort by natural entry position (clamped into the
+    // parent's own range; ties broken by physical lane then authored edge index) to fix the
+    // REQUIRED left-to-right order, then run one monotonic-separation pass across every member at
+    // once — forward to enforce the minimum pitch, backward from the far edge if that overflows
+    // the parent's own range — so a member's final position reflects every OTHER member's
+    // presence simultaneously, not just whichever claim happened to be resolved first. Untouched
+    // (uncontested) members keep their exact clamped want verbatim, including a passthrough
+    // member whose own exit position already sits inside the parent's range: with no sibling
+    // close enough to force a move, the forward pass is a no-op for it, and it lands exactly on
+    // its own exit x — the unobstructed straight-vertical case stays intact.
+    // For a lane-skipping edge, the natural position at the entry lane is not its own (several-
+    // rows-away) card center but the same lo→hi interpolation the corridor loop above uses to seed
+    // that lane's want (the `frac` at j = t.u+1): comparing a directly-adjacent sibling's own
+    // center against a distant sibling's pre-bend card center mixes two different quantities and
+    // can invert the very order this fix exists to correct (confirmed live: once `maxWidth`
+    // wrapping turns one flat row of children into several lane-skipping rows, ranking a wrapped
+    // row's members by raw cx inverts a near-center pair against a farther, differently-skipped
+    // sibling). For a lane-skipper this must be the corridor loop's *resolved* corr[t.u+1] (post
+    // pickCorridorX/obstacle-avoidance), not a fresh naive interpolation recomputed here — a
+    // second, unresolved interpolation can rank two lane-skippers by a value neither of them will
+    // actually land on, inverting order even though the resolved corridors themselves are already
+    // monotone. Same-lane edges use a different, untouched slotting path (topSlot, above) and are
+    // excluded.
+    const naturalEntryWant = (t) => t.corr[t.u + 1] ?? X.get(t.loNode);
+    const entryGroups = new Map(); // "chan|uNode" -> [t, ...] sharing one parent's entry channel
+    for (const t of tracked) {
+      if (t.sameLane) continue;
+      const key = `${t.u}|${t.uNode}`;
+      if (!entryGroups.has(key)) entryGroups.set(key, []);
+      entryGroups.get(key).push(t);
+    }
+    for (const members of entryGroups.values()) {
+      const chan = members[0].u;
+      const [lo, hi] = nodeRange(members[0].uNode);
+      const pitch = ROUTE_SLOT_PITCH;
+      // A group's own directly-adjacent members already sit in this exact channel's ledger under
+      // their OWN exitLo (exit channel `t.l-1` and entry channel `t.u` numerically collapse for a
+      // single-hop edge) — those are not foreign obstacles, they're this member's own claim and
+      // must not block its own entry want. A lane-skipper's own resolved corridor pick at
+      // `j = t.u+1` is the exact same quantity as its own `naturalEntryWant(t)` below, and `corr()`
+      // registers that pick into this same channel's ledger too (it claims both `chan=j-1` and
+      // `chan=j` so the corridor and the entry it feeds land on the same x) — so a lane-skipper's
+      // own natural want must be excluded here for the identical reason a direct hop's exitLo is:
+      // it is this member's own already-committed claim, not a foreign one (confirmed live: a
+      // lane-skipper's own want was appearing verbatim in its own group's obstacle list, forcing an
+      // unnecessary self-push that a direct hop would never suffer). Anything else already in the
+      // ledger for this channel is a genuinely unrelated, already-committed claim (typically a
+      // bundle trunk centered under the same parent, or a different lane-skipper's corridor pick
+      // through an intermediate lane that happens to coincide with this parent's entry channel) and
+      // must be treated as a fixed wall the group routes around, not smoothed over (confirmed live:
+      // a lane-skip corridor and a directly-adjacent sibling's own entry landed collinear at the
+      // same x once the group ignored it). A member's own claim can coincide, in value, with a
+      // genuinely foreign claim (a bundle trunk centered on the very same parent center a direct
+      // child also wants) — removing by value with a Set would then discard the real, still-
+      // unaccounted-for obstacle too. Remove by count instead: each member's own claim cancels
+      // exactly one matching ledger entry, so a coincidentally-identical foreign claim beyond that
+      // count still survives as fixed (confirmed live: a bundle trunk landed exactly on an unrelated
+      // tracked child's own natural center).
+      const ownExitLoCount = new Map();
+      for (const t of members) {
+        const ownX = t.l === t.u + 1 ? t.exitLo : naturalEntryWant(t);
+        ownExitLoCount.set(ownX, (ownExitLoCount.get(ownX) || 0) + 1);
+      }
+      const remaining = new Map(ownExitLoCount);
+      const fixed = [...new Set((slotsUsed.get(chan) || []).filter((x) => {
+        if ((remaining.get(x) || 0) > 0) { remaining.set(x, remaining.get(x) - 1); return false; }
+        return true;
+      }))];
+      // The REQUIRED final sequence is each member's own visible card-center order (mirroring the
+      // caller-facing definition of "visible order" exactly: card center, then physical lane, then
+      // authored index) — not the corridor-resolved `want` used below as each member's preferred
+      // target. A degenerate wrap can hand several lane-skippers the exact same raw card center
+      // (every one of them relaxed onto its own solo row at an identical reflow x); their corridor
+      // `want`s at the shared entry-adjacent lane are then whatever a separate, per-edge corridor
+      // search happened to land on, and that search's own resolution order has no obligation to
+      // agree with physical-lane order — so ranking this group by `want` can walk the members in
+      // the wrong sequence entirely (confirmed live: distances-from-center for six such lane-skip
+      // wants were genuinely too close to break ties meaningfully, and ranking by that
+      // near-arbitrary order inverted every one of them against physical lane). Ranking by visible
+      // order first and treating `want` only as a per-member preference — never the sequence
+      // itself — guarantees the assigned positions land monotonically in the one order that
+      // actually matters, regardless of how scattered the underlying corridor wants are.
+      // Centers must be compared with CENTER_TIE_EPS, not bitwise: two members can carry the exact
+      // same PUBLIC card center while relaxation's raw output for them differs by float noise many
+      // orders of magnitude below any meaningful pixel distance — an exact `a.cx - b.cx` would let
+      // that noise silently decide the order instead of falling through to lane/index (confirmed
+      // live: a tie at one shared public center, split across three different skip-depths, walked
+      // out of lane order because raw noise between two of them broke the tie before lane could).
+      const ordered = members
+        .map((t, i) => ({ t, i, cx: X.get(t.loNode), want: Math.min(hi, Math.max(lo, naturalEntryWant(t))) }))
+        .sort((a, b) => (Math.abs(a.cx - b.cx) < CENTER_TIE_EPS ? 0 : a.cx - b.cx) || a.t.l - b.t.l || a.i - b.i);
+      const final = ordered.map((o) => o.want);
+      // Push `final[i]` past every fixed obstacle within one pitch, walking outward (`dir`) until
+      // clear of all of them — bounded, since each push strictly increases (dir=+1) or decreases
+      // (dir=-1) the candidate and there are finitely many fixed obstacles to clear.
+      const pushPastFixed = (i, dir) => {
+        for (let guard = 0, moved = true; moved && guard <= fixed.length; guard++) {
+          moved = false;
+          for (const f of fixed) if (Math.abs(final[i] - f) < pitch - 1e-6) { final[i] = f + dir * pitch; moved = true; }
         }
+      };
+      for (let i = 0; i < final.length; i++) {
+        if (i) final[i] = Math.max(final[i], final[i - 1] + pitch);
+        pushPastFixed(i, 1);
+      }
+      if (final.length && final[final.length - 1] > hi) {
+        final[final.length - 1] = hi;
+        pushPastFixed(final.length - 1, -1);
+        for (let i = final.length - 2; i >= 0; i--) {
+          final[i] = Math.min(final[i], final[i + 1] - pitch);
+          pushPastFixed(i, -1);
+        }
+      }
+      ordered.forEach((o, idx) => { o.t.entryU = final[idx]; claimSlot(chan, final[idx]); });
+    }
+    // A lane-skipper's own resolved corridor pick at `j = t.u+1` (`naturalEntryWant(t)` above, i.e.
+    // `t.corr[t.u+1]`) is a real, independently-rendered channel-crossing riser one lane below its
+    // own entry channel, and it stays exactly where `corr()` placed it regardless of where the
+    // entry-ordering pass above ultimately landed that same member's own `entryU` (its own preferred
+    // position can be pushed elsewhere entirely by that pass's visible-order spacing or hi-clamp
+    // fixup). When `entryU` diverges from that pick, the pick is abandoned but still drawn — nothing
+    // above accounts for it as an obstacle for the rest of the group, so a differently-skipped
+    // sibling's own entryU can land within the verifier's collinearity tolerance of it (confirmed
+    // live: always <1.5px, never exact — C5-R1). Folding the pick into the shared `fixed` obstacle
+    // list above (tried first) pushes siblings a full pitch away from it — the same clearance owed
+    // to a genuinely foreign trunk — which perturbs fixtures that never had this defect (confirmed
+    // live: pills-stress-test's own crossings, and the aggregate crossing count, both changed with
+    // no collinear-overlap defect of their own). The actual defect is only ever a near-miss just
+    // under the verifier's 1.5px tolerance, so the smallest correct repair nudges only the colliding
+    // sibling, only far enough to clear that tolerance with a small margin — not a full pitch. 1.6 is
+    // that margin: the verifier's own collinear-overlap band is strictly <1.5px, so 1.6 is the
+    // smallest round value that clears it with headroom, independent of any fixture's own content
+    // (C6 — a full pitch of 12.5 was tried first and, though it also fixed all seven overlaps, it
+    // changed pills-stress-test's own crossings and breached per-fixture Manhattan-length ratchets
+    // (the aggregate ≤194 gate itself stayed at 194 either way — C2-R2's gate is a sum, not a per-
+    // fixture ceiling) on a fixture with no overlap defect of its own — confirming the fix must be
+    // as small as possible, not merely "past the threshold"). The pick's `owner` is recorded and
+    // excluded below: an edge's own abandoned pick can never collide with itself in the verifier
+    // (same-edge segment pairs are excluded from the collinear-overlap check), so nudging an edge
+    // away from its own abandoned pick has no verifier benefit and only risks new displacement —
+    // confirmed live: it fired nine times over the committed sweep, and at larger fan-in (n=15/16)
+    // that self-displacement alone produced two new collinear overlaps with zero sibling nudges
+    // involved (C6-R1).
+    const COLLINEAR_CLEAR = 1.6;
+    const abandonedLaneSkipPicks = tracked
+      .filter((t) => !t.sameLane && t.l !== t.u + 1 && t.corr[t.u + 1] != null && Math.abs(t.entryU - t.corr[t.u + 1]) > 1e-6)
+      .map((t) => ({ chan: t.u, x: t.corr[t.u + 1], owner: t }));
+    // A single forward pass over `abandonedLaneSkipPicks` can clear an earlier pick and land back
+    // within `COLLINEAR_CLEAR` of it while clearing a later one — the two picks can sit closer
+    // together than `2 * COLLINEAR_CLEAR`, so no point between them clears both, and re-checking
+    // already-cleared picks with a freshly recomputed sign just oscillates (confirmed live: C7 — a
+    // 14-sibling fan-in where two abandoned picks 3px apart left an empty clearance window).
+    // `pushPastFixed` above avoids exactly this by committing to one direction for an entire
+    // clearing operation and only ever moving further that way, so a pick once cleared stays
+    // cleared; re-scanning the full list is then bounded by its length, never open-ended. The same
+    // approach applies here: pick `dir` once, from the first real conflict in scan order, then walk
+    // every applicable pick in that fixed direction until a full pass clears them all.
+    for (const t of tracked) {
+      if (t.sameLane) continue;
+      const applicable = abandonedLaneSkipPicks.filter((p) => p.chan === t.u && p.owner !== t);
+      let dir = null;
+      for (let guard = 0, moved = true; moved && guard <= applicable.length; guard++) {
+        moved = false;
+        for (const p of applicable) {
+          const d = t.entryU - p.x;
+          if (Math.abs(d) < COLLINEAR_CLEAR) {
+            dir ??= Math.sign(d || 1);
+            t.entryU = p.x + dir * COLLINEAR_CLEAR;
+            moved = true;
+          }
+        }
+      }
+    }
+    for (const t of tracked) {
+      if (t.sameLane) continue;
+      t.channels = [];
+      for (let gph = t.u; gph <= t.l - 1; gph++) {
+        const xAbove = gph === t.u ? t.entryU : t.corr[gph];
+        const xBelow = gph === t.l - 1 ? t.exitLo : t.corr[gph + 1];
+        t.channels.push({ g: gph, xBelow, xAbove });
       }
     }
 
@@ -768,18 +1043,18 @@ export function renderSwimlane(code, opts = {}) {
       const busItems = [];
       for (const b of bundlePlans) {
         for (const k of b.kids) {
-          if (k.ownStraight || k.peelChan !== gph) continue;
-          busItems.push({ target: k, prop: "ownBusLevel", xL: Math.min(k.stubX, k.joinX) - 4, xR: Math.max(k.stubX, k.joinX) + 4 });
+          if (k.peelChan !== gph) continue;
+          busItems.push({ target: k, prop: "ownBusLevel", order: 1, xL: Math.min(k.stubX, k.joinX) - 4, xR: Math.max(k.stubX, k.joinX) + 4 });
         }
         if (b.jogs.has(gph)) {
           const j = b.jogs.get(gph);
-          busItems.push({ target: j, prop: "level", xL: Math.min(j.here, j.up) - 4, xR: Math.max(j.here, j.up) + 4 });
+          busItems.push({ target: j, prop: "level", order: 0, xL: Math.min(j.here, j.up) - 4, xR: Math.max(j.here, j.up) + 4 });
         }
         if (!b.groupStraight && b.lu === gph)
-          busItems.push({ target: b, prop: "groupBusLevel", xL: Math.min(b.trunkX, b.entryX) - 4, xR: Math.max(b.trunkX, b.entryX) + 4 });
+          busItems.push({ target: b, prop: "groupBusLevel", order: -1, xL: Math.min(b.trunkX, b.entryX) - 4, xR: Math.max(b.trunkX, b.entryX) + 4 });
       }
       if (busItems.length) {
-        const { levelOf, count } = assignTracks(busItems.map((it, i) => ({ id: i, xL: it.xL, xR: it.xR })));
+        const { levelOf, count } = assignTracks(busItems.map((it, i) => ({ id: i, xL: it.xL, xR: it.xR, order: it.order })));
         busItems.forEach((it, i) => { it.target[it.prop] = levelOf.get(i); });
         chans.get(gph).busLevels = count;
       }
@@ -788,7 +1063,7 @@ export function renderSwimlane(code, opts = {}) {
     for (const t of tracked) {
       for (const c of t.channels) {
         const isPill = t.pill && c.g === t.pillChan;
-        // pill pad covers the slide overhang (pw/2−10 past either segment end) plus margin
+        // pill pad covers the slide overhang (pw/2−6 past either segment end) plus margin
         const pad = isPill ? Math.max(16, t.pillW - 6) : 6;
         chans.get(c.g).items.push({
           t, cRef: c,
@@ -811,7 +1086,7 @@ export function renderSwimlane(code, opts = {}) {
         const tallest = Math.max(20, ...c.items.filter((it) => it.level === i && it.pill).map((it) => it.t.pillH || 20));
         c.rows.push({ h: isPillRow ? tallest + 7 : 12 });
       }
-      const busH = c.busLevels ? 10 + c.busLevels * 4 : (count ? 6 : 0);
+      const busH = c.busLevels ? c.busLevels * ROUTE_TRACK : (count ? 6 : 0);
       c.busH = busH;
       c.h = busH + c.rows.reduce((a, r) => a + r.h, 0) + (count || c.busLevels ? 10 : 0);
     }
@@ -848,40 +1123,83 @@ export function renderSwimlane(code, opts = {}) {
     const gEnd = (gph, side) => (side === "below" ? chanTop(gph) + chanH(gph) : chanTop(gph));
     const itemFor = (t, c) => chans.get(c.g).items.find((it) => it.t === t && it.cRef === c);
 
-    // Shared per-(group,member) path geometry, used by both collectVerticals (pill-slide
-    // conflict detection) and the final path/segment emission below, so the two never drift
-    // apart. A member's own branch (state-colored, never trunk-tagged) exists ONLY when it
-    // needs an actual jog to reach the spine (`!k.ownStraight`) — when its card already sits on
-    // the spine's own x (the common "several direct siblings share one target" case, where every
-    // such member's card sits at the same lane row and would otherwise produce pixel-identical
-    // "branches"), its whole connector IS the shared trunk: no separate, necessarily-distinct
-    // branch to draw. Every edge still keeps its own state color on its CARD regardless
-    // (entityCard is unaffected), so no information is lost (C29). Above its own peel lane, the
-    // member rides the group's shared per-lane spine up to the parent, jogging only at the rare
-    // lane boundary where two consecutive validated positions actually differ.
+    // Shared per-(group,member) path geometry. Every member first leaves its source on a distinct
+    // state-colored branch, even when the card is aligned with the eventual spine. Above that
+    // branch, members ride the group's per-lane spine toward the parent.
     function bundleGeom(b, k) {
       const pb = box.get(b.pid), cb = box.get(k.e.from);
-      const finalY = b.groupStraight ? pb.bottom : chanTop(b.lu) + 6 + (b.groupBusLevel || 0) * 4;
+      const finalY = b.groupStraight ? pb.bottom : chanTop(b.lu) + 6 + (b.groupBusLevel || 0) * ROUTE_TRACK;
       let branchPts = [];
       const trunkPts = [];
-      if (k.ownStraight) {
-        trunkPts.push({ x: k.joinX, y: cb.top });
-      } else {
-        const ownBusY = chanTop(k.peelChan) + 6 + (k.ownBusLevel || 0) * 4;
-        branchPts = [{ x: k.stubX, y: cb.top }, { x: k.stubX, y: ownBusY }, { x: k.joinX, y: ownBusY }];
-        trunkPts.push({ x: k.joinX, y: ownBusY });
-      }
+      const ownBusY = chanTop(k.peelChan) + 6 + (k.ownBusLevel || 0) * ROUTE_TRACK;
+      branchPts = [{ x: k.stubX, y: cb.top }, { x: k.stubX, y: ownBusY }, { x: k.joinX, y: ownBusY }];
+      trunkPts.push({ x: k.joinX, y: ownBusY });
       for (let j = k.peelChan; j >= b.lu + 2; j--) {
         const chan = j - 1;
         if (!b.jogs.has(chan)) continue;
         const jog = b.jogs.get(chan);
-        const y = chanTop(chan) + 6 + (jog.level || 0) * 4;
+        const y = chanTop(chan) + 6 + (jog.level || 0) * ROUTE_TRACK;
         trunkPts.push({ x: jog.here, y }, { x: jog.up, y });
       }
       trunkPts.push({ x: b.trunkX, y: finalY });
       if (!b.groupStraight) trunkPts.push({ x: b.entryX, y: finalY }, { x: b.entryX, y: pb.bottom });
       const dedupe = (pts) => pts.filter((p, i) => i === 0 || p.x !== pts[i - 1].x || p.y !== pts[i - 1].y);
       return { branchPts: dedupe(branchPts), trunkPts: dedupe(trunkPts) };
+    }
+
+    // Canonicalize the shared topology at every member junction. A geometrically coincident span
+    // is tagged/drawn as neutral trunk ink only when at least two relationships use the exact same
+    // canonical segment; unique approach spans remain part of that source's colored branch.
+    const bundlePieces = new Map();
+    const pointOn = (p, a, b) =>
+      a.x === b.x
+        ? p.x === a.x && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y)
+        : p.y === a.y && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x);
+    const splitAt = (pts, cuts) => {
+      if (pts.length < 2) return pts;
+      const out = [pts[0]];
+      for (let i = 1; i < pts.length; i++) {
+        const a = pts[i - 1], b = pts[i];
+        const between = cuts.filter((p) =>
+          pointOn(p, a, b) &&
+          !(p.x === a.x && p.y === a.y) &&
+          !(p.x === b.x && p.y === b.y)
+        ).sort((p, q) => Math.hypot(p.x - a.x, p.y - a.y) - Math.hypot(q.x - a.x, q.y - a.y));
+        for (const p of between)
+          if (p.x !== out[out.length - 1].x || p.y !== out[out.length - 1].y) out.push(p);
+        out.push(b);
+      }
+      return out;
+    };
+    const canonicalKey = (a, b) => {
+      const x1 = Math.min(a.x, b.x), y1 = Math.min(a.y, b.y);
+      const x2 = Math.max(a.x, b.x), y2 = Math.max(a.y, b.y);
+      return `${a.x === b.x ? "v" : "h"}|${x1.toFixed(4)},${y1.toFixed(4)}→${x2.toFixed(4)},${y2.toFixed(4)}`;
+    };
+    for (const b of bundlePlans) {
+      const raw = new Map(b.kids.map((k) => [k, bundleGeom(b, k)]));
+      const cuts = [...raw.values()].flatMap(({ trunkPts }) => trunkPts);
+      const canonical = new Map([...raw].map(([k, geom]) => [k, { ...geom, trunkPts: splitAt(geom.trunkPts, cuts) }]));
+      const users = new Map();
+      for (const [k, { trunkPts }] of canonical)
+        for (let i = 1; i < trunkPts.length; i++) {
+          const key = canonicalKey(trunkPts[i - 1], trunkPts[i]);
+          if (!users.has(key)) users.set(key, new Set());
+          users.get(key).add(k.e);
+        }
+      for (const [k, { branchPts, trunkPts }] of canonical) {
+        const pieces = [{ shared: false, pts: branchPts.slice() }];
+        for (let i = 1; i < trunkPts.length; i++) {
+          const a = trunkPts[i - 1], next = trunkPts[i];
+          const shared = users.get(canonicalKey(a, next)).size >= 2;
+          const last = pieces[pieces.length - 1];
+          if (last.shared === shared && last.pts.length && last.pts[last.pts.length - 1].x === a.x && last.pts[last.pts.length - 1].y === a.y)
+            last.pts.push(next);
+          else
+            pieces.push({ shared, pts: [a, next] });
+        }
+        bundlePieces.set(k, pieces.filter((piece) => piece.pts.length >= 2));
+      }
     }
 
     function collectVerticals() {
@@ -928,7 +1246,7 @@ export function renderSwimlane(code, opts = {}) {
       const halfH = ph / 2;
       const near = verts.filter((v) => v.owner !== ownerEdge && v.y1 < y + halfH && v.y2 > y - halfH);
       const lo = Math.min(segX[0], anchor), hi = Math.max(segX[1], anchor);
-      const overhang = Math.max(0, pw / 2 - 10);
+      const overhang = Math.max(0, pw / 2 - 6);
       const domLo = lo - overhang, domHi = hi + overhang;
       const conflicts = (x) => near.reduce((k, v) => k + (Math.abs(v.x - x) < pw / 2 + 3 ? 1 : 0), 0);
       let bestX = Math.min(domHi, Math.max(domLo, anchor)), bestC = conflicts(bestX), bestD = Infinity;
@@ -989,20 +1307,15 @@ export function renderSwimlane(code, opts = {}) {
     for (const b of bundlePlans) {
       for (const k of [...b.kids].sort((a, b2) => stateRank[g.nodes.get(a.e.from).state] - stateRank[g.nodes.get(b2.e.from).state])) {
         const st = T.state[g.nodes.get(k.e.from).state] || T.state.unknown;
-        const { branchPts, trunkPts } = bundleGeom(b, k);
         const edgeKey = `${k.e.from}->${k.e.to}`;
-        // own branch: short, unshared, state-colored (C30) — never trunk-tagged, since it is
-        // never meant to coincide with any other edge's segment.
-        if (branchPts.length >= 2) {
-          paths.push({ d: roundedOrtho(branchPts, 7), stroke: st.border, width: 1.7, edgeId: k.e.animationId });
-          debug.segs.push(...segsOf(branchPts, edgeKey));
-        }
-        // shared trunk: neutral/structural color regardless of any member's own state (C30),
-        // tagged with the target's id so the verifier's collinearity checks recognize every
-        // other member's identical span here as an intentional coincidence, not a violation.
-        if (trunkPts.length >= 2) {
-          paths.push({ d: roundedOrtho(trunkPts, 7), stroke: T.muted, width: 1.7, edgeId: k.e.animationId });
-          debug.segs.push(...segsOf(trunkPts, edgeKey, b.pid));
+        for (const piece of bundlePieces.get(k)) {
+          paths.push({
+            d: roundedOrtho(withoutCollinearPoints(piece.pts), 7),
+            stroke: piece.shared ? T.muted : st.border,
+            width: 1.7,
+            edgeId: k.e.animationId,
+          });
+          debug.segs.push(...segsOf(piece.pts, edgeKey, piece.shared ? b.pid : null));
         }
       }
     }

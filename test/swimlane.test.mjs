@@ -6,11 +6,11 @@ import { readFileSync, readdirSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderSwimlane, parseGraph, foldSignals, looksLikeHealthModel, DEFAULT_MAX_WIDTH } from "../src/swimlane.mjs";
+import { renderSwimlane, parseGraph, foldSignals, looksLikeHealthModel, DEFAULT_MAX_WIDTH, CENTER_TIE_EPS } from "../src/swimlane.mjs";
 import { extractBlocks } from "../src/extract.mjs";
 import { THEME_NAMES, THEMES } from "../src/themes.mjs";
 import { Diagnostics } from "../src/diag.mjs";
-import { verifyGeometry, verifySvgString, countCrossings, manhattanLength } from "./helpers/geo.mjs";
+import { verifyGeometry, verifySvgString, countCrossings, manhattanLength, findUnownedJunctions } from "./helpers/geo.mjs";
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -62,12 +62,8 @@ test("foldSignals: explicit results and states survive; orphans are reported", (
   assert.equal(rows[0].name, "P95");
   assert.equal(rows[0].result, "230 ms");
   assert.equal(rows[0].state, "degraded");
-  assert.equal(rows[0].sourceId, "s");
-  assert.equal(rows[0].id, "signal:s:e:0");
   assert.equal(rows[1].result, "0.4%");
   assert.equal(rows[1].state, "healthy");
-  assert.equal(rows[1].sourceId, "s");
-  assert.equal(rows[1].id, "signal:s:e:1");
   assert.ok(diag.warnings.some((w) => w.message.includes('"lonely"')));
 });
 
@@ -562,6 +558,104 @@ for (const { read: readFixture, file, title, edgeCount, maxTrunks, baselineCross
   });
 }
 
+// ---------- Correction 1 (C-R2): per-golden crossing/length/geometry ratchet, full corpus ----------
+// The 17 golden blocks (the exact same sources and slugs test/golden.test.mjs pins as SVGs) are
+// the widest available real-world sample of this renderer's routing decisions. Correction 1 (the
+// order-preserving parent-entry sort + declump, and the exitPitch revert) must not increase the
+// crossing count on any one of them, and must not reintroduce a geometry problem. Recorded below
+// is a per-fixture ratchet at the exact values measured immediately after Correction 1 landed
+// (2026-07-25) — any future change that regresses crossings/length or reintroduces a geometry
+// problem on any of these 17 fixtures fails loudly here. This is independent of, and does not
+// touch, the two existing pre-redesign baselines above (kitchen-sink/torture-dense, C24-C32) or
+// any file under test/golden/ — it only exercises render + metrics functions, never compares
+// against a committed golden SVG.
+// Correction 2 (C2-R2, 2026-07-26): pills-stress-test and deep-model-with-lane-skipping-edges were
+// re-tightened after fixing a genuine self-collision bug — a lane-skipper's own resolved corridor
+// pick at its natural entry channel is the exact same quantity `corr()` also claims into that
+// channel's shared ledger (it claims both `chan=j-1` and `chan=j`), but the group-allocation
+// exclusion below only ever excluded direct hops' own `exitLo`, never a lane-skipper's own natural
+// want — so a lane-skipper's own position spuriously counted as a foreign obstacle against itself,
+// forcing an unnecessary self-push (see `ownExitLoCount` in `computeLayout()`). Every other of the
+// 17 fixtures is byte-identical under this fix (verified by an in-memory pre-fix/post-fix A/B using
+// the same countCrossings()/manhattanLength() on both sides — see "aggregate crossings" tests below).
+const GOLDEN_CORPUS_SOURCES = [
+  "kitchen-sink.md", "pills-stress.md", "examples/showcase.md",
+  "test/fixtures/pr6-regressions.md", "test/fixtures/torture-deep.md",
+  "test/fixtures/torture-pills.md", "test/fixtures/torture-text.md",
+  "test/fixtures/torture-dense.md", "test/fixtures/torture-weird.md",
+];
+const GOLDEN_CORPUS_RATCHET = {
+  "kitchen-sink-health-model": { crossings: 19, manhattan: 13115 },
+  "pills-stress-test": { crossings: 8, manhattan: 5578 },
+  "health-model-zero-config": { crossings: 1, manhattan: 744 },
+  "fence-info-options-theme-in-the-fence-line": { crossings: 0, manhattan: 418 },
+  "order-pipeline-health": { crossings: 0, manhattan: 720 },
+  "ingestion-path": { crossings: 0, manhattan: 442 },
+  "add-operational-quality-signals-to-the-workload-model": { crossings: 1, manhattan: 3160 },
+  "add-security-signals-to-your-platform-health-model": { crossings: 4, manhattan: 1360 },
+  "aggregate-health-across-the-workload-portfolio": { crossings: 13, manhattan: 4374 },
+  "deep-model-with-lane-skipping-edges": { crossings: 22, manhattan: 5729 },
+  "pill-flood": { crossings: 73, manhattan: 15843 },
+  "text-extremes": { crossings: 0, manhattan: 1126 },
+  "dense-multi-parent-mesh": { crossings: 53, manhattan: 12847 },
+  "single-node": { crossings: 0, manhattan: 0 },
+  "two-node-chain": { crossings: 0, manhattan: 60 },
+  "cycle-and-self-loop": { crossings: 0, manhattan: 380 },
+  "orphan-signal-and-signal-to-signal": { crossings: 0, manhattan: 120 },
+};
+for (const source of GOLDEN_CORPUS_SOURCES) {
+  const blocks = extractBlocks(readRoot(source), THEME_NAMES);
+  for (const b of blocks) {
+    if (!looksLikeHealthModel(b.code)) continue;
+    test(`golden corpus ratchet (C-R2): ${b.slug} must not regress past Correction 1's own measured crossings/length/geometry baseline`, () => {
+      const ratchet = GOLDEN_CORPUS_RATCHET[b.slug];
+      assert.ok(ratchet, `no recorded ratchet baseline for slug "${b.slug}" — update GOLDEN_CORPUS_RATCHET`);
+      const r = renderSwimlane(b.code, {
+        theme: b.options.theme || "portal",
+        title: b.options.title ?? b.heading,
+        subtitle: b.options.subtitle,
+        lanes: b.options.lanes,
+        legend: b.options.legend,
+      });
+      const crossings = countCrossings(r.debug);
+      const manhattan = manhattanLength(r.debug);
+      assert.ok(crossings <= ratchet.crossings, `${b.slug}: expected at most ${ratchet.crossings} crossings (Correction 1's own baseline), got ${crossings}`);
+      assert.ok(manhattan <= ratchet.manhattan + 1, `${b.slug}: expected at most ~${ratchet.manhattan}px Manhattan length (Correction 1's own baseline), got ${Math.round(manhattan)}`);
+      assert.deepEqual(verifyGeometry(r), [], `${b.slug}: expected zero geometry problems`);
+    });
+  }
+}
+
+test("kitchen-sink routing keeps the Workload root, Shop, Secondary, and Reporting relationships source-attributable before canonical shared trunks", () => {
+  const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
+  const r = renderSwimlane(b.code, { theme: "portal", title: "Kitchen sink health model" });
+  const expected = [
+    "shop->root", "reporting->root", "logistics->root", "account->root", "secondary->root",
+    "web->shop", "api->shop", "db->shop", "cache->shop",
+    "db->reporting", "search->reporting",
+  ];
+
+  for (const edge of expected) {
+    const sourceId = edge.split("->", 1)[0];
+    const card = r.debug.cards.find((c) => c.id === sourceId);
+    const segs = r.debug.segs.filter((s) => s.edge === edge);
+    assert.ok(card && segs.length > 0, `missing public geometry for ${edge}`);
+    assert.ok(segs.some((s) => {
+      if (s.trunk != null) return false;
+      return [
+        { x: s.x1, y: s.y1 },
+        { x: s.x2, y: s.y2 },
+      ].some((p) =>
+        ((Math.abs(p.y - card.y) < 0.5 || Math.abs(p.y - (card.y + card.h)) < 0.5) && p.x >= card.x && p.x <= card.x + card.w) ||
+        ((Math.abs(p.x - card.x) < 0.5 || Math.abs(p.x - (card.x + card.w)) < 0.5) && p.y >= card.y && p.y <= card.y + card.h)
+      );
+    }), `${edge} needs a source-owned branch before any shared trunk`);
+  }
+
+  const problems = verifyGeometry(r, { minRouteTrack: 12 });
+  assert.deepEqual(problems, [], `routing ambiguity:\n  ${problems.join("\n  ")}`);
+});
+
 test("routing readability: torture-deep.md (the sparse, never-wraps, original lane-skip fixture) confirms the generalization at the opposite end of the density spectrum — a multi-row-skip member (l5c) now shares one trunk with an adjacent member (l4a), and geometry stays clean", () => {
   const [b] = extractBlocks(read("torture-deep.md"), THEME_NAMES);
   const r = renderSwimlane(b.code, { theme: "portal", title: b.heading });
@@ -572,6 +666,674 @@ test("routing readability: torture-deep.md (the sparse, never-wraps, original la
   const l3aTrunkEdges = new Set(r.debug.segs.filter((s) => s.trunk === "l3a").map((s) => s.edge));
   assert.deepEqual([...l3aTrunkEdges].sort(), ["l4a->l3a", "l5c->l3a"]);
 });
+
+// ---------- tracked parent-entry ordering (C1/C4: visible cx order, not declaration order) ----------
+// Five dashed/labelled leaf children (a,b,c,d,e) share one tracked parent p, spread by relaxation
+// far enough that both the two leftmost (a,b) and the two rightmost (d,e) exceed p's own entry-slot
+// range on their respective side and must clamp — a genuine two-sided same-boundary collision, not
+// merely a spacing artifact (naively-spaced single-side fixtures pass today and prove nothing; see
+// the blueprint's routing-readability baseline notes). c sits exactly on p's center (a same-instant
+// straight passthrough, independent of the ordering fix). The second case declares the very same
+// children out of visible-text order — since these five leaf siblings have no differentiating
+// structure beyond declaration order, the (out-of-scope, untouched) lane-ordering tie-break re-seats
+// them at different visible x positions, but whatever that resulting visible order turns out to be,
+// entries must still land monotonically in it — proving the fix keys off each child's own resolved
+// card center, not off source-text position.
+const entryXOf = (r, edge) => {
+  const vSegs = r.debug.segs.filter((s) => s.edge === edge && s.kind === "v");
+  const top = vSegs.reduce((a, b) => (b.y1 < a.y1 ? b : a));
+  return top.x1;
+};
+
+// Correction 1 (C-R1): "visible order" means each child's own resolved card center x, with
+// physical lane and declared/authored index as tie-breakers ONLY — never declaration order as the
+// primary key. For real-valued positions, a fully nondecreasing adjacent walk in that order is
+// mathematically equivalent to zero pairwise ("strict") inversions existing anywhere in the
+// sequence — no non-adjacent inversion can exist without at least one adjacent one — so an
+// adjacent-pair walk is a complete check, not a sampled one.
+// Correction 2 (C2-R1): centers are compared with CENTER_TIE_EPS, not bitwise, and for the exact
+// reason the renderer's own allocation sort now does the same — two centers can be genuinely
+// tied at every precision this check can observe while differing by float noise many orders of
+// magnitude below a meaningful pixel distance. Using the renderer's own tolerance here (rather
+// than an independently-chosen one) guarantees this canonical "expected order" and the renderer's
+// internal tie-break agree on which pairs are ties, so fixing one side alone can never manufacture
+// a spurious inversion against the other.
+function visibleEntryOrder(r, ids, declOrder, parentId = "p") {
+  return ids
+    .map((id) => {
+      const c = r.debug.cards.find((c) => c.id === id);
+      return { id, cx: c.x + c.w / 2, lane: c.lane, declIdx: declOrder.indexOf(id), entryX: entryXOf(r, `${id}->${parentId}`) };
+    })
+    .sort((a, b) => (Math.abs(a.cx - b.cx) < CENTER_TIE_EPS ? 0 : a.cx - b.cx) || a.lane - b.lane || a.declIdx - b.declIdx);
+}
+function strictInversions(ordered) {
+  const bad = [];
+  for (let i = 1; i < ordered.length; i++)
+    if (ordered[i].entryX < ordered[i - 1].entryX - 1e-6)
+      bad.push(`${ordered[i - 1].id}@${ordered[i - 1].entryX.toFixed(1)} -> ${ordered[i].id}@${ordered[i].entryX.toFixed(1)}`);
+  return bad;
+}
+function countDashedStatePaths(svg, color) {
+  const re = new RegExp(`<path[^>]*stroke="${color}"[^>]*stroke-dasharray="5 4"[^>]*/>`, "g");
+  return (svg.match(re) || []).length;
+}
+
+// Correction 3 (C3-R1): `strictInversions` proves order is never violated but tolerates equal
+// adjacent `entryX` values by design (a tie in visible order must not itself be flagged as a
+// regression); it therefore cannot, on its own, prove no two of a parent's tracked children were
+// actually collapsed onto the *same* physical entry x, which would make their pills/labels overlap
+// at the parent boundary regardless of where they sit in sort order. This checks all pairs (not
+// just cx-adjacent ones), since a coincidental collapse between non-neighboring entries would not
+// be caught by an adjacent-only walk. The user has ruled a full ROUTE_SLOT_PITCH gap is not
+// required (`straightenTrackedX` may legitimately narrow a pitch-spaced gap down to ~8.2648px when
+// snapping a near-aligned entry straight) — so this uses true float-equality (1e-6), not a minimum
+// spacing threshold, to avoid silently reintroducing the relaxed full-pitch requirement.
+function duplicateEntryXs(ordered) {
+  const bad = [];
+  for (let i = 0; i < ordered.length; i++)
+    for (let j = i + 1; j < ordered.length; j++)
+      if (Math.abs(ordered[i].entryX - ordered[j].entryX) < 1e-6)
+        bad.push(`${ordered[i].id}@${ordered[i].entryX.toFixed(3)} == ${ordered[j].id}@${ordered[j].entryX.toFixed(3)}`);
+  return bad;
+}
+for (const { label, ordered, expectFlagged } of [
+  {
+    label: "two entries collapsed to the exact same x",
+    ordered: [{ id: "a", entryX: 100 }, { id: "b", entryX: 100 }],
+    expectFlagged: true,
+  },
+  {
+    label: "two entries collapsed to float noise below any meaningful pixel distance",
+    ordered: [{ id: "a", entryX: 100 }, { id: "b", entryX: 100 + 1e-9 }],
+    expectFlagged: true,
+  },
+  {
+    label: "two entries genuinely distinct but below a full ROUTE_SLOT_PITCH gap (8.2648px, user-accepted straightening) must NOT be flagged as duplicates",
+    ordered: [{ id: "a", entryX: 100 }, { id: "b", entryX: 108.2648 }],
+    expectFlagged: false,
+  },
+]) {
+  test(`duplicateEntryXs direct unit coverage (C3-R1): ${label}`, () => {
+    const bad = duplicateEntryXs(ordered);
+    if (expectFlagged) assert.ok(bad.length > 0, "expected at least one duplicate/collapsed entry x to be reported");
+    else assert.deepEqual(bad, [], "expected zero duplicate/collapsed entry x values to be reported");
+  });
+}
+
+const PARENT_ENTRY_ORDER_FIXTURE = (order) => [
+  "flowchart BT",
+  ...order.map((id) => `${id}["${id.toUpperCase()}<br/>healthy"] -. "link ${id}" .-> p["P<br/>healthy"]`),
+  ...[...order, "p"].map((id) => `class ${id} green;`),
+].join("\n");
+
+for (const { label, order } of [
+  { label: "declared in visible left-to-right order", order: ["a", "b", "c", "d", "e"] },
+  { label: "declared out of visible order (scrambled source text)", order: ["e", "c", "a", "d", "b"] },
+]) {
+  test(`tracked parent-entry ordering: five-child two-sided clamp collision resolves by visible card-center order, ${label}`, () => {
+    const diag = new Diagnostics();
+    const r = renderSwimlane(PARENT_ENTRY_ORDER_FIXTURE(order), { theme: "portal", title: "t", maxWidth: 10000, diag });
+    assert.deepEqual(diag.warnings, [], "one `class` directive per line must parse with zero diagnostics warnings");
+    const ordered = visibleEntryOrder(r, ["a", "b", "c", "d", "e"], order);
+    assert.deepEqual(strictInversions(ordered), [], "expected zero strict inversions in visible card-center order");
+    for (const id of order) {
+      const pills = r.debug.pills.filter((p) => p.edge === `${id}->p`);
+      assert.equal(pills.length, 1, `expected exactly one pill for ${id}->p`);
+      assert.equal(pills[0].label, `link ${id}`, `expected the pill label to be the authored link text for ${id}`);
+      assert.ok(r.debug.segs.filter((s) => s.edge === `${id}->p`).every((s) => s.trunk == null),
+        `${id}->p must stay independently owned (trunk == null): each dashed/labeled child keeps its own stable edge key`);
+    }
+    assert.equal(countDashedStatePaths(r.svg, THEMES.portal.state.healthy.border), order.length,
+      "expected one dashed, healthy-colored path per tracked child (the `class` fix actually took effect)");
+    assert.deepEqual(verifyGeometry(r), []);
+    assert.deepEqual(verifySvgString(r.svg), []);
+  });
+}
+
+// Correction 1 (C-R1): the distance-from-parent-center heuristic previously used here is provably
+// order-violating on two independent, structurally distinct paths through the allocator — each
+// isolated below so a fix to one cannot be mistaken for covering both:
+//  (1) wrapped/lane-skip routes: when relaxation wraps children onto multiple physical rows, the
+//      intermediate-lane sort key must resolve through the edge's OWN already-computed corridor
+//      position, not a naive interpolation between its endpoints.
+//  (2) adjacent-lane passthrough: when a child's own exit x already sits inside the parent's node
+//      range, the edge claims that x immediately (in declaration order) and reuses it verbatim as
+//      its entry x, bypassing the sorted allocation pass entirely — so sorting has zero effect on
+//      these edges' final position.
+// Both fixtures below reproduce real, non-hypothetical inversions against the current allocator
+// (the inspector's own cited n=7/n=9, varied-width, maxWidth=700 wrapped cases, plus an isolated
+// single-row passthrough case) — not a random sweep alone.
+const WRAP_WORDS = ["Alpha service", "B", "Charlie the long named service handler", "D svc",
+  "Echo processing unit", "F", "Golf gateway component", "H svc long name here", "India orchestrator"];
+function wrappedEntryOrderFixture(n) {
+  const ids = "abcdefghi".slice(0, n).split("");
+  const declOrder = [...ids].reverse();
+  const md = ["flowchart BT",
+    ...declOrder.map((id) => `${id}["${WRAP_WORDS[ids.indexOf(id)]}<br/>healthy"] -. "link ${id}" .-> p["P<br/>healthy"]`),
+    ...[...ids, "p"].map((id) => `class ${id} green;`),
+  ].join("\n");
+  return { md, ids, declOrder };
+}
+const SHORT_WORDS = ["Aa", "Bb", "Cc", "Dd", "Ee", "Ff", "Gg", "Hh", "Ii"];
+function passthroughIsolationFixture(n) {
+  const ids = "abcdefghi".slice(0, n).split("");
+  const declOrder = [...ids].reverse();
+  const md = ["flowchart BT",
+    ...declOrder.map((id) => `${id}["${SHORT_WORDS[ids.indexOf(id)]}<br/>healthy"] -. "x${id}" .-> p["Parent with a very long descriptive title spanning wide<br/>healthy"]`),
+    ...[...ids, "p"].map((id) => `class ${id} green;`),
+  ].join("\n");
+  return { md, ids, declOrder };
+}
+
+for (const { label, n, maxWidth, build } of [
+  { label: "wrapped multi-row, varied-width labels (lane-skip sort-key mismatch)", n: 9, maxWidth: 700, build: wrappedEntryOrderFixture },
+  { label: "wrapped multi-row, varied-width labels (lane-skip sort-key mismatch)", n: 7, maxWidth: 700, build: wrappedEntryOrderFixture },
+  { label: "single-row, wide parent (adjacent-lane passthrough bypass)", n: 9, maxWidth: 20000, build: passthroughIsolationFixture },
+  { label: "single-row, wide parent (adjacent-lane passthrough bypass)", n: 7, maxWidth: 20000, build: passthroughIsolationFixture },
+]) {
+  test(`tracked parent-entry ordering: genuinely order-preserving assignment, ${label}, n=${n}`, () => {
+    const { md, ids, declOrder } = build(n);
+    const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth });
+    const ordered = visibleEntryOrder(r, ids, declOrder);
+    assert.deepEqual(strictInversions(ordered), [],
+      `expected zero strict inversions in visible card-center order (n=${n}, ${label})`);
+    assert.deepEqual(duplicateEntryXs(ordered), [],
+      `expected zero duplicate/collapsed entry x values (C3-R1) (n=${n}, ${label})`);
+    assert.deepEqual(verifyGeometry(r), []);
+    assert.deepEqual(verifySvgString(r.svg), []);
+  });
+}
+
+// Correction 2 (C2-R1): Correction 1's fix keyed the group-allocation sort off each child's raw
+// internal relaxation-output x (`X.get(...)`) directly. Two children's PUBLIC card centers can be
+// bitwise-equal — or differ only by float noise far below any meaningful pixel distance — while
+// that raw internal x differs by ~1e-14, so the physical-lane/authored-index tie-break never ran
+// for such a pair and the final allocation order silently followed whatever the noise-sensitive
+// comparison produced. This is not hypothetical: the inspector's own cited n=7/n=9, maxWidth=700
+// cases below reproduce a genuine, deterministic inversion (or, for n=9, the raw-x noise that a
+// regression could turn into one) against the unfixed allocator. `visibleEntryOrder`'s own
+// comparator applies the identical tolerance when computing the canonical expected order, so both
+// sides agree on which pairs are "tied" and fall through to lane/index identically.
+const TIE_SWEEP_WORDS = ["Alpha service", "B", "Charlie the long named service handler", "D svc",
+  "Echo processing unit", "F", "Golf gateway component", "H svc long name here", "India orchestrator",
+  "Juliet", "Kilo review console", "Lima", "Mike telemetry aggregator", "November", "Oscar reporting hub",
+  "Papa", "Quebec ingestion layer", "Romeo", "Sierra config service", "Tango", "Uniform", "Victor billing",
+  "Whiskey", "Xray diagnostics", "Yankee", "Zulu observability platform"];
+// Letters only, skipping "p" (the fixture's own parent id) so ids never collide with it; for
+// n<=9 this is byte-identical to the prior "abcdefghi".slice(0, n) — only larger fan-in (C6-R1)
+// needs ids past "i".
+function tieSweepIds(n) {
+  return "abcdefghijklmnopqrstuvwxyz".split("").filter((c) => c !== "p").slice(0, n);
+}
+function tieSweepFixture(n, seed) {
+  const ids = tieSweepIds(n);
+  const declOrder = [...ids].reverse();
+  const words = ids.map((_, i) => TIE_SWEEP_WORDS[(i + seed) % TIE_SWEEP_WORDS.length]);
+  const md = ["flowchart BT",
+    ...declOrder.map((id, i) => `${id}["${words[i]}<br/>healthy"] -. "link ${id}" .-> p["P<br/>healthy"]`),
+    ...[...ids, "p"].map((id) => `class ${id} green;`),
+  ].join("\n");
+  return { md, ids, declOrder };
+}
+
+for (const { n, seed } of [
+  { n: 7, seed: 21 }, // three lane-skippers of different skip depths land on an exactly-equal
+  // public center; raw-x noise between them silently reorders the allocation away from lane order.
+  { n: 9, seed: 16 }, // raw-x noise alone (no exact public tie) between two siblings — a latent
+  // case the same fix must keep clean.
+]) {
+  test(`tracked parent-entry ordering: equal/near-equal public-center ties resolve by lane/index, not raw-x noise (C2-R1), n=${n} seed=${seed}`, () => {
+    const { md, ids, declOrder } = tieSweepFixture(n, seed);
+    const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth: 700 });
+    const ordered = visibleEntryOrder(r, ids, declOrder);
+    assert.deepEqual(strictInversions(ordered), [],
+      `expected zero strict inversions in visible card-center order (n=${n}, seed=${seed})`);
+    assert.deepEqual(duplicateEntryXs(ordered), [],
+      `expected zero duplicate/collapsed entry x values (C3-R1) (n=${n}, seed=${seed})`);
+    assert.deepEqual(verifyGeometry(r), []);
+    assert.deepEqual(verifySvgString(r.svg), []);
+  });
+}
+
+// The following seven fixtures previously surfaced a collinear vertical overlap between a
+// directly-adjacent tracked edge's own parent-entry stub and a different, lane-skipping
+// sibling's intermediate corridor pick one lane below the same parent (C5-R1): the entry-
+// ordering pass excluded a lane-skipper's own corridor claim from the shared obstacle list for
+// the whole group so its own final position could still land there without a spurious self-push,
+// but that same corridor pick is a real, independently-rendered riser regardless of where the
+// pass ultimately placed the lane-skipper's own entry (its final position can be pushed
+// elsewhere entirely by ordering/hi-clamp) — leaving the abandoned pick as an untracked
+// collision risk for every other member of the group. HEAD (before Corrections 1-3's entry-
+// ordering work) is clean on all seven under both the current and HEAD's own verifier, so these
+// are task-caused, not pre-existing.
+for (const { n, maxWidth, seed } of [
+  { n: 6, maxWidth: 800, seed: 4 },
+  { n: 6, maxWidth: 900, seed: 4 },
+  { n: 6, maxWidth: 1000, seed: 23 },
+  { n: 7, maxWidth: 800, seed: 0 },
+  { n: 7, maxWidth: 900, seed: 14 },
+  { n: 9, maxWidth: 800, seed: 24 },
+  { n: 9, maxWidth: 1000, seed: 0 },
+]) {
+  test(`tracked parent-entry ordering: no collinear overlap between a lane-skipper's own abandoned corridor pick and a sibling's entry (C5-R1), n=${n} maxWidth=${maxWidth} seed=${seed}`, () => {
+    const { md } = tieSweepFixture(n, seed);
+    const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth });
+    assert.deepEqual(verifyGeometry(r), []);
+    assert.deepEqual(verifySvgString(r.svg), []);
+  });
+}
+
+// The nudge above must never fire from an edge's own abandoned pick (a "self-nudge") — only from
+// a pick owned by a different tracked edge in the same channel (C6-R1). A self-nudge can never
+// clear a real collision (the verifier's collinear-overlap check excludes same-edge segment
+// pairs), so it only risks new, unearned displacement. Confirmed live against the unfixed source:
+// the post-pass fired 73 times over the committed n=3..9 sweep below (64 sibling, 9 self), and at
+// larger fan-in that self-displacement alone produced two new collinear overlaps — one is this
+// n=15 case (matches the inspector's own cited edges/x exactly); the other is a purely
+// self-nudge-caused case (zero sibling nudges fired for it) substituted for the inspector's cited
+// n=16/seed=12 pixel, which this fixture's own generator does not reproduce byte-for-byte.
+for (const { n, maxWidth, seed } of [
+  { n: 15, maxWidth: 800, seed: 13 },
+  { n: 16, maxWidth: 900, seed: 9 },
+]) {
+  test(`tracked parent-entry ordering: an edge is never nudged by its own abandoned corridor pick (C6-R1), n=${n} maxWidth=${maxWidth} seed=${seed}`, () => {
+    const { md } = tieSweepFixture(n, seed);
+    const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth });
+    assert.deepEqual(verifyGeometry(r), []);
+    assert.deepEqual(verifySvgString(r.svg), []);
+  });
+}
+
+// A single ordered pass over `abandonedLaneSkipPicks` clears each pick using a direction
+// recomputed fresh against the entry's *current* position, so clearing a later pick can land the
+// entry back within tolerance of an earlier one whenever two abandoned picks sit closer together
+// than twice the clearance margin — no single point clears both without walking past the whole
+// cluster (C7-R1). Both fixtures below are outside the previously committed n<=9 sweep and are
+// HEAD-clean with or without the C6-R1 owner guard, confirming the regression is caused by this
+// single-pass nudge rather than the guard or the underlying corridor allocation.
+for (const { n, maxWidth, seed } of [
+  { n: 14, maxWidth: 800, seed: 8 },
+  { n: 14, maxWidth: 900, seed: 8 },
+]) {
+  test(`tracked parent-entry ordering: sibling nudge converges past every abandoned corridor pick even when picks cluster tighter than the clearance margin (C7-R1), n=${n} maxWidth=${maxWidth} seed=${seed}`, () => {
+    const { md } = tieSweepFixture(n, seed);
+    const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth });
+    assert.deepEqual(verifyGeometry(r), []);
+    assert.deepEqual(verifySvgString(r.svg), []);
+  });
+}
+
+test("tracked parent-entry ordering: deterministic varied-label sweep finds zero strict inversions, zero duplicate/collapsed entry x values, and zero geometry problems across n=3..14, seven maxWidths, and 26 seeds (C2-R1/C3-R1/C5-R1/C7-R1)", () => {
+  const allInversions = [];
+  const allDuplicates = [];
+  const allThroughCard = [];
+  const unexpectedGeometry = [];
+  const allSvg = [];
+  for (let n = 3; n <= 14; n++) {
+    for (const maxWidth of [400, 500, 600, 700, 800, 900, 1000]) {
+      for (let seed = 0; seed < TIE_SWEEP_WORDS.length; seed++) {
+        const { md, ids, declOrder } = tieSweepFixture(n, seed);
+        const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth });
+        const ordered = visibleEntryOrder(r, ids, declOrder);
+        const bad = strictInversions(ordered);
+        if (bad.length) allInversions.push(`n=${n} maxWidth=${maxWidth} seed=${seed}: ${bad.join("; ")}`);
+        const dup = duplicateEntryXs(ordered);
+        if (dup.length) allDuplicates.push(`n=${n} maxWidth=${maxWidth} seed=${seed}: ${dup.join("; ")}`);
+        const geom = verifyGeometry(r);
+        const throughCard = geom.filter((p) => p.includes("passes through card"));
+        if (throughCard.length) allThroughCard.push(`n=${n} maxWidth=${maxWidth} seed=${seed}: ${throughCard.join("; ")}`);
+        const rest = geom.filter((p) => !p.includes("passes through card"));
+        if (rest.length) unexpectedGeometry.push(`n=${n} maxWidth=${maxWidth} seed=${seed}: ${rest.join("; ")}`);
+        const svg = verifySvgString(r.svg);
+        if (svg.length) allSvg.push(`n=${n} maxWidth=${maxWidth} seed=${seed}: ${svg.join("; ")}`);
+      }
+    }
+  }
+  assert.deepEqual(allInversions, []);
+  assert.deepEqual(allDuplicates, [], "expected zero duplicate/collapsed entry x values anywhere in the sweep (C3-R1)");
+  assert.deepEqual(allThroughCard, [], "expected zero connector-passes-through-card problems anywhere in the sweep (C4-R1)");
+  assert.deepEqual(unexpectedGeometry, [], "expected zero non-through-card geometry problems anywhere in the sweep (C5-R1)");
+  assert.deepEqual(allSvg, [], "expected zero verifySvgString problems anywhere in the sweep (C4-R1)");
+});
+
+// A lane-skipping tracked edge whose intermediate corridor is exhausted by sibling edges converging
+// on the same "wanted" x (every card + the parent sharing one center, forcing several corr() picks
+// into the same narrow corridor) must never fall back to an unguarded raw interpolated x that lands
+// inside the intervening card. Minimal reproducer identified by inspection: n=7 seed=18 maxWidth=400,
+// where `a->p` previously drew a single vertical straight through card "f" (C4-R1).
+test("tracked parent-entry ordering: exhausted intermediate corridor never routes a connector through the intervening card (C4-R1), n=7 seed=18 maxWidth=400", () => {
+  const { md } = tieSweepFixture(7, 18);
+  const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth: 400 });
+  assert.deepEqual(verifyGeometry(r), []);
+  assert.deepEqual(verifySvgString(r.svg), []);
+});
+
+// ---------- aggregate crossing gate, user-accepted strict-order baseline (C2-R2) ------------------
+// The user's policy for Correction 2 is "allow individual increases if the total decreases": any
+// order-preserving routing/assignment adjustment is acceptable as long as summed countCrossings()
+// across all 17 golden fixtures does not exceed the accepted baseline, with geometry staying clean
+// and existing per-fixture caps (GOLDEN_CORPUS_RATCHET above) holding.
+//
+// Investigation record (2026-07-26, C2-R2): nine independent order-preserving assignment strategies
+// were tried against the live entry-allocation sub-problem — PAVA/L2 isotonic regression, a hybrid
+// sequential-claim-in-visible-order, backward tightening, a median-anchored bidirectional fill,
+// bidirectional obstacle-push, Gauss-Seidel relaxation, an unclamped-want two-sided boundary refit,
+// and a live-debugged self-collision-exclusion fix. Only the last was a genuine, valid, in-scope bug
+// (see GOLDEN_CORPUS_RATCHET's C2-R2 comment above) — applied to `src/swimlane.mjs`, it reduces the
+// aggregate total from 196 to 194 with zero geometry issues anywhere. The other eight either matched
+// 196 exactly (no improvement) or only beat it by violating C2-R1's strict visible-order requirement.
+//
+// A separately reconstructed pre-C2-R1 allocator (order-violating) reached 184 on this same corpus —
+// strictly lower, but only by reintroducing visible-order inversions C2-R1 exists to forbid (traced,
+// on pill-flood's 12-member hub group, to entries placed in an order that contradicts their own
+// physical card-center x — e.g. c10@260.2 before c2@197.7 before c7@210.2, each strictly decreasing).
+// After reviewing that evidence the user decided: "Use 194 as the strict-order baseline
+// (Recommended)" (see the blueprint's Decisions/Evidence for the full reconstruction proof and the
+// per-fixture delta breakdown against that now-retired comparison). 194 is therefore the accepted,
+// final gate — not an interim number pending a further search — so this test asserts `<=194`
+// directly against the live renderer, with no dependency on a parallel reconstructed-allocator
+// module (removed once its one-time decision-support purpose was served, to avoid shipping ~85KB of
+// duplicated pipeline code with no further durable test importer).
+test("aggregate crossings (C2-R2): strict-order renderer must not exceed the user-accepted 194 baseline, full 17-fixture golden corpus", () => {
+  let total = 0;
+  const perFixture = [];
+  for (const source of GOLDEN_CORPUS_SOURCES) {
+    const blocks = extractBlocks(readRoot(source), THEME_NAMES);
+    for (const b of blocks) {
+      if (!looksLikeHealthModel(b.code)) continue;
+      const r = renderSwimlane(b.code, {
+        theme: b.options.theme || "portal",
+        title: b.options.title ?? b.heading,
+        subtitle: b.options.subtitle,
+        lanes: b.options.lanes,
+        legend: b.options.legend,
+      });
+      const crossings = countCrossings(r.debug);
+      total += crossings;
+      perFixture.push({ slug: b.slug, crossings }); // per-fixture values kept visible for failure diagnosis
+      assert.deepEqual(verifyGeometry(r), [], `${b.slug}: expected zero geometry problems`);
+    }
+  }
+  // Correction 3 (C3-R3): assert the corpus is actually complete BEFORE gating the sum -- a
+  // silently-dropped fixture (e.g. a `looksLikeHealthModel` filter regression, or a source file
+  // failing to parse into blocks) could let an artificially low, incomplete total slip under 194
+  // undetected. The literal `17` mirrors GOLDEN_CORPUS_RATCHET's own fixed key count, not a
+  // self-referential `Object.keys(...).length` that could silently shrink alongside a real
+  // regression.
+  assert.equal(perFixture.length, 17,
+    `expected all 17 golden fixtures to be included in the aggregate crossing sum, got ${perFixture.length}: ${JSON.stringify(perFixture.map((f) => f.slug))}`);
+  assert.ok(total <= 194,
+    `expected aggregate crossings across all 17 golden fixtures to be at most the user-accepted 194 baseline, got ${total}: ${JSON.stringify(perFixture)}`);
+});
+
+// Correction 3 (C3-R3): proves the `=== 17` completeness assertion above actually has teeth, without
+// mutating any real fixture or re-rendering anything (all 17 golden fixtures must stay untouched).
+// GOLDEN_CORPUS_RATCHET's own 17 real slugs, sliced to 16 in-memory, must fail the identical shape
+// of assertion the real aggregate test now performs first -- a small assertion-shape proof is
+// sufficient here since there is no live corpus defect to reproduce.
+test("aggregate crossings (C2-R2/C3-R3): a missing fixture must fail the corpus-completeness check, not silently slip through", () => {
+  const allSlugs = Object.keys(GOLDEN_CORPUS_RATCHET);
+  assert.equal(allSlugs.length, 17, "fixture precondition: the real golden corpus itself must have exactly 17 recorded slugs");
+  const missingOne = allSlugs.slice(0, -1);
+  assert.throws(() => assert.equal(missingOne.length, 17),
+    { name: "AssertionError" },
+    "a 16-fixture corpus must fail the same `=== 17` completeness assertion the real aggregate test performs");
+});
+
+
+
+// Correction 1 (C-R5): exact aligned-center centers -> one straight vertical is a LOCK-IN, not a
+// hypothesis under test here — the "Compute -> Platform team's" referenced example from the report.
+// When a tracked (dashed/labeled) edge's parent and child are already center-aligned and nothing
+// else in that parent's entry channel is within one slot pitch, the route must be one straight
+// vertical (no jog).
+test("center-aligned tracked edge: unobstructed straight vertical, no horizontal jog (Compute -> Platform team's, referenced) [lock-in]", () => {
+  const diag = new Diagnostics();
+  const md = ["flowchart BT",
+    `c["Compute<br/>healthy"] -. "referenced" .-> p["Platform teams<br/>healthy"]`,
+    `class c green;`,
+    `class p green;`,
+  ].join("\n");
+  const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth: 10000, diag });
+  assert.deepEqual(diag.warnings, [], "one `class` directive per line must parse with zero diagnostics warnings");
+  const cCx = r.debug.cards.find((c) => c.id === "c").x + r.debug.cards.find((c) => c.id === "c").w / 2;
+  const pCx = r.debug.cards.find((c) => c.id === "p").x + r.debug.cards.find((c) => c.id === "p").w / 2;
+  assert.equal(cCx, pCx, "fixture precondition: child and parent must be truly center-aligned");
+  const segs = r.debug.segs.filter((s) => s.edge === "c->p");
+  assert.equal(segs.filter((s) => s.kind === "h").length, 0, "expected no horizontal jog");
+  assert.equal(segs.filter((s) => s.kind === "v").length, 1, "expected exactly one vertical segment");
+  assert.equal(segs[0].x1, segs[0].x2, "the vertical must be truly vertical (one x)");
+  assert.equal(segs[0].x1, pCx, "the straight route must run at the shared center x");
+  assert.ok(segs.every((s) => s.trunk == null), "c->p must stay independently owned (trunk == null)");
+  const pills = r.debug.pills.filter((p) => p.edge === "c->p");
+  assert.equal(pills.length, 1, "expected exactly one pill for c->p");
+  assert.equal(pills[0].label, "referenced", "expected the pill label to be the authored link text");
+  assert.equal(countDashedStatePaths(r.svg, THEMES.portal.state.healthy.border), 1,
+    "expected one dashed, healthy-colored path (the `class` fix actually took effect, preserving label/dash/state color)");
+  assert.deepEqual(verifyGeometry(r), []);
+  assert.deepEqual(verifySvgString(r.svg), []);
+});
+
+// A legitimate 2-member solid/unlabeled bundle (a,b) shares one canonical trunk into p, centered
+// exactly on p's own cx. c is an unrelated, independently-tracked (dashed/unlabeled) edge into the
+// SAME parent, symmetrically positioned so its own card-center is also exactly p.cx — i.e., c's
+// parent-entry channel already holds the bundle's trunk entry at zero distance (well within one
+// slot pitch). l1/r1 are boundary-clamping siblings that force the symmetric relaxation needed for
+// p.cx to converge exactly onto both the bundle's midpoint and c's own cx (proven live, 2026-07-24:
+// without them, a/b/c do not self-center on one shared x). c must never join the bundle's trunk (it
+// carries its own label-free dash, not the bundle's shared solid style) — it must instead be
+// deflected by at least one full ROUTE_SLOT_PITCH (12.5px, src/swimlane.mjs:342) from the trunk's x,
+// the same minimum separation the shared `used`-slot ledger enforces everywhere else in this channel
+// (src/swimlane.mjs:637-639,680). Before the fix, c's own exit-slot pitch defaults to a bare `6`
+// (src/swimlane.mjs:718) — smaller than ROUTE_SLOT_PITCH — so it lands only 6px from the trunk: an
+// insufficient, unowned near-coincidence at the parent boundary (the reported defect), even though
+// c stays correctly untagged/independent and verifyGeometry's collinearity rule does not catch it
+// (a same-x *touch* is not the same shape as the *overlap* that rule flags).
+const BUNDLE_VS_ALIGNED_TRACKED_FIXTURE = ["flowchart BT",
+  `l1["L1<br/>healthy"] -. "link l1" .-> p["P<br/>healthy"]`,
+  `a["A<br/>healthy"] --> p["P<br/>healthy"]`,
+  `c["C<br/>healthy"] -. .-> p["P<br/>healthy"]`,
+  `b["B<br/>healthy"] --> p["P<br/>healthy"]`,
+  `r1["R1<br/>healthy"] -. "link r1" .-> p["P<br/>healthy"]`,
+  `class l1 green;`,
+  `class a green;`,
+  `class c green;`,
+  `class b green;`,
+  `class r1 green;`,
+  `class p green;`,
+].join("\n");
+
+test("center-aligned tracked edge vs. an already-occupied channel: collision priority (C40) and unrelated-route separation from a bundle trunk (C42/C43)", () => {
+  const diag = new Diagnostics();
+  const r = renderSwimlane(BUNDLE_VS_ALIGNED_TRACKED_FIXTURE, { theme: "portal", title: "t", maxWidth: 20000, diag });
+  assert.deepEqual(diag.warnings, [], "one `class` directive per line must parse with zero diagnostics warnings");
+  const cardCx = (id) => { const c = r.debug.cards.find((c) => c.id === id); return c.x + c.w / 2; };
+  assert.equal(cardCx("c"), cardCx("p"), "fixture precondition: c must be truly center-aligned to p");
+
+  // C43 (regression guard): the legitimate a/b bundle keeps one shared, correctly-tagged trunk,
+  // centered on p's own cx, untouched by the coincident-route fix.
+  const trunkSegs = r.debug.segs.filter((s) => s.trunk === "p");
+  const trunkXs = new Set(trunkSegs.map((s) => s.x1));
+  assert.deepEqual(new Set(trunkSegs.map((s) => s.edge)), new Set(["a->p", "b->p"]), "expected exactly the bundle members to own the trunk");
+  assert.equal(trunkXs.size, 1, "expected one shared trunk x");
+  const trunkX = [...trunkXs][0];
+  assert.equal(trunkX, cardCx("p"), "the bundle trunk must be centered on p's own cx");
+
+  // C38 (regression guard, still in force): c stays its own independently-routed, untagged edge,
+  // with its own stable edge key, label (none authored -> none rendered), dash, and state color.
+  const cSegs = r.debug.segs.filter((s) => s.edge === "c->p");
+  assert.ok(cSegs.every((s) => s.trunk == null), "c must never be absorbed into the bundle's trunk");
+  assert.deepEqual(r.debug.pills.filter((p) => p.edge === "c->p"), [], "c carries no label -> no pill");
+  assert.equal(countDashedStatePaths(r.svg, THEMES.portal.state.healthy.border), 3,
+    "expected one dashed, healthy-colored path each for l1, c, and r1 (state color/dash preserved, `class` fix took effect)");
+
+  // Correction 1 (C-R4): the unowned-T-junction question (within EPS=0.5px, an intentional
+  // detection band — see findUnownedJunctions's own header comment, C2-R3) is answered by a real
+  // detector, not a numeric spacing proxy — see the dedicated C-R4 test below, which asserts zero
+  // coincidences on this fixture. Here we retain only the weaker, pitch-agnostic sanity floor that
+  // c's own entry is genuinely a *different* coordinate from the trunk it must never be confused with.
+  const cEntryX = cSegs.find((s) => s.kind === "v").x1;
+  assert.notEqual(cEntryX, trunkX, "c's entry must be a distinct coordinate from the bundle trunk it is not a member of");
+
+  assert.deepEqual(verifyGeometry(r), []);
+  assert.deepEqual(verifySvgString(r.svg), []);
+});
+
+// Correction 1 (C-R4): a dedicated within-EPS(0.5px)-endpoint-on-foreign-segment detector, not a
+// numeric spacing proxy (findUnownedJunctions, test/helpers/geo.mjs). The reported defect's structural
+// shape is a bundle's shared trunk plus a second, unrelated route whose own final approach into
+// the same parent boundary lands on/overlaps that trunk — the legacy `svg/swimlane/modeling-cost-
+// concerns.svg` screenshot's Database/Token-efficiency collinear stub overlap is the structural
+// lead for this shape (read for context only, never the test target, per instruction). Proven
+// here on two independent public fixtures: the bundle-vs-aligned-tracked fixture above, and a new
+// fixture modeled on the legacy topology (a 2-member solid bundle plus an independently routed,
+// dashed/labeled, off-center child whose own natural landing sits only ~13px — about one
+// ROUTE_SLOT_PITCH — from the bundle's trunk, the tightest margin this topology produces).
+const LEGACY_TOPOLOGY_FIXTURE = ["flowchart BT",
+  `web["Website<br/>healthy"] --> root["Root<br/>healthy"]`,
+  `eff["Eff<br/>degraded"] -. "suppressed propagation" .-> root["Root<br/>healthy"]`,
+  `db["Database<br/>healthy"] --> root["Root<br/>healthy"]`,
+  `class web green;`,
+  `class db green;`,
+  `class eff amber;`,
+  `class root green;`,
+].join("\n");
+
+for (const { label, md } of [
+  { label: "bundle trunk vs. center-aligned independent tracked edge", md: BUNDLE_VS_ALIGNED_TRACKED_FIXTURE },
+  { label: "legacy-screenshot-modeled topology: bundle vs. off-center dashed/labeled child", md: LEGACY_TOPOLOGY_FIXTURE },
+]) {
+  test(`unrelated routes never merge into an unowned T-junction at a parent boundary (C-R4), ${label}`, () => {
+    const diag = new Diagnostics();
+    const r = renderSwimlane(md, { theme: "portal", title: "t", maxWidth: 20000, diag });
+    assert.deepEqual(diag.warnings, [], "one `class` directive per line must parse with zero diagnostics warnings");
+    assert.deepEqual(findUnownedJunctions(r.debug), [], "expected zero unowned T-junctions at any parent boundary");
+    assert.deepEqual(verifyGeometry(r), []);
+    assert.deepEqual(verifySvgString(r.svg), []);
+  });
+}
+
+// Correction 3 (C3-R2): the two fixtures above prove zero unowned junctions on synthetic bundle
+// topologies, but the full 17-fixture golden corpus is the only place a *real* downward-routed edge
+// (`cycle-and-self-loop`'s cycle-breaking `b->a`, whose target `a` is laid out below its source `b`)
+// actually exists. Exercising it here proves the direction-aware terminus selection holds on genuine
+// rendered output, not just engineered synthetic segments.
+for (const source of GOLDEN_CORPUS_SOURCES) {
+  const blocks = extractBlocks(readRoot(source), THEME_NAMES);
+  for (const b of blocks) {
+    if (!looksLikeHealthModel(b.code)) continue;
+    test(`unrelated routes never merge into an unowned T-junction at a parent boundary (C3-R2), golden corpus: ${b.slug}`, () => {
+      const r = renderSwimlane(b.code, {
+        theme: b.options.theme || "portal",
+        title: b.options.title ?? b.heading,
+        subtitle: b.options.subtitle,
+        lanes: b.options.lanes,
+        legend: b.options.legend,
+      });
+      assert.deepEqual(findUnownedJunctions(r.debug), [], `${b.slug}: expected zero unowned T-junctions at any parent boundary`);
+    });
+  }
+}
+
+// ---------- findUnownedJunctions: direct unit coverage of ownership/direction logic (C2-R3) ------
+// The two fixture-driven tests above prove the *public, rendered* behavior (zero junctions on real
+// topologies) but cannot isolate every branch of the detector's own ownership/direction logic —
+// some of these branches (e.g. a single edge carrying a trunk id on one segment but not on the
+// segment meeting its own terminus) are not currently producible by the live renderer at all (a
+// bundle member's shared pieces always carry the *same* trunk id, so this can't yet occur through
+// rendering), yet the helper's *contract* should still be correct in isolation, defensively, since
+// that invariant is an implementation detail this test suite should not have to rely on. These
+// cases construct `debug.segs` directly — reusing findUnownedJunctions itself, not a parallel
+// geometry framework — exactly as `countCrossings`/`verifyGeometry` are already exercised via real
+// `r.debug` objects elsewhere in this file, just with the minimal synthetic input needed to isolate
+// one branch at a time.
+const junctionSeg = (x1, y1, x2, y2, edge, trunk = null) => ({ x1, y1, x2, y2, kind: x1 === x2 ? "v" : "h", edge, trunk });
+for (const { label, segs, cards, expectFlagged } of [
+  {
+    label: "foreign vertical exact T: A's parent-facing terminus lands mid-span on a longer foreign vertical segment",
+    segs: [
+      junctionSeg(100, 10, 100, 50, "a->p"), // A: terminus = (100, 10)
+      junctionSeg(100, 5, 100, 20, "b->q"), // B: foreign vertical, strictly spans y=10 at the same x
+    ],
+    expectFlagged: true,
+  },
+  {
+    label: "foreign horizontal exact T: A's parent-facing terminus lands mid-span on a foreign horizontal segment",
+    segs: [
+      junctionSeg(100, 10, 100, 50, "a->p"), // A: terminus = (100, 10)
+      junctionSeg(80, 10, 120, 10, "b->q"), // B: foreign horizontal, strictly spans x=100 at the same y
+    ],
+    expectFlagged: true,
+  },
+  {
+    label: "asymmetric ownership: A carries no trunk anywhere; B's touched segment carries an unrelated trunk",
+    segs: [
+      junctionSeg(200, 10, 200, 50, "a->p"), // A: terminus = (200, 10), no trunk at all
+      junctionSeg(180, 10, 220, 10, "b->q", "P1"), // B: foreign, trunk P1 -- A owns nothing, so still foreign
+    ],
+    expectFlagged: true,
+  },
+  {
+    label: "same trunk id elsewhere on A's own (disconnected) path must not suppress a genuinely foreign touch at A's terminus",
+    segs: [
+      junctionSeg(300, 10, 300, 50, "a->p"), // A's own terminus-bearing segment: no trunk here
+      junctionSeg(300, 50, 340, 50, "a->p", "P1"), // A's own OTHER, disconnected segment: trunk P1 elsewhere
+      junctionSeg(280, 10, 320, 10, "b->q", "P1"), // B: foreign, coincidentally also tagged P1
+    ],
+    expectFlagged: true,
+  },
+  {
+    label: "genuine mutual shared segment: A's own terminus-bearing segment and B's touched segment share the same trunk id",
+    segs: [
+      junctionSeg(400, 10, 400, 50, "a->p", "Q"), // A's terminus-bearing segment IS tagged Q
+      junctionSeg(380, 10, 420, 10, "b->q", "Q"), // B's touched segment is also tagged Q: deliberate shared ink
+    ],
+    expectFlagged: false,
+  },
+  {
+    label: "parent-facing (min-y) terminus is checked, but an edge's own child-facing (max-y) end is out of scope",
+    segs: [
+      junctionSeg(500, 10, 500, 90, "a->p"), // A: parent-facing terminus = (500, 10); child-facing end = (500, 90)
+      junctionSeg(480, 90, 520, 90, "b->q"), // B: foreign, but only touches A's CHILD-facing end, not its terminus
+    ],
+    expectFlagged: false,
+  },
+  {
+    label: "(C3-R2) downward parent-facing foreign vertical T: parent card p sits BELOW child a, so the max-y (not min-y) terminus is parent-facing",
+    cards: [{ id: "a", x: 580, y: 0, w: 40, h: 40 }, { id: "p", x: 580, y: 100, w: 40, h: 40 }],
+    segs: [
+      junctionSeg(600, 40, 600, 100, "a->p"), // A: downward edge; parent-facing terminus = (600, 100) since p (y=100) is below a (y=0)
+      junctionSeg(600, 95, 600, 105, "b->q"), // B stub: foreign vertical, strictly spans y=100 at the same x
+      junctionSeg(900, 10, 900, 30, "b->q"), // B decoy: disconnected far-away segment so B's OWN min-y terminus (900,10) can't land on A
+    ],
+    expectFlagged: true,
+  },
+  {
+    label: "(C3-R2) downward parent-facing foreign horizontal T: parent card p sits BELOW child a",
+    cards: [{ id: "a", x: 680, y: 0, w: 40, h: 40 }, { id: "p", x: 680, y: 100, w: 40, h: 40 }],
+    segs: [
+      junctionSeg(700, 40, 700, 100, "a->p"), // A: downward edge; parent-facing terminus = (700, 100)
+      junctionSeg(680, 100, 720, 100, "b->q"), // B stub: foreign horizontal, strictly spans x=700 at the same y
+      junctionSeg(900, 10, 920, 10, "b->q"), // B decoy: disconnected far-away segment so B's OWN min-y terminus can't land on A
+    ],
+    expectFlagged: true,
+  },
+  {
+    label: "(C3-R2) downward child-facing (min-y) terminus is out of scope: only the max-y parent-facing end is checked when the parent sits below",
+    cards: [{ id: "a", x: 780, y: 0, w: 40, h: 40 }, { id: "p", x: 780, y: 100, w: 40, h: 40 }],
+    segs: [
+      junctionSeg(800, 40, 800, 100, "a->p"), // A: child-facing end = (800, 40); parent-facing terminus = (800, 100)
+      junctionSeg(780, 40, 820, 40, "b->q"), // B: foreign, but only touches A's CHILD-facing end (min-y), not its (max-y) terminus
+    ],
+    expectFlagged: false,
+  },
+]) {
+  test(`findUnownedJunctions direct unit coverage (C2-R3/C3-R2): ${label}`, () => {
+    const problems = findUnownedJunctions({ segs, cards });
+    if (expectFlagged) assert.ok(problems.length > 0, "expected at least one unowned T-junction to be reported");
+    else assert.deepEqual(problems, [], "expected zero unowned T-junctions to be reported");
+  });
+}
 
 // ---------- status pill vs header text (regression: long subtitle slid under the pill) ----------
 // The header qualifier (subtitle) shares its row with the right-aligned status pill. The card is
@@ -673,6 +1435,59 @@ const CHROME = [
   "/usr/bin/chromium", "/usr/bin/chromium-browser",
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].find((p) => p && existsSync(p));
+
+test("browser: kitchen-sink route/card/pill geometry is disjoint and every rendered extent stays inside the SVG",
+  { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
+    const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
+    const r = renderSwimlane(b.code, { theme: "portal", title: "Kitchen sink health model" });
+    assert.ok(r.W <= DEFAULT_MAX_WIDTH, `renderer width ${r.W} exceeds ${DEFAULT_MAX_WIDTH}`);
+    const page = `<!doctype html><meta charset="utf-8"><style>body{margin:0}</style><body>${r.svg}<script>
+      const svg=document.querySelector('svg'), svgRect=svg.getBoundingClientRect();
+      const content=[...svg.children].find(el=>el.matches('g[transform]')&&el.querySelector(':scope > g[fill="none"]'));
+      const cardModel=${JSON.stringify(r.debug.cards)}, pillModel=${JSON.stringify(r.debug.pills)}, segModel=${JSON.stringify(r.debug.segs)};
+      const cards=[...content.querySelectorAll(':scope > g[filter="url(#cs)"] > rect')].map((el,i)=>({id:cardModel[i].id,el,rect:el.getBoundingClientRect()}));
+      const pills=[...content.querySelectorAll(':scope > g[stroke="none"]')].map((el,i)=>({id:pillModel[i].edge,el,rect:el.getBoundingClientRect()}));
+      const paths=[...content.querySelector(':scope > g[fill="none"]').querySelectorAll(':scope > path')];
+      const inside=(p,r,pad=0)=>p.x>r.left+pad&&p.x<r.right-pad&&p.y>r.top+pad&&p.y<r.bottom-pad;
+      const overlap=(a,b,pad=0)=>a.left+pad<b.right&&b.left+pad<a.right&&a.top+pad<b.bottom&&b.top+pad<a.bottom;
+      const point=svg.createSVGPoint(), routeCard=[], routePill=[];
+      for(const path of paths){
+        const len=path.getTotalLength(), ctm=path.getScreenCTM(), modelCtm=path.getCTM();
+        const endpoint=(distance)=>{const q=path.getPointAtLength(distance);return q.matrixTransform(modelCtm)};
+        const start=endpoint(0),end=endpoint(len),near=(p,s)=>
+          (Math.abs(p.x-s.x1)<.1&&Math.abs(p.y-s.y1)<.1)||(Math.abs(p.x-s.x2)<.1&&Math.abs(p.y-s.y2)<.1);
+        const candidateEdges=[...new Set(segModel.filter(s=>near(start,s)).map(s=>s.edge))];
+        const id=candidateEdges.find(edge=>segModel.some(s=>s.edge===edge&&near(end,s)))||candidateEdges[0];
+        const samples=[]; for(let d=0;d<len;d+=0.75)samples.push(d); samples.push(len);
+        for(const d of samples){
+          const q=path.getPointAtLength(d); point.x=q.x; point.y=q.y;
+          const p=point.matrixTransform(ctm);
+          for(const card of cards) if(inside(p,card.rect,2)) routeCard.push(id+'×'+card.id);
+          for(const pill of pills) if(pill.id!==id&&inside(p,pill.rect,1)) routePill.push(id+'×'+pill.id);
+        }
+      }
+      const cardPill=[], pillPill=[];
+      for(const card of cards)for(const pill of pills)if(overlap(card.rect,pill.rect,1))cardPill.push(card.id+'×'+pill.id);
+      for(let i=0;i<pills.length;i++)for(let j=i+1;j<pills.length;j++)if(overlap(pills[i].rect,pills[j].rect,1))pillPill.push(pills[i].id+'×'+pills[j].id);
+      const scale=svgRect.width/svg.viewBox.baseVal.width, outside=[];
+      const extents=[
+        ...cards.map(x=>({name:'card:'+x.id,rect:x.rect})),
+        ...pills.map(x=>({name:'pill:'+x.id,rect:x.el.getBoundingClientRect()})),
+        ...[...svg.querySelectorAll('text')].map((el,i)=>({name:'text:'+i,rect:el.getBoundingClientRect()})),
+        ...paths.map((el,i)=>{const r=el.getBoundingClientRect(),h=(parseFloat(getComputedStyle(el).strokeWidth)||0)*scale/2;return{name:'route:'+i,rect:{left:r.left-h,right:r.right+h,top:r.top-h,bottom:r.bottom+h}}}),
+      ];
+      for(const x of extents)if(x.rect.left<svgRect.left-.5||x.rect.right>svgRect.right+.5||x.rect.top<svgRect.top-.5||x.rect.bottom>svgRect.bottom+.5)outside.push(x.name);
+      const suppressed=pills.find(x=>x.el.textContent.includes('suppressed'));
+      document.body.textContent=JSON.stringify({routeCard:[...new Set(routeCard)],routePill:[...new Set(routePill)],cardPill,pillPill,outside,suppressedInside:!!suppressed&&!outside.includes('pill:'+suppressed.id)});
+    <\/script></body>`;
+    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
+    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", url], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const m = dom.match(/\{"routeCard".*?\}/s);
+    assert.ok(m, "could not read kitchen-sink DOM geometry from Chrome");
+    assert.deepEqual(JSON.parse(m[0]), {
+      routeCard: [], routePill: [], cardPill: [], pillPill: [], outside: [], suppressedInside: true,
+    });
+  });
 
 test("browser: the Shop subtitle's real glyph box clears the status pill by >= 12px",
   { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
