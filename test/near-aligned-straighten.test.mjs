@@ -15,7 +15,6 @@ import { THEME_NAMES } from "../src/themes.mjs";
 import { verifyGeometry, verifySvgString } from "./helpers/geo.mjs";
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
-const NO_WRAP_MAX_WIDTH = 10000;
 
 // segments the renderer emitted for one edge ("from->to"); "v" = vertical, "h" = horizontal.
 const edgeSegs = (r, edge) => r.debug.segs.filter((s) => s.edge === edge);
@@ -50,7 +49,7 @@ const opBlock = () =>
 
 test(`screenshot 1 (${OP_SLUG}): the suppressed-propagation edge is one straight vertical`, () => {
   const b = opBlock();
-  const r = renderSwimlane(b.code, { theme: "portal", title: b.heading, maxWidth: NO_WRAP_MAX_WIDTH });
+  const r = renderSwimlane(b.code, { theme: "portal", title: b.heading });
   const segs = edgeSegs(r, "load->root");
   const k = kinds(segs);
   assert.equal(k.h, 0, `expected no horizontal jog, got ${JSON.stringify(segs)}`);
@@ -73,8 +72,8 @@ const ALIGNED = [
 ].join("\n");
 
 test("aligned adjacent dashed edge straightens, and laneLabels off changes only width", () => {
-  const on = renderSwimlane(ALIGNED, { theme: "portal", title: "aligned", laneLabels: true, maxWidth: NO_WRAP_MAX_WIDTH });
-  const off = renderSwimlane(ALIGNED, { theme: "portal", title: "aligned", laneLabels: false, maxWidth: NO_WRAP_MAX_WIDTH });
+  const on = renderSwimlane(ALIGNED, { theme: "portal", title: "aligned", laneLabels: true });
+  const off = renderSwimlane(ALIGNED, { theme: "portal", title: "aligned", laneLabels: false });
   for (const r of [on, off]) {
     const k = kinds(edgeSegs(r, "child->parent"));
     assert.deepEqual(k, { v: 1, h: 0 }, "aligned edge must be a single straight vertical");

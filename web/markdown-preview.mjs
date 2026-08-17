@@ -5,9 +5,6 @@
 // browser, via node_modules in Node) — never src/index.mjs.
 import { marked, Renderer } from "marked";
 import DOMPurify from "dompurify";
-import { mountSignalReplay } from "./animation.mjs";
-
-const controllersByContainer = new WeakMap();
 
 // Narrow renderer: claims only `mermaid`-led fences (matching extract.mjs's fence-open rule in
 // spirit — info string starts with the literal word "mermaid"), emitting a placeholder tagged
@@ -79,8 +76,6 @@ function toOutcome(r) {
       kind: "health",
       svg: r.svg,
       slug: r.slug,
-      animation: r.animation,
-      theme: r.theme,
     };
   }
   if (r.kind === "unsupported") return { kind: "unsupported", message: r.message };
@@ -93,31 +88,26 @@ function toOutcome(r) {
 // node (located in DOM order, never by post-sanitize string matching) with either a fragment built
 // from the trusted SVG or a textContent-created message node. Not imported by Node tests.
 export function renderMarkdownPreview(markdown, results, container) {
-  for (const controller of controllersByContainer.get(container) || []) controller.cleanup();
-
   const { html, nonce, slotCount } = renderMarkdownSlots(markdown);
   const clean = DOMPurify.sanitize(html);
   container.innerHTML = clean;
 
   const slots = mapSlotsToOutcomes({ nonce, slotCount }, results);
   const doc = container.ownerDocument;
-  const controllers = [];
   const slotNodes = container.querySelectorAll(`[data-ahm-slot^="${nonce}-"]`);
   slotNodes.forEach((node, i) => {
-    node.replaceWith(outcomeToNode(slots[i].outcome, doc, controllers));
+    node.replaceWith(outcomeToNode(slots[i].outcome, doc));
   });
-  controllersByContainer.set(container, controllers);
 
-  return { resultCount: results.length, slotCount, controllerCount: controllers.length };
+  return { resultCount: results.length, slotCount };
 }
 
-function outcomeToNode(outcome, doc, controllers) {
+function outcomeToNode(outcome, doc) {
   if (outcome.kind === "health") {
     const wrap = doc.createElement("div");
     wrap.className = "svg-wrap";
     // Trusted: outcome.svg is emitted by renderSwimlane (existing library code), never sanitized.
     wrap.innerHTML = outcome.svg;
-    controllers.push(mountSignalReplay(wrap, outcome.animation));
     return wrap;
   }
   const p = doc.createElement("p");

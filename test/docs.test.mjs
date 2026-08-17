@@ -86,6 +86,21 @@ test("README and FEATURES list every theme and option key the code exports", () 
   }
 });
 
+test("README and FEATURES keep source-state/static contracts and reject stale neutral-trunk claims", () => {
+  assert.match(README, /connectors colored by each source entity's state[\s\S]*grey only when the source is\s+unknown/i);
+  assert.match(FEATURES, /connectors take the \*\*source\*\* state color[\s\S]*grey connector strokes are used only for\s+unknown-state sources/i);
+  assert.match(README, /One logical lane stays one physical band/);
+  assert.match(FEATURES, /One logical lane always renders as one physical lane band/);
+  assert.match(README, /Rendering is static-only/);
+  assert.match(FEATURES, /Rendering is static-only/);
+
+  for (const text of [README, FEATURES]) {
+    assert.doesNotMatch(text, /shared trunk[^.\n]*neutral color/i);
+    assert.doesNotMatch(text, /trunk-color neutrality/i);
+  }
+  assert.doesNotMatch(README, /connectors colored by the child's state/i);
+});
+
 test("FEATURES documents every CLI flag the binary defines", () => {
   const bin = read("bin", "diagrammo.mjs");
   const binFlags = [...new Set(bin.match(/--[a-z][a-z-]+/g) || [])];

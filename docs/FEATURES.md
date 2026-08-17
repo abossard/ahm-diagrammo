@@ -270,12 +270,10 @@ flowchart BT
 | `name` | string | output file name (default: slug of title/heading; duplicates get `-2`, `-3`, …) |
 | `background` | color | canvas background (mermaid renderer only) |
 | `alt` | string | alt text for the `--sync-markdown` visible embed; overrides `title`/heading (precedence: `alt` → `title` → heading). Empty/whitespace-only warns and falls back |
-| `maxWidth` | number (CSS px) | swimlane only; bounds the final SVG width, chrome (margins, lane-label gutter, title, legend) included. **Default `1024`** — not unbounded; there is no way to disable the bound, only override it with a larger number. A lane whose packed cards would exceed it wraps onto multiple physical rows, grouped by parent so siblings stay together. If the resolved value is below the diagram's own structural minimum (e.g. the legend alone is wider than the request), the renderer warns — naming both numbers — and clamps up to that minimum instead of throwing or under-shooting. |
 
 Unknown keys warn (listing the valid ones); unknown `renderer`/`theme` values are **errors** that
-fail the block with its fence line; a non-list `lanes` warns and is ignored; a non-positive-finite
-`maxWidth` or a non-boolean `laneLabels` warns and is dropped, so the default (or another
-still-valid source) applies. Values parse as YAML-ish scalars: quotes, numbers,
+fail the block with its fence line; a non-list `lanes` warns and is ignored; a non-boolean
+`laneLabels` warns and is dropped, so the default applies. Values parse as YAML-ish scalars: quotes, numbers,
 `true/false/on/off/yes/no`, `[inline, lists]`.
 
 *Verified by:* `extract.test.mjs` — option merge/precedence, line numbers, unknown-key/value
@@ -315,31 +313,22 @@ Lanes come from the longest path to the root: 1–3 lanes get the standard label
 Business & user flows / Application components), deeper models add Dependencies, Subsystems,
 `Layer n` — or set your own with `lanes:` (or hide the label text entirely with
 `laneLabels: false`, reclaiming its gutter width for row content). Edge visuals: unlabeled solid
-edges sharing a target bundle into one shared trunk regardless of how many physical rows separate
-them, branching onto a short per-edge stub near their own source and the shared target; labeled
-and dashed edges route individually with the label in a pill; connectors take the **child's**
-state color, and a bundle's shared trunk span renders in the theme's neutral color so it never
-implies a merged health state.
+edges sharing a target can reuse shared geometry, branching onto a short per-edge stub near their
+own source and the shared target; labeled and dashed edges route individually with the label in a
+pill; connectors take the **source** state color, and grey connector strokes are used only for
+unknown-state sources.
 
-Every lane is width-bounded by default: if a lane's packed cards would push the final SVG past
-`maxWidth` (**1024 CSS px** unless overridden — see the option table above), it automatically
-wraps onto multiple stacked physical rows instead of growing the canvas indefinitely. Wrapping is
-graph-aware, not row-by-row: cards are grouped by their primary parent (the first-declared edge)
-so siblings land together rather than splitting arbitrarily, and a bounded rebalance pass avoids
-leaving an avoidably sparse trailing row. This is the default behavior, not an opt-in — the same
-diagram that used to render one very wide row now renders several narrower, readable ones.
-Turning off the lane labels (`laneLabels: false`) reclaims their gutter width too, an independent
-second lever for the same goal.
+Turning off lane labels (`laneLabels: false`) hides lane-label text and reclaims gutter width for
+row content without changing route topology.
 
 Graph oddities never crash a render, they warn and degrade gracefully: cycles (layering breaks
 them arbitrarily), self-loops (not drawn), same-lane edges (routed over the lane), downward
 edges (drawn bottom-up), signal nodes with no entity target (drawn as their own card).
 
 *Verified by:* `swimlane.test.mjs` — parse/fold tests, "torture-weird" (single node, two-node,
-cycles, self-loop, orphan signals), geometry over every fixture, `maxWidth` default/override/
-infeasible-clamp/grouping/balance tests, `laneLabels` default/false/invalid-value tests, and the
-routing-readability tests (shared-trunk generalization, crossing/Manhattan bounds, trunk-color
-neutrality) on `kitchen-sink.md`, `torture-dense.md`, and `torture-deep.md`; `docs.test.mjs`.
+cycles, self-loop, orphan signals), geometry over every fixture, and `laneLabels`
+default/false/invalid-value tests; `regression-pr6.test.mjs` root `pills-stress` sweep across all
+themes; `docs.test.mjs`.
 
 ## Signal rows
 
@@ -368,8 +357,7 @@ model, on every stress fixture:
 2. Connectors never pass through a card's interior — lane-skipping edges ride corridors between
    cards of intermediate lanes.
 3. No two horizontal or vertical connector segments of different edges are ever collinear —
-   *unless* both belong to the same intentionally-shared bundle trunk (see guarantee 8 below),
-   tagged and verified as such, never a general loosening of this rule.
+   *unless* both belong to the same intentionally-shared bundle trunk, tagged and verified as such.
 4. Label pills never overlap other pills, cards, or any other edge's connector; long labels wrap
    to two lines.
 5. Text never leaves the canvas or its container (card, pill). Entity names widen their card up to
@@ -380,25 +368,21 @@ model, on every stress fixture:
    keep their bounded two-line policy, with an SVG `<title>` tooltip and warning if they exceed it.
 6. The SVG contains no `NaN`/`Infinity`, is well-formed, and rendering is deterministic
    (same input → byte-identical output).
-7. The final SVG width never exceeds `maxWidth` (default **1024** CSS px, chrome-inclusive) for a
-   feasible request — a lane that would otherwise overflow it wraps onto multiple physical rows,
-   grouped by primary parent so a group never splits across rows while its own width still fits.
-   `laneLabels: false` reclaims the label gutter's width for row content too.
-8. Solid, unlabeled edges sharing a target ride one genuinely-coincident shared trunk, at any
-   physical-row distance — not just adjacent rows — branching onto a short per-edge stub only near
-   their own source and the shared target; every edge still keeps its own complete, independently
-   keyed geometry (no information loss), the shared trunk renders in the theme's neutral color
-   (never implying a merged health state), and dashed/labeled edges are always excluded, routed
-   individually exactly as before.
+7. `laneLabels: false` reclaims the lane-label gutter width for row content while preserving lane
+   bands/hairlines and connector topology.
+8. One logical lane always renders as one physical lane band (no multi-row lane wrapping).
+9. Shared geometry never changes connector ownership: coincident segments keep each relationship's
+   source-state color, and grey connector strokes appear only for unknown-state sources.
+10. Rendering is static-only: legacy `interactive` inputs are inert, emitted SVGs contain no
+    `data-ahm-*` hooks, and conversion results include no animation payload.
 
 Density costs height, not legibility: channels between lanes grow rows to fit their edges.
 
 *Verified by:* `swimlane.test.mjs` — every `geometry:` test, "torture-text: long content wraps
 instead of vanishing", "entity titles remain complete beyond the card width cap", "rendering is
-deterministic", the `maxWidth default`/`maxWidth override`/`maxWidth infeasible override`/
-`maxWidth C4 exception` tests, the `laneLabels` tests, and the `routing readability` tests;
-`layout.test.mjs` — projection separations, track disjointness, corridor picking, `packRows`
-group-aware wrapping and its rebalance sweep.
+deterministic", and the `laneLabels` tests; `regression-pr6.test.mjs` root `pills-stress` sweep
+across all themes; `layout.test.mjs` — projection separations, track disjointness, corridor
+picking.
 
 ## Plain mermaid blocks
 

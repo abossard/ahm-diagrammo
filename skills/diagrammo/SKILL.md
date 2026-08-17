@@ -34,6 +34,6 @@ fence-info `key=value` or a `diagrammo:` frontmatter block). Common keys: `theme
 
 To make a wide swimlane narrower, set `%%| laneLabels: false`. It hides the right-hand lane-label
 text and reclaims that gutter — nothing else moves: node placement, edge routing, edge state
-colors, lane bands, and SVG height are all unchanged. There is no width-wrapping/`maxWidth` knob;
+colors, lane bands, and SVG height are all unchanged. There is no separate width-budget knob;
 narrowing is achieved only by reclaiming the label gutter, never by wrapping lanes onto extra rows.
 `laneLabels` defaults to `true` (labels shown); a non-boolean value warns and falls back to `true`.

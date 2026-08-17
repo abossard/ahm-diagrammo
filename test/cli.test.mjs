@@ -60,10 +60,7 @@ test("renders a healthy file: exit 0, SVG only, technical log", async () => {
   assert.ok(existsSync(svgPath));
   assert.ok(!existsSync(join(out, "gallery.html")));
   assert.ok(!existsSync(join(out, "manifest.json")));
-  // maxWidth: no token anywhere in kitchen-sink.md, yet its already-wide health model (2699px
-  // before this default existed) still comes out bounded — the 1024 default applies with zero
-  // extra CLI wiring beyond passing b.options.maxWidth through unchanged.
-  assert.ok(svgDimensions(svgPath).width <= 1024);
+  assert.ok(svgDimensions(svgPath).width > 0);
 });
 
 test("--list explains detection without writing files", async () => {
@@ -786,29 +783,6 @@ test("--sync-markdown: an empty `%%| alt:` override falls back to the heading an
   assert.match(synced, /!\[Checkout\]\(out\/checkout\.svg\)/, "empty override falls back to heading");
   assert.doesNotMatch(synced, /!\[\]\(/, "never an empty commonmark alt");
   assert.match(r.stderr, /empty "alt" override/, "the empty override is warned via the existing issues channel");
-});
-
-// ---- maxWidth: default-bounded rendering, per-block override, no new CLI flag -----------------
-
-test("maxWidth: a fence-info override threads through unchanged (C13) and produces a measurably different, still-bounded width than the 1024 default", async () => {
-  const dir = tmp();
-  const defaultPath = join(dir, "default.md");
-  writeFileSync(defaultPath, readFileSync(join(ROOT, "kitchen-sink.md"), "utf8"), "utf8");
-  const overridePath = join(dir, "override.md");
-  const overridden = readFileSync(join(ROOT, "kitchen-sink.md"), "utf8").replace("```mermaid\n", "```mermaid maxWidth=1400\n");
-  writeFileSync(overridePath, overridden, "utf8");
-
-  const outDefault = tmp(), outOverride = tmp();
-  const rDefault = await run(defaultPath, "-o", outDefault);
-  const rOverride = await run(overridePath, "-o", outOverride);
-  assert.equal(rDefault.code, 0, rDefault.stderr);
-  assert.equal(rOverride.code, 0, rOverride.stderr);
-
-  const defaultWidth = svgDimensions(join(outDefault, "kitchen-sink-health-model.svg")).width;
-  const overrideWidth = svgDimensions(join(outOverride, "kitchen-sink-health-model.svg")).width;
-  assert.ok(defaultWidth <= 1024, `default run: ${defaultWidth}`);
-  assert.ok(overrideWidth <= 1400, `override run: ${overrideWidth}`);
-  assert.notEqual(overrideWidth, defaultWidth, "an accepted override must change the outcome, not be silently ignored");
 });
 
 test("laneLabels=false: a fence-info override threads through unchanged (C22) and removes the lane-label text from the emitted SVG", async () => {

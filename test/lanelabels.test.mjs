@@ -1,6 +1,5 @@
-// laneLabels isolation guard. With a wide enough maxWidth to avoid row wrapping, hiding the
-// right-hand lane-label gutter changes only labels and width. Default-bounded renders may repack
-// rows because the reclaimed gutter becomes usable row content width.
+// laneLabels isolation guard. Hiding the right-hand lane-label gutter changes only labels and
+// width. Layout/topology remains stable.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
@@ -18,7 +17,6 @@ const pexec = promisify(execFile);
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const CLI = join(ROOT, "bin", "diagrammo.mjs");
 const FIX = join(ROOT, "test", "fixtures");
-const NO_WRAP_MAX_WIDTH = 10000;
 
 // A nontrivial, multi-lane graph (the real operational consumer diagram — several lanes, mixed
 // states, dashed edge) is the representative case for the isolation proof.
@@ -52,7 +50,7 @@ test("laneLabels: rendering is deterministic across reruns for both true and fal
 
 for (const themeName of THEME_NAMES) {
   test(`laneLabels [${themeName}]: false removes only labels + reclaims the gutter when rows do not wrap`, () => {
-    const common = { theme: themeName, title: OP.heading, maxWidth: NO_WRAP_MAX_WIDTH };
+    const common = { theme: themeName, title: OP.heading };
     const on = renderSwimlane(OP.code, { ...common, laneLabels: true });
     const off = renderSwimlane(OP.code, { ...common, laneLabels: false });
 
@@ -87,7 +85,7 @@ test("laneLabels: end-to-end via the CLI — `%%| laneLabels: false` hides label
     const hiddenMd = join(dir, "hidden.md");
     const lines = OP.code.split("\n"); // line 0 is `flowchart BT`
     const fence = (directive) =>
-      "# Ops\n\n```mermaid\n" + lines[0] + "\n%%| maxWidth: 10000\n" + directive + lines.slice(1).join("\n") + "\n```\n";
+      "# Ops\n\n```mermaid\n" + lines[0] + "\n" + directive + lines.slice(1).join("\n") + "\n```\n";
     writeFileSync(shownMd, fence(""));
     writeFileSync(hiddenMd, fence("%%| laneLabels: false\n"));
     const outShown = join(dir, "out-shown");

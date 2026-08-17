@@ -23,7 +23,6 @@ const WEB_FILES = [
   "web/convert.mjs",
   "web/examples.mjs",
   "web/markdown-preview.mjs",
-  "web/animation.mjs",
   "web/export-zip.mjs",
 ];
 
