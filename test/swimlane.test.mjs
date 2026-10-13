@@ -2,10 +2,11 @@
 // geometric verification of every torture fixture: no overlaps, nothing hidden, nothing clipped.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { renderSwimlane, parseGraph, foldSignals, looksLikeHealthModel, CENTER_TIE_EPS } from "../src/swimlane.mjs";
 import { extractBlocks } from "../src/extract.mjs";
 import { THEME_NAMES, THEMES } from "../src/themes.mjs";
@@ -367,6 +368,17 @@ const CHROME = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].find((p) => p && existsSync(p));
 
+function dumpChromeDom(page, flags, maxBuffer) {
+  const dir = mkdtempSync(join(tmpdir(), "diagrammo-browser-test-"));
+  try {
+    const file = join(dir, "page.html");
+    writeFileSync(file, page);
+    return execFileSync(CHROME, [...flags, pathToFileURL(file).href], { encoding: "utf8", maxBuffer });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
 test("browser: kitchen-sink route/card/pill geometry is disjoint and every rendered extent stays inside the SVG",
   { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
     const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
@@ -410,8 +422,7 @@ test("browser: kitchen-sink route/card/pill geometry is disjoint and every rende
       const suppressed=pills.find(x=>x.el.textContent.includes('suppressed'));
       document.body.textContent=JSON.stringify({routeCard:[...new Set(routeCard)],routePill:[...new Set(routePill)],cardPill,pillPill,outside,suppressedInside:!!suppressed&&!outside.includes('pill:'+suppressed.id)});
     <\/script></body>`;
-    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
-    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", url], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"], 10 * 1024 * 1024);
     const m = dom.match(/\{"routeCard".*?\}/s);
     assert.ok(m, "could not read kitchen-sink DOM geometry from Chrome");
     assert.deepEqual(JSON.parse(m[0]), {
@@ -464,8 +475,7 @@ test("browser: kitchen-sink preview has no horizontal overflow at responsive spl
       }));
       Promise.all(jobs).then(results=>{document.body.textContent=JSON.stringify(results)});
     <\/script></body>`;
-    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
-    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--virtual-time-budget=5000", "--dump-dom", url], { encoding: "utf8", maxBuffer: 20 * 1024 * 1024 });
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--virtual-time-budget=5000", "--dump-dom"], 20 * 1024 * 1024);
     const m = dom.match(/\[\{"width":360.*?\}\]/s);
     assert.ok(m, "could not read responsive iframe measurements from Chrome");
     const results = JSON.parse(m[0]);
@@ -487,8 +497,7 @@ test("browser: the Shop subtitle's real glyph box clears the status pill by >= 1
         .sort((p,q)=>Math.abs(p.y-sb.y)-Math.abs(q.y-sb.y))[0];
       document.body.textContent=JSON.stringify({subRight:sb.x+sb.width,pillX:pill.x});
     <\/script></body>`;
-    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
-    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", url], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"], 10 * 1024 * 1024);
     const m = dom.match(/\{"subRight".*?\}/s);
     assert.ok(m, "could not read getBBox measurements from Chrome");
     const { subRight, pillX } = JSON.parse(m[0]);
@@ -575,8 +584,7 @@ test("subtitle bbox (real Chrome): every wrapped line clears the status pill by 
         return {text:t.textContent,gap:pill.x-(bb.x+bb.width)};});
       document.body.textContent=JSON.stringify(out);
     <\/script></body>`;
-    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
-    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", url], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"], 10 * 1024 * 1024);
     const m = dom.match(/\[.*\]/s);
     assert.ok(m, "could not read getBBox measurements from Chrome");
     const lines = JSON.parse(m[0]);
