@@ -2,15 +2,16 @@
 // geometric verification of every torture fixture: no overlaps, nothing hidden, nothing clipped.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync, readdirSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
+import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-import { renderSwimlane, parseGraph, foldSignals, looksLikeHealthModel, DEFAULT_MAX_WIDTH } from "../src/swimlane.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { renderSwimlane, parseGraph, foldSignals, looksLikeHealthModel, CENTER_TIE_EPS } from "../src/swimlane.mjs";
 import { extractBlocks } from "../src/extract.mjs";
 import { THEME_NAMES, THEMES } from "../src/themes.mjs";
 import { Diagnostics } from "../src/diag.mjs";
-import { verifyGeometry, verifySvgString, countCrossings, manhattanLength } from "./helpers/geo.mjs";
+import { verifyGeometry, verifySvgString, countCrossings, manhattanLength, findUnownedJunctions } from "./helpers/geo.mjs";
 
 const FIX = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -62,12 +63,8 @@ test("foldSignals: explicit results and states survive; orphans are reported", (
   assert.equal(rows[0].name, "P95");
   assert.equal(rows[0].result, "230 ms");
   assert.equal(rows[0].state, "degraded");
-  assert.equal(rows[0].sourceId, "s");
-  assert.equal(rows[0].id, "signal:s:e:0");
   assert.equal(rows[1].result, "0.4%");
   assert.equal(rows[1].state, "healthy");
-  assert.equal(rows[1].sourceId, "s");
-  assert.equal(rows[1].id, "signal:s:e:1");
   assert.ok(diag.warnings.some((w) => w.message.includes('"lonely"')));
 });
 
@@ -180,257 +177,36 @@ test("custom lanes and legend-off are honored", () => {
   assert.deepEqual(geo, []);
 });
 
-// determinism: same input, same output — at the 1024 default and at an explicit override, since
-// wrapping introduces new packing decisions that must stay just as deterministic (C11).
+// determinism: same input, same output.
 test("rendering is deterministic", () => {
   const [b] = extractBlocks(read("torture-dense.md"), THEME_NAMES);
   const a = renderSwimlane(b.code, { theme: "portal", title: "x" }).svg;
   const c = renderSwimlane(b.code, { theme: "portal", title: "x" }).svg;
   assert.equal(a, c);
-  const o1 = renderSwimlane(b.code, { theme: "portal", title: "x", maxWidth: 1400 }).svg;
-  const o2 = renderSwimlane(b.code, { theme: "portal", title: "x", maxWidth: 1400 }).svg;
-  assert.equal(o1, o2, "an explicit maxWidth override must render just as deterministically");
 });
 
-test("interactive rendering exposes authored animation semantics without changing default SVG bytes", () => {
-  const code = [
-    "flowchart BT",
-    'sig["P95 = 230 ms (degraded)<br/>Errors = 0.4%"] --> api["API<br/>degraded"]',
-    'api -. "limited propagation" .-> flow["Order flow<br/>(worstOf)<br/>degraded"]',
-    'flow --> root["Root<br/>degraded"]',
-    "class sig blue;",
-    "class api,flow,root amber;",
-  ].join("\n");
-
-  const byDefault = renderSwimlane(code, { theme: "portal", title: "Replay" });
-  const explicitFalse = renderSwimlane(code, { theme: "portal", title: "Replay", interactive: false });
-  const wrongType = renderSwimlane(code, { theme: "portal", title: "Replay", interactive: "true" });
-  assert.equal(explicitFalse.svg, byDefault.svg);
-  assert.equal(wrongType.svg, byDefault.svg);
-  assert.equal(byDefault.animation, undefined);
-  assert.doesNotMatch(byDefault.svg, /data-ahm-/);
-
-  const interactive = renderSwimlane(code, { theme: "portal", title: "Replay", interactive: true });
-  assert.deepEqual(interactive.animation.signals, [
-    {
-      id: "signal:sig:api:0",
-      sourceId: "sig",
-      ownerId: "api",
-      name: "P95",
-      result: "230 ms",
-      state: "degraded",
-    },
-    {
-      id: "signal:sig:api:1",
-      sourceId: "sig",
-      ownerId: "api",
-      name: "Errors",
-      result: "0.4%",
-      state: "healthy",
-    },
-  ]);
-  assert.deepEqual(interactive.animation.entities.map(({ id, state, qualifier }) => ({ id, state, qualifier })), [
-    { id: "api", state: "degraded", qualifier: null },
-    { id: "flow", state: "degraded", qualifier: "worstOf" },
-    { id: "root", state: "degraded", qualifier: null },
-  ]);
-  assert.deepEqual(interactive.animation.relationships, [
-    { id: "relationship:api:flow:0", from: "api", to: "flow", label: "limited propagation" },
-    { id: "relationship:flow:root:1", from: "flow", to: "root", label: null },
-  ]);
-  assert.match(interactive.svg, /data-ahm-signal="signal:sig:api:0"/);
-  assert.match(interactive.svg, /data-ahm-part="signal-result"[^>]*data-ahm-final-result="230 ms"/);
-  assert.match(interactive.svg, /data-ahm-entity="flow"[^>]*data-ahm-state="degraded"/);
-  assert.match(interactive.svg, /data-ahm-qualifier="flow"[^>]*>worstOf</);
-  assert.match(interactive.svg, /data-ahm-edge="relationship:api:flow:0"/);
-  assert.match(interactive.svg, /data-ahm-edge-label="relationship:api:flow:0"/);
-});
-
-// ---------- maxWidth: default-bounded width, graph-aware multi-row wrapping ----------
-// Independent, test-owned primary-parent extraction (first-declared edge target per "from" id) —
-// mirrors what the renderer is required to use internally (parents.get(id)[0]) without reading its
-// internals, so this is a genuine black-box check of the resulting geometry against source edges.
-const EDGE_RE = /^\s*([A-Za-z]\w*)(?:\[[^\]]*\])?\s*(?:-->\s*\|[^|]*\||--\s*"[^"]*"\s*-->|-->|-\.\s*(?:"[^"]*"|[\w ]+?)?\s*\.->)\s*([A-Za-z]\w*)/;
-function firstParentOf(code) {
-  const parent = new Map();
-  for (const line of code.split("\n")) {
-    const m = line.match(EDGE_RE);
-    if (!m) continue;
-    const [, from, to] = m;
-    if (from !== to && !parent.has(from)) parent.set(from, to);
-  }
-  return parent;
-}
-// Consecutive physical rows sharing the same rendered lane label belong to one original logical
-// lane's "band" — the public boundary (debug.lanes[].label) that lets a black-box test recover
-// which physical rows a wrapped lane produced, without reading laneOrigin internals.
-function bands(debugLanes) {
-  const out = [];
-  let cur = null;
-  debugLanes.forEach((lane, i) => {
-    if (!cur || cur.label !== lane.label) { cur = { label: lane.label, rows: [] }; out.push(cur); }
-    cur.rows.push(i);
-  });
-  return out;
-}
-function rowSpan(cards) {
-  if (!cards.length) return 0;
-  return Math.max(...cards.map((c) => c.x + c.w)) - Math.min(...cards.map((c) => c.x));
-}
-// The card-to-card gap, derived empirically from any row holding >=2 cards (span = sum(widths) +
-// gap*(n-1) for a tightly packed row) rather than importing the internal GAP constant.
-function derivedGap(cards) {
-  const byRow = new Map();
-  for (const c of cards) { if (!byRow.has(c.lane)) byRow.set(c.lane, []); byRow.get(c.lane).push(c); }
-  for (const cs of byRow.values()) {
-    if (cs.length < 2) continue;
-    return (rowSpan(cs) - cs.reduce((a, c) => a + c.w, 0)) / (cs.length - 1);
-  }
-  return 30; // no multi-card row anywhere: gap is unobservable but also irrelevant
-}
-// Group-split ratio (C9): every primary-parent group with >=2 members, split across >1 physical
-// row, divided by every such group — EXCLUDING a group whose own unsplit width would exceed the
-// widest row span actually achieved elsewhere in its own wrapped band (the packer maximizes row
-// fill, so that achieved width is a tight, evidence-grounded stand-in for "this group could never
-// have fit one row" — the C4/C9 unavoidable-oversized-group exception), since splitting THAT is
-// required, not a violation.
-function groupSplitRatio(cards) {
-  const gap = derivedGap(cards);
-  const bandOf = new Map();
-  for (const band of bands(cards.__lanes)) for (const ri of band.rows) bandOf.set(ri, band.rows);
-  const byParent = new Map();
-  for (const c of cards) {
-    const p = c.__parent;
-    if (p == null) continue;
-    if (!byParent.has(p)) byParent.set(p, []);
-    byParent.get(p).push(c);
-  }
-  let split = 0, total = 0;
-  for (const members of byParent.values()) {
-    if (members.length < 2) continue;
-    const bandRows = bandOf.get(members[0].lane) || [members[0].lane];
-    const widestAchieved = Math.max(...bandRows.map((ri) => rowSpan(cards.filter((c) => c.lane === ri))));
-    const groupWidth = members.reduce((a, c) => a + c.w, 0) + gap * (members.length - 1);
-    if (groupWidth > widestAchieved + 0.5) continue; // unavoidably oversized: exempt
-    total++;
-    if (new Set(members.map((c) => c.lane)).size > 1) split++;
-  }
-  return { ratio: total ? split / total : 0, total, split };
-}
-// Tags every card with its parent (from the source) and stashes debug.lanes alongside, so
-// groupSplitRatio/bands above can work from one plain array — still just derived from the public
-// r.debug boundary, never from internal packing state.
-function taggedCards(r, code) {
-  const parentOf = firstParentOf(code);
-  const cards = r.debug.cards.map((c) => ({ ...c, __parent: parentOf.get(c.id) }));
-  cards.__lanes = r.debug.lanes;
-  return cards;
-}
-
-const MAXWIDTH_FIXTURES = [
-  {
-    read: readRoot, file: "kitchen-sink.md", label: "kitchen-sink.md", title: "Kitchen sink health model",
-    mustContain: ["Web frontend", "API service", "Database", "Redis cache", "Order queue",
-      "Blob storage", "Identity provider", "Search service", "Shipping service with a long name",
-      "Background functions"],
-  },
-  {
-    read, file: "torture-dense.md", label: "torture-dense.md (dense-multi-parent-mesh)", title: "x",
-    mustContain: ["Service A", "Service B", "Service C", "Service D", "Service E",
-      "Filler one", "Filler two", "Filler three", "Filler four", "Filler five"],
-  },
+const FORMER_INTERACTIVE_OPTIONS = [
+  ["absent", {}],
+  ["false", { interactive: false }],
+  ["true", { interactive: true }],
+  ["wrong type", { interactive: "true" }],
 ];
+const ANIMATION_HOOK = /data-ahm-(?:entity|signal|edge|edge-label|qualifier|logic|part|route-segment|route-members|port)=/;
 
-for (const { read: readFixture, file, label, title, mustContain } of MAXWIDTH_FIXTURES) {
-  test(`maxWidth default (${DEFAULT_MAX_WIDTH}): ${label} wraps to multiple rows while keeping every guarantee`, () => {
-    const [b] = extractBlocks(readFixture(file), THEME_NAMES);
-    const r = renderSwimlane(b.code, { theme: "portal", title }); // no maxWidth key at all
+for (const [name, formerOption] of FORMER_INTERACTIVE_OPTIONS) {
+  test(`former interactive option ${name} produces the same deterministic static SVG`, () => {
+    const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
+    const options = { theme: "portal", title: "Kitchen sink health model" };
+    const expected = renderSwimlane(b.code, options);
+    const result = renderSwimlane(b.code, { ...options, ...formerOption });
+    const repeated = renderSwimlane(b.code, { ...options, ...formerOption });
 
-    // C1 / C16: bounded by default, and the bound is doing real work (more than the original
-    // depth-lane count of physical rows appears).
-    assert.ok(r.W <= DEFAULT_MAX_WIDTH, `expected r.W <= ${DEFAULT_MAX_WIDTH}, got ${r.W}`);
-    assert.ok(r.lanes > 3, `expected wrapping to produce more than 3 physical rows, got ${r.lanes}`);
-
-    // C6: every leaf entity's full name survives wrapping, unchanged.
-    for (const needle of mustContain) assert.match(r.svg, new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-
-    // C7 / C8: every existing layout guarantee holds for the wrapped output, both via the
-    // unconditional checks and via the new opt-in per-row maxWidth check (defense-in-depth).
-    assert.deepEqual(verifyGeometry(r), []);
-    assert.deepEqual(verifyGeometry(r, { maxWidth: DEFAULT_MAX_WIDTH }), []);
-    assert.deepEqual(verifySvgString(r.svg), []);
-
-    // C9: atomic sibling groups (by primary parent) are never split across rows when they fit.
-    const cards = taggedCards(r, b.code);
-    const gsr = groupSplitRatio(cards);
-    assert.equal(gsr.ratio, 0, `group-split ratio must be 0, got ${gsr.split}/${gsr.total}`);
-    assert.ok(gsr.total > 0, "expected at least one non-trivial (>=2 member) primary-parent group to check");
-
-    // C10: no lane that needed wrapping ends on an avoidably sparse trailing row.
-    for (const band of bands(r.debug.lanes)) {
-      if (band.rows.length < 2) continue; // this lane did not wrap — nothing to balance
-      const spans = band.rows.map((ri) => rowSpan(r.debug.cards.filter((c) => c.lane === ri)));
-      const widest = Math.max(...spans), last = spans[spans.length - 1];
-      assert.ok(last / widest >= 0.5, `"${band.label}" trailing row fill ${(last / widest * 100).toFixed(1)}% of its widest row`);
-    }
-
-    // C11: identical input/options render byte-identical SVG.
-    const again = renderSwimlane(b.code, { theme: "portal", title });
-    assert.equal(again.svg, r.svg);
+    assert.equal(result.svg, expected.svg);
+    assert.equal(repeated.svg, expected.svg);
+    assert.equal(Object.hasOwn(result, "animation"), false);
+    assert.doesNotMatch(result.svg, ANIMATION_HOOK);
   });
 }
-
-test("maxWidth override (C17): a 1400 override on kitchen-sink.md bounds to 1400, produces fewer-or-equal physical rows, and a measurably different SVG than the 1024 default", () => {
-  const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
-  const title = "Kitchen sink health model";
-  const byDefault = renderSwimlane(b.code, { theme: "portal", title }); // opts: {}
-  const overridden = renderSwimlane(b.code, { theme: "portal", title, maxWidth: 1400 });
-
-  assert.ok(byDefault.W <= DEFAULT_MAX_WIDTH, `default: ${byDefault.W}`);
-  assert.ok(overridden.W <= 1400, `override: ${overridden.W}`);
-  assert.notEqual(overridden.svg, byDefault.svg, "an accepted override must change the render, not be silently ignored");
-  assert.ok(overridden.lanes <= byDefault.lanes, `a larger budget should need fewer-or-equal physical rows: ${overridden.lanes} vs ${byDefault.lanes}`);
-  assert.deepEqual(verifyGeometry(overridden), []);
-});
-
-test("maxWidth infeasible override (C3): a value below the computed structural minimum warns naming both numbers and clamps up to exactly that minimum, never throwing", () => {
-  const diag = new Diagnostics();
-  // legend on, a real title, and a trivially small graph: headW alone already exceeds this —
-  // infeasible purely from header/legend overhead, independent of node content (a minimal fixture
-  // isolates the clamp-to-exact-minimum claim from unrelated routing/corridor width contributions,
-  // which the override/default tests above already cover for a real, content-heavy fixture).
-  const code = "flowchart BT\na[Child] --> b[Parent]\nclass a green;\nclass b amber;\nclassDef green x;\nclassDef amber x;";
-  const r = renderSwimlane(code, { theme: "portal", title: "A reasonably descriptive title", diag, maxWidth: 100 });
-  const warn = diag.warnings.find((w) => w.message.includes("maxWidth"));
-  assert.ok(warn, "expected a warning naming maxWidth");
-  assert.match(warn.message, /maxWidth 100 is below/);
-  const minimum = Number(warn.message.match(/minimum feasible width \((\d+)px/)[1]);
-  assert.ok(minimum > 100, "the computed minimum must exceed the impossible request");
-  assert.equal(r.W, minimum, "r.W must equal the exact minimum the warning names, not 100 and not some other value");
-  assert.deepEqual(verifyGeometry(r), []);
-});
-
-test("maxWidth C4 exception: an unavoidably wide entity title stays complete and unclipped even under a small maxWidth", () => {
-  const multiWord = "Payment gateway with a very long descriptive name that remains visible across every wrapped line in the entity header";
-  const singleToken = "QueueProcessorWithoutBreaks".repeat(8);
-  const diag = new Diagnostics();
-  const r = renderSwimlane([
-    "flowchart BT",
-    `a["${multiWord}"] --> root[Root]`,
-    `b["${singleToken}"] --> root`,
-    "class a,b,root green;",
-  ].join("\n"), { theme: "portal", title: "Long entity titles", diag, maxWidth: 300 });
-
-  const visibleText = [...r.svg.matchAll(/<text\b[^>]*>([\s\S]*?)<\/text>/g)]
-    .map((m) => m[1].replace(/<title>[\s\S]*?<\/title>/g, "").replace(/<[^>]+>/g, ""))
-    .join("")
-    .replace(/\s/g, "");
-  assert.ok(visibleText.includes(multiWord.replace(/\s/g, "")));
-  assert.ok(visibleText.includes(singleToken));
-  assert.doesNotMatch(r.svg, /…/);
-  assert.deepEqual(verifyGeometry(r), []);
-  assert.deepEqual(verifySvgString(r.svg), []);
-});
 
 // ---------- laneLabels: optional lane-label gutter, a second width-reclaim lever (C18-C20) ----------
 // Genuine lane-label texts are the only debug.texts entries with no `container` field that sit
@@ -457,8 +233,8 @@ test("laneLabels: false (C19) removes label text and its gutter while preserving
     { file: "torture-dense.md", read, title: "x" },
   ]) {
     const [b] = extractBlocks(readFixture(file), THEME_NAMES);
-    const on = renderSwimlane(b.code, { theme: "portal", title, maxWidth: 1024 });
-    const off = renderSwimlane(b.code, { theme: "portal", title, maxWidth: 1024, laneLabels: false });
+    const on = renderSwimlane(b.code, { theme: "portal", title });
+    const off = renderSwimlane(b.code, { theme: "portal", title, laneLabels: false });
 
     // C19: label text and its gutter gone; band rects + hairlines (structural lane grouping)
     // and every graph-semantic guarantee (node/edge counts, geometry) unchanged.
@@ -471,14 +247,13 @@ test("laneLabels: false (C19) removes label text and its gutter while preserving
     assert.equal(off.nodes, on.nodes, `${file}: node count must be unchanged`);
     const edgeKeys = (r) => new Set(r.debug.segs.map((s) => s.edge)).size;
     assert.equal(edgeKeys(off), edgeKeys(on), `${file}: distinct edge count must be unchanged`);
-    assert.deepEqual(verifyGeometry(off, { maxWidth: 1024 }), []);
+    assert.deepEqual(verifyGeometry(off), []);
     assert.deepEqual(verifySvgString(off.svg), []);
 
-    // C20: at the SAME maxWidth, labels-off never needs MORE physical rows than labels-on, and
-    // reclaims a measurable width budget (the W a labels-on render would have needed to hit the
-    // same physical-row count shrinks once the ~190px gutter is no longer reserved).
+    // C20: labels-off never needs MORE physical rows than labels-on, and
+    // reclaims measurable width.
     assert.ok(off.lanes <= on.lanes, `${file}: labels-off must not need MORE physical rows (${off.lanes} vs ${on.lanes})`);
-    assert.ok(off.W < on.W, `${file}: labels-off must render narrower at the same maxWidth (${off.W} vs ${on.W})`);
+    assert.ok(off.W < on.W, `${file}: labels-off must render narrower (${off.W} vs ${on.W})`);
   }
 });
 
@@ -490,88 +265,7 @@ test("laneLabels: false drops a custom `lanes:` label the same way — it must n
   assert.deepEqual(verifyGeometry(r), []);
 });
 
-// ---------- routing readability: generalized shared-trunk bundling (C24-C32) ----------
-// Baseline captured live against the unmodified (pre-this-revision) renderer, same measurement
-// method as countCrossings/manhattanLength below: kitchen-sink.md 60 crossings/12259px/0%
-// trunk-sharing; torture-dense.md 88 crossings/11685px/0% trunk-sharing (see the blueprint's
-// "Routing-readability baseline"). C27 requires strictly fewer crossings than that baseline;
-// C28 allows Manhattan length to grow by at most 10% over it (bundling may add short branch
-// segments at merge/split points, but must not make routes systematically longer).
-const ROUTING_FIXTURES = [
-  {
-    read: readRoot, file: "kitchen-sink.md", title: "Kitchen sink health model",
-    edgeCount: 16, maxTrunks: 6, baselineCrossings: 60, manhattanCeiling: 12259 * 1.1,
-    dashedLabelled: ["cache->shop", "reporting->root"],
-  },
-  {
-    read, file: "torture-dense.md", title: "x",
-    edgeCount: 23, maxTrunks: 5, baselineCrossings: 88, manhattanCeiling: 11685 * 1.1,
-    dashedLabelled: ["a->p3", "b->p2", "d->p1", "e->p3"],
-  },
-];
-
-for (const { read: readFixture, file, title, edgeCount, maxTrunks, baselineCrossings, manhattanCeiling, dashedLabelled } of ROUTING_FIXTURES) {
-  test(`routing readability (C24-C32): ${file}'s default wrapped render generalizes bundling across physical-row distance and strictly improves crossings/Manhattan length over the recorded baseline`, () => {
-    const [b] = extractBlocks(readFixture(file), THEME_NAMES);
-    const r = renderSwimlane(b.code, { theme: "portal", title });
-
-    // C29: every source edge still has its own independently-keyed debug.segs entries — no
-    // information loss, even where a trunk portion is pixel-coincident with a sibling's.
-    const edgeKeys = new Set(r.debug.segs.map((s) => s.edge));
-    assert.equal(edgeKeys.size, edgeCount, `expected ${edgeCount} distinct edge keys, got ${edgeKeys.size}`);
-
-    // C26: bundle-eligible edges collapse into a bounded number of distinct shared trunks
-    // (topology-derived from this fixture's own static edge list — see the blueprint).
-    const trunkTags = new Set(r.debug.segs.map((s) => s.trunk).filter((t) => t != null));
-    assert.ok(trunkTags.size >= 1, "expected at least one shared trunk to form");
-    assert.ok(trunkTags.size <= maxTrunks, `expected at most ${maxTrunks} distinct trunks, got ${trunkTags.size}`);
-
-    // C25: dashed/labelled edges are excluded from bundling — still routed individually, never
-    // carrying a trunk tag, preserving their own dedicated pill/anti-collision handling.
-    for (const edge of dashedLabelled) {
-      const segs = r.debug.segs.filter((s) => s.edge === edge);
-      assert.ok(segs.length > 0, `expected segments for ${edge}`);
-      assert.ok(segs.every((s) => s.trunk == null), `${edge} must never carry a trunk tag`);
-    }
-
-    // C27 / C28: strictly fewer v×h crossings, and Manhattan length within the stated ceiling,
-    // both measured against this exact fixture's own recorded pre-redesign baseline.
-    const crossings = countCrossings(r.debug);
-    const manhattan = manhattanLength(r.debug);
-    assert.ok(crossings < baselineCrossings, `expected strictly fewer than the ${baselineCrossings}-crossing baseline, got ${crossings}`);
-    assert.ok(manhattan <= manhattanCeiling, `expected at or below the ${Math.round(manhattanCeiling)}px ceiling, got ${Math.round(manhattan)}`);
-
-    // C30: a bundled trunk renders in the theme's neutral T.muted stroke — distinct from every
-    // member's own state-derived color — never any one branch's own color, across all 4 themes.
-    for (const themeName of THEME_NAMES) {
-      const T = THEMES[themeName];
-      const themed = renderSwimlane(b.code, { theme: themeName, title });
-      const mutedConnectorPaths = (themed.svg.match(new RegExp(`<path d="[^"]*" stroke="${T.muted.replace("#", "\\#")}" stroke-width="1\\.7"`, "g")) || []).length;
-      assert.ok(mutedConnectorPaths > 0, `${themeName}: expected at least one muted-stroke shared-trunk connector path`);
-      for (const state of Object.keys(T.state)) assert.notEqual(T.muted, T.state[state].border, `${themeName}: T.muted must be visually distinct from every state color`);
-    }
-
-    // C31: every existing layout guarantee holds for the new trunk/branch geometry (this file's
-    // own relaxed collinearity rule recognizes the intentional shared-trunk coincidence).
-    assert.deepEqual(verifyGeometry(r), []);
-    assert.deepEqual(verifySvgString(r.svg), []);
-
-    // C32: identical input/options still render byte-identical SVG under the new routing.
-    const again = renderSwimlane(b.code, { theme: "portal", title });
-    assert.equal(again.svg, r.svg);
-  });
-}
-
-test("routing readability: torture-deep.md (the sparse, never-wraps, original lane-skip fixture) confirms the generalization at the opposite end of the density spectrum — a multi-row-skip member (l5c) now shares one trunk with an adjacent member (l4a), and geometry stays clean", () => {
-  const [b] = extractBlocks(read("torture-deep.md"), THEME_NAMES);
-  const r = renderSwimlane(b.code, { theme: "portal", title: b.heading });
-  assert.deepEqual(verifyGeometry(r), []);
-  assert.deepEqual(verifySvgString(r.svg), []);
-  // l3a receives from l4a (one physical row below) and l5c (a genuine multi-row skip) — both
-  // solid/unlabeled — the exact low-density case the ll-lu===1-only gate used to miss.
-  const l3aTrunkEdges = new Set(r.debug.segs.filter((s) => s.trunk === "l3a").map((s) => s.edge));
-  assert.deepEqual([...l3aTrunkEdges].sort(), ["l4a->l3a", "l5c->l3a"]);
-});
+// ---------- retained geometry and header safeguards ----------
 
 // ---------- status pill vs header text (regression: long subtitle slid under the pill) ----------
 // The header qualifier (subtitle) shares its row with the right-aligned status pill. The card is
@@ -674,6 +368,122 @@ const CHROME = [
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
 ].find((p) => p && existsSync(p));
 
+function dumpChromeDom(page, flags, maxBuffer) {
+  const dir = mkdtempSync(join(tmpdir(), "diagrammo-browser-test-"));
+  try {
+    const file = join(dir, "page.html");
+    writeFileSync(file, page);
+    return execFileSync(CHROME, [...flags, pathToFileURL(file).href], { encoding: "utf8", maxBuffer });
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("browser: kitchen-sink route/card/pill geometry is disjoint and every rendered extent stays inside the SVG",
+  { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
+    const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
+    const r = renderSwimlane(b.code, { theme: "portal", title: "Kitchen sink health model" });
+    const page = `<!doctype html><meta charset="utf-8"><style>body{margin:0}</style><body>${r.svg}<script>
+      const svg=document.querySelector('svg'), svgRect=svg.getBoundingClientRect();
+      const content=[...svg.children].find(el=>el.matches('g[transform]')&&el.querySelector(':scope > g[fill="none"]'));
+      const cardModel=${JSON.stringify(r.debug.cards)}, pillModel=${JSON.stringify(r.debug.pills)}, segModel=${JSON.stringify(r.debug.segs)};
+      const cards=[...content.querySelectorAll(':scope > g[filter="url(#cs)"] > rect')].map((el,i)=>({id:cardModel[i].id,el,rect:el.getBoundingClientRect()}));
+      const pills=[...content.querySelectorAll(':scope > g[stroke="none"]')].map((el,i)=>({id:pillModel[i].edge,el,rect:el.getBoundingClientRect()}));
+      const paths=[...content.querySelector(':scope > g[fill="none"]').querySelectorAll(':scope > path')];
+      const inside=(p,r,pad=0)=>p.x>r.left+pad&&p.x<r.right-pad&&p.y>r.top+pad&&p.y<r.bottom-pad;
+      const overlap=(a,b,pad=0)=>a.left+pad<b.right&&b.left+pad<a.right&&a.top+pad<b.bottom&&b.top+pad<a.bottom;
+      const point=svg.createSVGPoint(), routeCard=[], routePill=[];
+      for(const path of paths){
+        const len=path.getTotalLength(), ctm=path.getScreenCTM(), modelCtm=path.getCTM();
+        const endpoint=(distance)=>{const q=path.getPointAtLength(distance);return q.matrixTransform(modelCtm)};
+        const start=endpoint(0),end=endpoint(len),near=(p,s)=>
+          (Math.abs(p.x-s.x1)<.1&&Math.abs(p.y-s.y1)<.1)||(Math.abs(p.x-s.x2)<.1&&Math.abs(p.y-s.y2)<.1);
+        const candidateEdges=[...new Set(segModel.filter(s=>near(start,s)).map(s=>s.edge))];
+        const id=candidateEdges.find(edge=>segModel.some(s=>s.edge===edge&&near(end,s)))||candidateEdges[0];
+        const samples=[]; for(let d=0;d<len;d+=0.75)samples.push(d); samples.push(len);
+        for(const d of samples){
+          const q=path.getPointAtLength(d); point.x=q.x; point.y=q.y;
+          const p=point.matrixTransform(ctm);
+          for(const card of cards) if(inside(p,card.rect,2)) routeCard.push(id+'×'+card.id);
+          for(const pill of pills) if(pill.id!==id&&inside(p,pill.rect,1)) routePill.push(id+'×'+pill.id);
+        }
+      }
+      const cardPill=[], pillPill=[];
+      for(const card of cards)for(const pill of pills)if(overlap(card.rect,pill.rect,1))cardPill.push(card.id+'×'+pill.id);
+      for(let i=0;i<pills.length;i++)for(let j=i+1;j<pills.length;j++)if(overlap(pills[i].rect,pills[j].rect,1))pillPill.push(pills[i].id+'×'+pills[j].id);
+      const scale=svgRect.width/svg.viewBox.baseVal.width, outside=[];
+      const extents=[
+        ...cards.map(x=>({name:'card:'+x.id,rect:x.rect})),
+        ...pills.map(x=>({name:'pill:'+x.id,rect:x.el.getBoundingClientRect()})),
+        ...[...svg.querySelectorAll('text')].map((el,i)=>({name:'text:'+i,rect:el.getBoundingClientRect()})),
+        ...paths.map((el,i)=>{const r=el.getBoundingClientRect(),h=(parseFloat(getComputedStyle(el).strokeWidth)||0)*scale/2;return{name:'route:'+i,rect:{left:r.left-h,right:r.right+h,top:r.top-h,bottom:r.bottom+h}}}),
+      ];
+      for(const x of extents)if(x.rect.left<svgRect.left-.5||x.rect.right>svgRect.right+.5||x.rect.top<svgRect.top-.5||x.rect.bottom>svgRect.bottom+.5)outside.push(x.name);
+      const suppressed=pills.find(x=>x.el.textContent.includes('suppressed'));
+      document.body.textContent=JSON.stringify({routeCard:[...new Set(routeCard)],routePill:[...new Set(routePill)],cardPill,pillPill,outside,suppressedInside:!!suppressed&&!outside.includes('pill:'+suppressed.id)});
+    <\/script></body>`;
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"], 10 * 1024 * 1024);
+    const m = dom.match(/\{"routeCard".*?\}/s);
+    assert.ok(m, "could not read kitchen-sink DOM geometry from Chrome");
+    assert.deepEqual(JSON.parse(m[0]), {
+      routeCard: [], routePill: [], cardPill: [], pillPill: [], outside: [], suppressedInside: true,
+    });
+  });
+
+test("browser: kitchen-sink preview has no horizontal overflow at responsive split and maximized widths",
+  { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
+    const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
+    const r = renderSwimlane(b.code, { theme: "portal", title: "Kitchen sink health model" });
+    const css = readFileSync(join(ROOT, "web", "style.css"), "utf8");
+    const inner = (maximized) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>${css}</style>
+      <body><header><h1>Editor</h1><div class="toolbar"><label>Example</label><select><option>Kitchen sink health model with representative content</option></select></div></header>
+      <main${maximized ? ' data-maximized="output"' : ""}>
+        <div class="pane" data-pane="editor"><div class="pane-header"><h2>Markdown source</h2><button>Maximize editor</button></div><textarea id="editor"></textarea></div>
+        <div class="pane" data-pane="output"><div class="pane-header"><h2>Rendered diagrams</h2><button>Maximize preview</button></div><div id="output"><div class="svg-wrap">${r.svg}</div></div></div>
+      </main></body>`;
+    const page = `<!doctype html><meta charset="utf-8"><body><script>
+      const configs=${JSON.stringify([360, 800, 801, 1440].flatMap((width) => [
+        {width,mode:'split'}, {width,mode:'maximized'},
+      ]))};
+      const templates={split:${JSON.stringify(inner(false))},maximized:${JSON.stringify(inner(true))}};
+      const jobs=configs.map(c=>new Promise(resolve=>{
+        const frame=document.createElement('iframe'); frame.style.cssText='width:'+c.width+'px;height:1000px;border:0';
+        frame.onload=()=>{
+          const d=frame.contentDocument,w=frame.contentWindow,body=d.body,main=d.querySelector('main');
+          const output=d.querySelector('#output'),svg=d.querySelector('svg');
+          const outputRect=output.getBoundingClientRect(),svgRect=svg.getBoundingClientRect();
+          const expectedColumns=c.mode==='split'&&c.width>800?2:1;
+          const columns=w.getComputedStyle(main).gridTemplateColumns.split(/\\s+/).filter(Boolean).length;
+          const errors=[];
+          const paneMin=w.getComputedStyle(output.closest('.pane')).minWidth;
+          if(w.innerWidth!==c.width)errors.push('viewport '+w.innerWidth);
+          if(paneMin!=='0px')errors.push('pane min-width '+paneMin);
+          if(columns!==expectedColumns)errors.push('columns '+columns+' expected '+expectedColumns);
+          if(body.scrollWidth!==body.clientWidth)errors.push('body '+body.scrollWidth+'>'+body.clientWidth);
+          if(output.scrollWidth!==output.clientWidth)errors.push('output '+output.scrollWidth+'>'+output.clientWidth);
+          if(svgRect.left<outputRect.left-.5||svgRect.right>outputRect.right+.5)errors.push('svg outside output');
+          const content=[...svg.children].find(el=>el.matches('g[transform]')&&el.querySelector(':scope > g[fill="none"]'));
+          for(const el of content.querySelectorAll(':scope > g[filter="url(#cs)"] > rect, :scope > g[stroke="none"]')){
+            const rect=el.getBoundingClientRect();
+            if(rect.left<svgRect.left-.5||rect.right>svgRect.right+.5||rect.left<outputRect.left-.5||rect.right>outputRect.right+.5){
+              errors.push('clipped static diagram element'); break;
+            }
+          }
+          resolve({...c,columns,paneMin,body:[body.scrollWidth,body.clientWidth],output:[output.scrollWidth,output.clientWidth],errors});
+        };
+        frame.srcdoc=templates[c.mode]; document.body.append(frame);
+      }));
+      Promise.all(jobs).then(results=>{document.body.textContent=JSON.stringify(results)});
+    <\/script></body>`;
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--virtual-time-budget=5000", "--dump-dom"], 20 * 1024 * 1024);
+    const m = dom.match(/\[\{"width":360.*?\}\]/s);
+    assert.ok(m, "could not read responsive iframe measurements from Chrome");
+    const results = JSON.parse(m[0]);
+    assert.equal(results.length, 8);
+    for (const result of results)
+      assert.deepEqual(result.errors, [], `${result.width}px/${result.mode}: ${JSON.stringify(result)}`);
+  });
+
 test("browser: the Shop subtitle's real glyph box clears the status pill by >= 12px",
   { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
     const [b] = extractBlocks(read("shop-commerce-pill.md"), THEME_NAMES);
@@ -687,8 +497,7 @@ test("browser: the Shop subtitle's real glyph box clears the status pill by >= 1
         .sort((p,q)=>Math.abs(p.y-sb.y)-Math.abs(q.y-sb.y))[0];
       document.body.textContent=JSON.stringify({subRight:sb.x+sb.width,pillX:pill.x});
     <\/script></body>`;
-    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
-    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", url], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"], 10 * 1024 * 1024);
     const m = dom.match(/\{"subRight".*?\}/s);
     assert.ok(m, "could not read getBBox measurements from Chrome");
     const { subRight, pillX } = JSON.parse(m[0]);
@@ -775,8 +584,7 @@ test("subtitle bbox (real Chrome): every wrapped line clears the status pill by 
         return {text:t.textContent,gap:pill.x-(bb.x+bb.width)};});
       document.body.textContent=JSON.stringify(out);
     <\/script></body>`;
-    const url = "data:text/html;charset=utf-8," + encodeURIComponent(page);
-    const dom = execFileSync(CHROME, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom", url], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
+    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--dump-dom"], 10 * 1024 * 1024);
     const m = dom.match(/\[.*\]/s);
     assert.ok(m, "could not read getBBox measurements from Chrome");
     const lines = JSON.parse(m[0]);

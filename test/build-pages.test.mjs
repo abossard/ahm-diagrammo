@@ -38,7 +38,7 @@ function makeFixtureRepo(root) {
   writeFile(root, "index.html", "<html>fixture</html>");
   for (const f of [
     "web/style.css", "web/app.mjs", "web/convert.mjs", "web/examples.mjs",
-    "web/markdown-preview.mjs", "web/export-zip.mjs", "web/animation.mjs",
+    "web/markdown-preview.mjs", "web/export-zip.mjs",
   ]) writeFile(root, f, `/* ${f} */`);
   for (const f of [
     "src/extract.mjs", "src/swimlane.mjs", "src/themes.mjs", "src/diag.mjs",
@@ -54,6 +54,8 @@ function makeFixtureRepo(root) {
   writeFile(root, "src/mermaid.mjs", "export {}");
   writeFile(root, "gallery.html", "<html>obsolete</html>");
   writeFile(root, "manifest.json", "{}");
+  writeFile(root, "web/animation.mjs", "throw new Error('rejected module copied');");
+  writeFile(root, "src/routing.mjs", "throw new Error('interrupted module copied');");
   writeFile(root, "node_modules/should-not-copy/index.js", "//");
   writeFile(root, "test/should-not-copy.test.mjs", "//");
   writeFile(root, "scripts/should-not-copy.mjs", "//");
@@ -79,7 +81,7 @@ function makeFixtureNodeModules(root) {
 const REQUIRED_PATHS = [
   "index.html",
   "web/style.css", "web/app.mjs", "web/convert.mjs", "web/examples.mjs",
-  "web/markdown-preview.mjs", "web/export-zip.mjs", "web/animation.mjs",
+  "web/markdown-preview.mjs", "web/export-zip.mjs",
   "src/extract.mjs", "src/swimlane.mjs", "src/themes.mjs", "src/diag.mjs",
   "src/text.mjs", "src/layout.mjs", "src/font-metrics.mjs",
   "kitchen-sink.md", "pills-stress.md", "examples/showcase.md", "docs/how-it-works.md",
@@ -90,7 +92,8 @@ const REQUIRED_PATHS = [
 
 const FORBIDDEN_PATHS = [
   "node_modules", "package.json", "package-lock.json",
-  "src/index.mjs", "src/mermaid.mjs", "gallery.html", "manifest.json",
+  "src/index.mjs", "src/mermaid.mjs", "src/routing.mjs",
+  "web/animation.mjs", "gallery.html", "manifest.json",
   "test", "scripts", ".github",
 ];
 

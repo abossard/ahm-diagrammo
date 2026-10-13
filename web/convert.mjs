@@ -11,7 +11,7 @@ export const UNSUPPORTED_MESSAGE =
   "classDefs). Only ahm-diagrammo swimlane conversion runs in-browser; other Mermaid diagram types " +
   "(sequence, state, class, ER, plain flowcharts) need the CLI's mermaid-cli renderer, which cannot run in a browser.";
 
-// One block's outcome: { slug, title, line, code, kind: "health" | "unsupported" | "error", svg?, meta?, message? }
+// One block's outcome: { slug, title, line, code, kind: "health" | "unsupported" | "error", svg?, theme?, meta?, message? }
 export function convertMarkdown(markdown, { theme: defaultTheme = "portal" } = {}) {
   const blocks = extractBlocks(markdown, THEME_NAMES);
   return blocks.map((b) => classifyBlock(b, defaultTheme));
@@ -35,9 +35,7 @@ function classifyBlock(b, defaultTheme) {
       subtitle: b.options.subtitle,
       lanes: b.options.lanes,
       legend: b.options.legend,
-      maxWidth: b.options.maxWidth,
       laneLabels: b.options.laneLabels,
-      interactive: true,
       diag,
       baseLine: b.codeLine - 1,
     });
@@ -45,7 +43,6 @@ function classifyBlock(b, defaultTheme) {
       ...base,
       kind: "health",
       svg: r.svg,
-      animation: r.animation,
       theme: themeName,
       meta: { nodes: r.nodes, lanes: r.lanes, w: r.W, h: r.H },
     };

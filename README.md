@@ -28,7 +28,8 @@ Same source, but diagrammo understands what the diagram *means*:
 - **Signals fold into their entity** as a status table with per-row status dots, metric icons,
   and right-aligned results — instead of floating as separate boxes with `=` signs in prose.
 - **States become the visual language**: Azure-portal state colors, status pills on every card,
-  a legend, and connectors colored by the child's state so a failing dependency stays traceable.
+  a legend, and connectors colored by each source entity's state (grey only when the source is
+  unknown) so failing dependencies stay traceable.
 - **Swimlanes** (Workload root / flows / components) replace an unlabeled scatter, and each
   entity gets an icon matched from its name.
 - **Labels sit in collision-free pills** on their own routing tracks; the layout engine
@@ -65,13 +66,6 @@ flowchart BT
 
 Signals live **inside** each entity as a status table (status dot, name, metric icon, result). Health
 rolls up through business flows to the workload root. Relationship labels render as pills.
-
-In the browser editor, each signal row is also a selectable replay. Play reveals its exact authored
-result from a neutral `—`, follows reachable relationships in causal order, and emphasizes authored
-qualifiers and relationship labels. Pause, Resume, and Restart control the explanation. This is a
-replay of the Mermaid document's static state, not live health evaluation; when no authored label or
-qualifier specifies a rollup rule, the narration says so instead of inventing one. Static SVG and CLI
-output remain unchanged.
 
 ![Hero](svg/hero.svg)
 
@@ -288,7 +282,6 @@ flowchart BT
 | `name` | output file name (defaults to a slug of the title/heading) |
 | `background` | canvas background color (mermaid renderer only) |
 | `alt` | accessibility alt text for the `--sync-markdown` visible embed; overrides `title`/heading (see below) |
-| `maxWidth` | swimlane only; final SVG width budget in CSS px, chrome (margins/gutter/legend) included — **default `1024`**, not unbounded. Any lane whose content would push past it wraps onto multiple stacked rows, grouped by parent so siblings stay together. Below the diagram's own structural minimum, it warns and clamps up to that minimum instead of shrinking further. |
 
 Signal rows can carry a real measurement and their own state, straight in the mermaid label:
 
@@ -342,17 +335,17 @@ enforced by geometric tests:
   child (where crossing connectors are sparse), get repaired onto a different row when the
   assignment pins them under a connector, and finally slide along their own line to a
   verified-clear spot.
-- **Every render is width-bounded by default.** The final SVG width (margins, lane-label gutter,
-  title, and legend all counted) never exceeds `maxWidth` — **1024 CSS px unless overridden** —
-  a lane whose cards would push past it wraps onto multiple stacked rows instead, grouped by
-  parent so siblings stay together rather than splitting arbitrarily. Setting `laneLabels: false`
-  reclaims the label gutter's width for row content too — a second, independent lever for keeping
-  wide diagrams narrower.
-- **Shared routes bundle into one trunk, not a comb.** Solid, unlabeled edges that share a target
-  ride one genuinely-coincident trunk (at any physical-row distance, not just adjacent rows),
-  branching onto a short per-edge stub only near their own source and the shared target — drawn in
-  the theme's neutral color so it never implies a merged health state; dashed and labeled edges
-  keep routing individually.
+- **Lane labels are optional.** Setting `laneLabels: false` removes the lane label text and
+  reclaims its gutter width for row content, while preserving lane bands/hairlines and route
+  geometry.
+- **One logical lane stays one physical band.** Dense fixtures keep exactly one rendered band per
+  logical lane label. The layout may grow taller, but never wraps one logical lane into multiple
+  physical rows.
+- **Shared routes still keep source ownership.** Solid, unlabeled edges that share a target may
+  reuse coincident geometry, but each relationship keeps its own source-state color. Grey connector
+  strokes appear only for unknown-state sources.
+- **Rendering is static-only.** Legacy `interactive` values are inert, rendered SVGs expose no
+  `data-ahm-*` hooks, and render results include no animation payload.
 
 `npm test` runs the suite: unit tests for the layout algorithms, parse-diagnostic tests, CLI
 end-to-end tests (real process spawns, exit codes, log format), a mermaid-cli smoke test (skipped

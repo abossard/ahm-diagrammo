@@ -33,6 +33,24 @@ const EXPECTED_ENTITIES = [
 // unique labels from the 5-node why-not-just-vanilla-mermaid model svg/hero.svg used to
 // accidentally duplicate — must never appear in the recreated hero
 const OTHER_MODEL_LABELS = ["Storefront", "Order intake", "Order API", "Payment service"];
+const ROOT_ARTIFACTS = [
+  {
+    name: "kitchen-sink",
+    source: "kitchen-sink.md",
+    output: "kitchen-sink-health-model.svg",
+    committed: join("svg", "kitchen-sink.svg"),
+    expectedTitle: "Kitchen sink health model",
+    expectedContent: [/API service/, /Secondary region/],
+  },
+  {
+    name: "pills-stress",
+    source: "pills-stress.md",
+    output: "pills-stress-test.svg",
+    committed: join("svg", "pills-stress.svg"),
+    expectedTitle: "Pills stress test",
+    expectedContent: [/Middle flow/, /Shared dependency/],
+  },
+];
 
 const cleanupDirs = [];
 process.on("exit", () => {
@@ -123,6 +141,38 @@ test("running the documented CLI command against hero.md reproduces svg/hero.svg
   const fresh2 = readFileSync(join(out2, "diagram.svg"), "utf8");
   assert.equal(fresh2, fresh1, "two independent regenerations of hero.md must be byte-identical");
 });
+
+for (const artifact of ROOT_ARTIFACTS) {
+  test(`${artifact.name}: committed svg is native, distinct from hero, and carries expected title/content`, () => {
+    const hero = read("svg", "hero.svg");
+    const svg = read(artifact.committed);
+    assert.notEqual(svg, hero, `${artifact.committed} must not duplicate svg/hero.svg`);
+    assert.match(svg, new RegExp(`>${artifact.expectedTitle}<`), `${artifact.committed} title mismatch`);
+    for (const marker of artifact.expectedContent) {
+      assert.match(svg, marker, `${artifact.committed} is missing expected content marker ${marker}`);
+    }
+    assert.deepEqual(verifySvgString(svg), []);
+  });
+
+  test(`${artifact.name}: CLI regeneration is byte-identical and idempotent`, async () => {
+    const committedSvg = read(artifact.committed);
+    const source = join(ROOT, artifact.source);
+
+    const out1 = tmp();
+    const r1 = await run(source, "-o", out1);
+    assert.equal(r1.code, 0, r1.stderr || r1.stdout);
+    const rendered1 = join(out1, artifact.output);
+    assert.ok(existsSync(rendered1), `expected ${artifact.output} from ${artifact.source}`);
+    const fresh1 = readFileSync(rendered1, "utf8");
+    assert.equal(fresh1, committedSvg, `fresh CLI regeneration of ${artifact.source} drifted from ${artifact.committed}`);
+
+    const out2 = tmp();
+    const r2 = await run(source, "-o", out2);
+    assert.equal(r2.code, 0, r2.stderr || r2.stdout);
+    const fresh2 = readFileSync(join(out2, artifact.output), "utf8");
+    assert.equal(fresh2, fresh1, `${artifact.source} regeneration must stay byte-identical across runs`);
+  });
+}
 
 test("README's Hero example still points at svg/hero.svg", () => {
   assert.match(README(), /!\[Hero\]\(svg\/hero\.svg\)/, "README's Hero image must resolve to svg/hero.svg");
