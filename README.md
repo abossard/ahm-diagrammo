@@ -1,25 +1,25 @@
 # ahm-diagrammo
 
-Turn the mermaid blocks in a Markdown file into good-looking SVGs — with one command:
-
-```bash
-npx ahm-diagrammo your-doc.md
-```
-
 **[Open the browser editor](https://abossard.github.io/ahm-diagrammo/)** to edit Markdown,
-preview every diagram, and download the rendered SVGs and PNGs without installing anything.
+preview health-model diagrams, and download SVGs and PNGs without installing anything.
+An editable example opens immediately. Paste your Markdown, including previously synced hidden
+Mermaid source, and read warnings or errors beside the affected diagram. Download ZIP captures
+one source revision, even if you keep editing while PNGs are generated.
+
+Use the [CLI publishing workflow](#usage) to write SVGs alongside documentation or render other
+Mermaid diagram types. The browser keeps your source in the editor only, with no draft storage.
 
 Its specialty is **Azure Monitor health models**: Mermaid `flowchart BT` health models become
 SVGs that look like the Azure portal health graph, render as `<img>` on Microsoft Learn (native
 `<text>`, no `foreignObject`), and scale without blurring. Every other mermaid block in the
-file — sequence, state, ER, plain flowcharts — is rendered too, through mermaid-cli with the
+file, including sequence, state, ER and plain flowcharts, is rendered by the CLI through mermaid-cli with the
 same theme, so a whole document stays visually consistent.
 
 ## Why not just vanilla mermaid?
 
 The exact same mermaid block, rendered by vanilla mermaid and by diagrammo:
 
-| Vanilla mermaid | `npx ahm-diagrammo` |
+| Vanilla mermaid | diagrammo CLI |
 |---|---|
 | ![Vanilla mermaid rendering](svg/compare-vanilla.svg) | ![diagrammo rendering](svg/compare-diagrammo.svg) |
 
@@ -69,12 +69,16 @@ rolls up through business flows to the workload root. Relationship labels render
 
 ![Hero](svg/hero.svg)
 
+[Editable hero source](hero.md).
+
 ### Kitchen sink: one figure, every feature
 
 Healthy, Degraded, Unhealthy, Unknown, and Standby states. Multi-row signal tables. Dashed propagation
 edges. Qualifiers like worstOf and active-active. Long names, straight and elbow connectors.
 
 ![Kitchen sink](svg/kitchen-sink.svg)
+
+[Editable kitchen-sink source](kitchen-sink.md).
 
 ### Pills stress test: labels that never collide
 
@@ -84,27 +88,32 @@ crosses another, and every pill belongs to one relationship.
 
 ![Pills stress test](svg/pills-stress.svg)
 
+[Editable pills-stress source](pills-stress.md).
+
 ### More examples
 
-| | |
-|---|---|
-| Circuit breaker (limited propagation, unhealthy) | Multi-region (worst-of, tolerated failure) |
-| ![Circuit breaker](svg/swimlane/circuit-breaker.svg) | ![Multi-region](svg/swimlane/multi-region-with-worst-of-or-minimum-count-aggregation.svg) |
-| Portfolio (nested models, discovered) | Architecture diagram (declarative) |
-| ![Portfolio](svg/swimlane/aggregate-health-across-the-workload-portfolio.svg) | ![Architecture](svg/architecture/appservice-baseline.svg) |
-
-All 22 service-guide diagrams: [svg/swimlane/](svg/swimlane/).
+[examples/showcase.md](examples/showcase.md) contains editable examples of themes, option channels
+and supported diagrams. Select it in the browser editor for health models, or use the CLI for
+its ordinary Mermaid examples.
 
 ## Usage
 
+Run from a checkout. The package is not currently published on npm:
+
 ```bash
-npx ahm-diagrammo doc.md                       # one SVG per mermaid block into ./diagrams
-npx ahm-diagrammo doc.md -o out -t midnight    # pick an output dir and a default theme
-npx ahm-diagrammo doc.md --list                # show what each block would render as
-npx ahm-diagrammo doc.md --verbose             # log every parsed node/edge/fold decision
-npx ahm-diagrammo doc.md --strict              # any warning fails the run (CI-friendly)
-npx ahm-diagrammo doc.md --sync-markdown       # rewrite fences into visible SVG + fully hidden source
-npx ahm-diagrammo doc.md --sync-markdown --image-format learn   # emit Microsoft Learn :::image::: directives
+git clone https://github.com/abossard/ahm-diagrammo.git
+cd ahm-diagrammo
+npm ci
+```
+
+```bash
+node bin/diagrammo.mjs doc.md                       # SVGs into ./diagrams
+node bin/diagrammo.mjs doc.md -o out -t midnight      # output directory and default theme
+node bin/diagrammo.mjs doc.md --list                 # dry run, writes nothing
+node bin/diagrammo.mjs doc.md --verbose              # parsed nodes, edges and fold decisions
+node bin/diagrammo.mjs doc.md --strict               # warnings fail the run
+node bin/diagrammo.mjs doc.md --sync-markdown        # visible SVG + fully hidden source
+node bin/diagrammo.mjs doc.md --sync-markdown --image-format learn   # Learn image directives
 ```
 
 The command walks the file, and for each ` ```mermaid ` block:
@@ -116,7 +125,7 @@ The command walks the file, and for each ` ```mermaid ` block:
 
 Each run writes one SVG per mermaid block. Try the
 [browser editor](https://abossard.github.io/ahm-diagrammo/) or run
-`npx ahm-diagrammo examples/showcase.md -o out-showcase`.
+`node bin/diagrammo.mjs examples/showcase.md -o out-showcase`.
 
 ## Check in both the Mermaid and the SVG
 
@@ -133,7 +142,7 @@ The loop:
 1. Edit the Mermaid fence directly in the raw Markdown (bare, or inside an existing managed block —
    see [docs/FEATURES.md](docs/FEATURES.md#sync-svgs-into-markdown) for the exact hidden-comment
    shape and how to hand-edit it safely).
-2. `npx ahm-diagrammo doc.md --sync-markdown` (or `-o docs/assets --sync-markdown` to colocate the
+2. `node bin/diagrammo.mjs doc.md --sync-markdown` (or `-o docs/assets --sync-markdown` to colocate the
    SVG next to the doc).
 3. Preview the *rendered* Markdown — only the SVG shows; the source stays fully hidden.
 4. Commit the Markdown and the emitted `.svg` together.
@@ -211,8 +220,10 @@ load [`skills/diagrammo/SKILL.md`](skills/diagrammo/SKILL.md).
 
 ## How it works
 
-ahm-diagrammo reads the Markdown file, extracts every mermaid block, merges each block's options,
-picks a renderer, and writes the SVGs. The figure below is that pipeline, drawn by ahm-diagrammo from
+The browser and CLI call `prepareDocuments` in `src/document.mjs` for managed-source decoding,
+extraction, option precedence, stable batch slugs, raw source locations and renderer selection.
+The browser owns preview, status, Canvas and download; the CLI owns files, subprocesses and sync.
+The figure below shows the rendering stages, drawn by ahm-diagrammo from
 its own health model in [docs/how-it-works.md](docs/how-it-works.md):
 
 ![How ahm-diagrammo renders one Markdown file](docs/assets/how-it-works-pipeline.svg)
@@ -220,7 +231,7 @@ its own health model in [docs/how-it-works.md](docs/how-it-works.md):
 Regenerate it from the source:
 
 ```bash
-npx ahm-diagrammo docs/how-it-works.md -o docs/assets
+node bin/diagrammo.mjs docs/how-it-works.md -o docs/assets
 ```
 
 Read it bottom-up: a Markdown file enters at the bottom and the output bundle rolls up at the top.
@@ -374,7 +385,9 @@ authenticate through GitHub OIDC.
 
 | Tool | What it does |
 |------|--------------|
-| `bin/diagrammo.mjs` | The `npx ahm-diagrammo` CLI: extracts blocks, picks a renderer per block, applies themes and per-block options, and writes one SVG per block. |
+| `src/document.mjs` | Shared browser-safe document preparation: decoded source, ordered identities, resolved options, renderer choice and raw source locations. Reserves managed slugs across the batch before allocating new names. |
+| `src/managed-source.mjs` | The single managed-source codec and marker validator, reused by preparation and Markdown sync. |
+| `bin/diagrammo.mjs` | CLI host: reads files, prepares the batch, renders, logs diagnostics, writes SVGs and optionally syncs Markdown. Both packaged aliases remain available. |
 | `src/swimlane.mjs` | The swimlane engine. Parses `flowchart BT` into a graph, folds signals into their entity as a status table, layers the graph into swimlanes, and renders portal-styled SVG with roll-up connectors and pill labels. |
 | `src/mermaid.mjs` | Themed Mermaid via mermaid-cli for everything else. Keeps the original node shapes, applies the theme palette, polishes corners and shadows. |
 | `src/themes.mjs` | The four themes, shared by both renderers. |

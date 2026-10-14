@@ -6,7 +6,7 @@ notes name the test that pins the behavior. If a statement here stops being true
 For a visual overview, see [how-it-works.md](how-it-works.md), a health model that ahm-diagrammo
 renders of its own pipeline, mapping each lane to the code and test behind it.
 
-Quick links: [CLI](#command-line) · [Renderer selection](#renderer-selection) ·
+Quick links: [Browser editor](#browser-editor) · [CLI](#command-line) · [Renderer selection](#renderer-selection) ·
 [Per-block options](#per-block-options) · [Themes](#themes) ·
 [Health-model swimlanes](#health-model-swimlanes) · [Signal rows](#signal-rows) ·
 [Layout guarantees](#layout-guarantees) · [Plain mermaid](#plain-mermaid-blocks) ·
@@ -16,10 +16,29 @@ Quick links: [CLI](#command-line) · [Renderer selection](#renderer-selection) �
 
 ---
 
+## Browser editor
+
+[Open the editor](https://abossard.github.io/ahm-diagrammo/). It loads an editable health model
+and shows full Markdown with diagrams in their source locations. Hidden managed Mermaid source
+and legacy managed blocks preview once, using the same permanent slugs as the CLI. Errors and
+warnings include source lines; warnings do not hide successful SVGs.
+
+Choose an example or edit the source. Late example responses never replace newer choices or edits.
+Export ZIP includes SVG and PNG for each successful health model from one captured revision.
+Other Mermaid types remain explicit unsupported states in the browser; use the CLI below for those.
+Maximize either pane, press Escape to restore it, or focus a diagram to scroll its full-size content
+on narrow screens. The editor does not persist drafts.
+
+Both hosts use `prepareDocuments` in `src/document.mjs`; the browser import graph contains no
+Node filesystem or subprocess modules. *Verified by:* `document.test.mjs`, `web-convert.test.mjs`,
+`web-markdown-preview.test.mjs`, `web-export-zip.test.mjs`, and native `web-browser.test.mjs`.
+
 ## Command line
 
+Run from a [repository checkout](../README.md#usage), not an unpublished npm package.
+
 ```
-npx ahm-diagrammo <file.md> [more.md ...] [options]
+node bin/diagrammo.mjs <file.md> [more.md ...] [options]
 
   -o, --out <dir>        output directory                    (default: ./diagrams)
   -t, --theme <name>     portal | midnight | candy | slate   (default: portal)
@@ -87,8 +106,8 @@ The recommended loop:
 # 1. edit the mermaid fence directly in the raw Markdown (bare, or inside an existing managed
 #    block's hidden-source comment — real arrows there are fine; the next resync re-escapes them)
 # 2. re-render + rewrite the managed block in place
-npx ahm-diagrammo doc.md --sync-markdown
-npx ahm-diagrammo doc.md -o docs/assets --sync-markdown   # colocate the SVG under docs/assets
+node bin/diagrammo.mjs doc.md --sync-markdown
+node bin/diagrammo.mjs doc.md -o docs/assets --sync-markdown   # colocate the SVG under docs/assets
 # 3. preview the *rendered* Markdown (GitHub, VS Code preview, …) — only the SVG shows, the
 #    source stays fully hidden, not just collapsed
 # 4. commit both the Markdown and the emitted .svg

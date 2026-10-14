@@ -42,7 +42,7 @@ function makeFixtureRepo(root) {
   ]) writeFile(root, f, `/* ${f} */`);
   for (const f of [
     "src/extract.mjs", "src/swimlane.mjs", "src/themes.mjs", "src/diag.mjs",
-    "src/text.mjs", "src/layout.mjs", "src/font-metrics.mjs",
+    "src/text.mjs", "src/layout.mjs", "src/font-metrics.mjs", "src/document.mjs", "src/managed-source.mjs",
   ]) writeFile(root, f, `/* ${f} */`);
   for (const f of ["kitchen-sink.md", "pills-stress.md", "examples/showcase.md", "docs/how-it-works.md"]) {
     writeFile(root, f, `# ${f}`);
@@ -83,7 +83,7 @@ const REQUIRED_PATHS = [
   "web/style.css", "web/app.mjs", "web/convert.mjs", "web/examples.mjs",
   "web/markdown-preview.mjs", "web/export-zip.mjs",
   "src/extract.mjs", "src/swimlane.mjs", "src/themes.mjs", "src/diag.mjs",
-  "src/text.mjs", "src/layout.mjs", "src/font-metrics.mjs",
+  "src/text.mjs", "src/layout.mjs", "src/font-metrics.mjs", "src/document.mjs", "src/managed-source.mjs",
   "kitchen-sink.md", "pills-stress.md", "examples/showcase.md", "docs/how-it-works.md",
   ".nojekyll",
   "web/vendor/marked.esm.js", "web/vendor/purify.es.mjs", "web/vendor/fflate.esm.js",

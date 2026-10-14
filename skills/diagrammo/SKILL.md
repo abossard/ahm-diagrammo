@@ -1,17 +1,25 @@
 ---
 name: diagrammo
-description: Inspect and render Mermaid blocks in Markdown as themed SVG output with the packaged ahm-diagrammo CLI.
+description: Edit and preview Markdown health models in the browser, or publish Mermaid SVGs with the ahm-diagrammo CLI.
 ---
 
 # Diagrammo
 
-Use the packaged CLI. Do not reimplement parsing, renderer selection, layout, theming, or SVG generation.
+[Open the browser editor](https://abossard.github.io/ahm-diagrammo/) for source editing, full
+Markdown preview and SVG/PNG ZIP download. It starts with an editable example, reads synced hidden
+Mermaid source, and shows warnings/errors at their source lines. Other Mermaid types need the CLI.
+Drafts stay in the editor only.
+
+For a publishing task, use the existing CLI. Resolve its installed path or a repository checkout
+before running it; the package is not currently published on npm. The commands below run from
+the ahm-diagrammo checkout. For another repository, use the absolute CLI path and input/output paths.
+Do not reimplement parsing, renderer selection, layout, theming, or SVG generation.
 
 1. Confirm the requested Markdown input and output directory. If the input is missing or invalid, stop and report the problem instead of guessing.
 2. Inspect before render when appropriate, especially for unfamiliar input or when the user asks what will be generated:
-   `npx --yes ahm-diagrammo "$INPUT" --list`
+   `node bin/diagrammo.mjs "$INPUT" --list`
 3. Render into an explicit output directory:
-   `npx --yes ahm-diagrammo "$INPUT" --out "$OUTPUT" --strict`
+   `node bin/diagrammo.mjs "$INPUT" --out "$OUTPUT" --strict`
 4. Verify the command exited successfully. Inspect `$OUTPUT` for `.svg` files, confirm each is non-empty, and report the emitted files.
 
 Preserve the user's Markdown. Surface CLI diagnostics and non-zero exits rather than masking

@@ -6,3 +6,7 @@ out-*/
 *.tgz
 _site/
 web/vendor/
+drawio/vscode-extension/assets/
+drawio/vscode-extension/.vscode-test/
+drawio/vscode-extension/*.vsix
+drawio/vscode-extension/evidence/

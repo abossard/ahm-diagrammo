@@ -1,0 +1,1955 @@
+<svg host="65bd71144e" xmlns="http://www.w3.org/2000/svg" style="background: #ffffff; background-color: light-dark(#ffffff, #121212);" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" width="2725px" height="1593px" viewBox="-0.5 -0.5 2725 1593" content="&lt;mxfile&gt;&lt;diagram id=&quot;ahm-kitchen-sink&quot; name=&quot;Page-1&quot;&gt;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&lt;/diagram&gt;&lt;/mxfile&gt;">
+    <defs/>
+    <rect fill="#ffffff" width="100%" height="100%" x="0" y="0" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));"/>
+    <g>
+        <g>
+            <rect x="0" y="0" width="2724" height="26" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="18px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1.5" y="20.5">
+                    Kitchen sink health model
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="0" y="26" width="2724" height="16" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" font-size="11px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1.5" y="38">
+                    Explicit local health · worstOf rollup
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 44 62 L 0 62 L 0 222 L 44 222" fill="#ffffff" stroke="#e6e4e2" stroke-miterlimit="10" transform="translate(1362,0)scale(-1,1)translate(-1362,0)" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+            <path d="M 44 62 L 2724 62 L 2724 222 L 44 222" fill="#ffffff" stroke="#e6e4e2" stroke-miterlimit="10" transform="translate(1362,0)scale(-1,1)translate(-1362,0)" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <g fill="#323130" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="13px" transform="rotate(-90,2702,142)" style="fill: light-dark(rgb(50, 49, 48), rgb(196, 195, 194));">
+                <text x="2701.5" y="147">
+                    Workload root
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1096" y="94" width="224" height="96" rx="5" ry="5" fill="#fbf2e7" stroke="#db7500" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(251, 242, 231), rgb(35, 27, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <rect x="1108" y="106" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1109.5" y="124.5">
+                    Workload root
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1108" y="132" width="200" height="14" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1109.5" y="142.25">
+                    worstOf
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1225" y="154" width="83" height="20" rx="5" ry="5" fill="#ffffff" stroke="#db7500" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <ellipse cx="1237" cy="164" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="1251" y="154" width="47" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1252.5" y="167.5">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 44 462 L 0 462 L 0 894 L 44 894" fill="#faf9f8" stroke="#e6e4e2" stroke-miterlimit="10" transform="translate(1362,0)scale(-1,1)translate(-1362,0)" pointer-events="all" style="fill: light-dark(rgb(250, 249, 248), rgb(24, 23, 22)); stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+            <path d="M 44 462 L 2724 462 L 2724 894 L 44 894" fill="#faf9f8" stroke="#e6e4e2" stroke-miterlimit="10" transform="translate(1362,0)scale(-1,1)translate(-1362,0)" pointer-events="all" style="fill: light-dark(rgb(250, 249, 248), rgb(24, 23, 22)); stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <g fill="#323130" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="13px" transform="rotate(-90,2702,678)" style="fill: light-dark(rgb(50, 49, 48), rgb(196, 195, 194));">
+                <text x="2701.5" y="683">
+                    Business &amp; user flows
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="568" y="574" width="224" height="96" rx="5" ry="5" fill="#fbf2e7" stroke="#db7500" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(251, 242, 231), rgb(35, 27, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <rect x="580" y="586" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="581.5" y="604.5">
+                    Shop and commerce
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="580" y="612" width="200" height="14" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="581.5" y="622.25">
+                    active-active
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="707" y="634" width="73" height="20" rx="5" ry="5" fill="#ffffff" stroke="#db7500" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <ellipse cx="719" cy="644" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="733" y="634" width="37" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="734.5" y="647.5">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="832" y="614" width="224" height="96" rx="5" ry="5" fill="#fbf2e7" stroke="#db7500" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(251, 242, 231), rgb(35, 27, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <rect x="844" y="626" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="845.5" y="644.5">
+                    Reporting
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="844" y="652" width="200" height="14" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="845.5" y="662.25">
+                    single region
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="961" y="674" width="83" height="20" rx="5" ry="5" fill="#ffffff" stroke="#db7500" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <ellipse cx="973" cy="684" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="987" y="674" width="47" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="988.5" y="687.5">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1096" y="654" width="224" height="72" rx="5" ry="5" fill="#fbf2e7" stroke="#db7500" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(251, 242, 231), rgb(35, 27, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <rect x="1108" y="666" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1109.5" y="684.5">
+                    Logistics and fulfillment
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1225" y="692" width="83" height="20" rx="5" ry="5" fill="#ffffff" stroke="#db7500" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <ellipse cx="1237" cy="702" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="1251" y="692" width="47" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1252.5" y="705.5">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1360" y="694" width="224" height="72" rx="5" ry="5" fill="#f6f6f5" stroke="#c8c6c4" stroke-width="2" stroke-dasharray="8 6" pointer-events="all" style="fill: light-dark(rgb(246, 246, 245), rgb(26, 26, 26)); stroke: light-dark(rgb(200, 198, 196), rgb(68, 66, 64));"/>
+        </g>
+        <g>
+            <rect x="1372" y="706" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1373.5" y="724.5">
+                    Account and identity
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1491" y="732" width="81" height="20" rx="5" ry="5" fill="#ffffff" stroke="#c8c6c4" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(200, 198, 196), rgb(68, 66, 64));"/>
+        </g>
+        <g>
+            <ellipse cx="1503" cy="742" rx="5" ry="5" fill="#8a8886" stroke="none" pointer-events="all" style="fill: light-dark(rgb(138, 136, 134), rgb(121, 119, 117));"/>
+        </g>
+        <g>
+            <rect x="1517" y="732" width="45" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1518.5" y="745.5">
+                    Unknown
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1624" y="734" width="224" height="128" rx="5" ry="5" fill="#f4f0fb" stroke="#8661c5" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(244, 240, 251), rgb(32, 28, 38)); stroke: light-dark(rgb(134, 97, 197), rgb(160, 128, 214));"/>
+        </g>
+        <g>
+            <rect x="1636" y="746" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1637.5" y="764.5">
+                    Secondary region
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1760" y="772" width="76" height="20" rx="5" ry="5" fill="#ffffff" stroke="#8661c5" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(134, 97, 197), rgb(160, 128, 214));"/>
+        </g>
+        <g>
+            <ellipse cx="1772" cy="782" rx="5" ry="5" fill="#8661c5" stroke="none" pointer-events="all" style="fill: light-dark(rgb(134, 97, 197), rgb(160, 128, 214));"/>
+        </g>
+        <g>
+            <rect x="1786" y="772" width="40" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1787.5" y="785.5">
+                    Standby
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1636" y="804" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1642" cy="815" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1641.5" y="817.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1656" y="804" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1657.5" y="818.25">
+                    Replication health
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1800" y="804" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1833.5" y="818.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1636" y="826" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1642" cy="837" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1641.5" y="839.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1656" y="826" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1657.5" y="840.25">
+                    Failover readiness
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1800" y="826" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1833.5" y="840.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 1636 826.5 L 1836 826.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 44 1134 L 0 1134 L 0 1494 L 44 1494" fill="#ffffff" stroke="#e6e4e2" stroke-miterlimit="10" transform="translate(1362,0)scale(-1,1)translate(-1362,0)" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+            <path d="M 44 1134 L 2724 1134 L 2724 1494 L 44 1494" fill="#ffffff" stroke="#e6e4e2" stroke-miterlimit="10" transform="translate(1362,0)scale(-1,1)translate(-1362,0)" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <g fill="#323130" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="13px" transform="rotate(-90,2702,1314)" style="fill: light-dark(rgb(50, 49, 48), rgb(196, 195, 194));">
+                <text x="2701.5" y="1319">
+                    Application components
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="40" y="1166" width="224" height="176" rx="5" ry="5" fill="#f2f8f2" stroke="#a0d8a0" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(242, 248, 242), rgb(22, 27, 22)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <rect x="52" y="1178" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="53.5" y="1196.5">
+                    Web frontend
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="179" y="1204" width="73" height="20" rx="5" ry="5" fill="#ffffff" stroke="#a0d8a0" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <ellipse cx="191" cy="1214" rx="5" ry="5" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <rect x="205" y="1204" width="37" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="206.5" y="1217.5">
+                    Healthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="52" y="1236" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="58" cy="1247" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="57.5" y="1249.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="72" y="1236" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="73.5" y="1250.25">
+                    Web latency
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="216" y="1236" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="249.5" y="1250.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="52" y="1258" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="58" cy="1269" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="57.5" y="1271.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="72" y="1258" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="73.5" y="1272.25">
+                    HTTP 5xx rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="216" y="1258" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="249.5" y="1272.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="52" y="1280" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="58" cy="1291" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="57.5" y="1293.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="72" y="1280" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="73.5" y="1294.25">
+                    Request rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="216" y="1280" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="249.5" y="1294.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="52" y="1302" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="58" cy="1313" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="57.5" y="1315.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="72" y="1302" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="73.5" y="1316.25">
+                    Availability
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="216" y="1302" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="249.5" y="1316.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 52 1258.5 L 252 1258.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 52 1280.5 L 252 1280.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 52 1302.5 L 252 1302.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="304" y="1182" width="224" height="176" rx="5" ry="5" fill="#fbf2e7" stroke="#db7500" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(251, 242, 231), rgb(35, 27, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <rect x="316" y="1194" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="317.5" y="1212.5">
+                    API service
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="433" y="1220" width="83" height="20" rx="5" ry="5" fill="#ffffff" stroke="#db7500" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <ellipse cx="445" cy="1230" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="459" y="1220" width="47" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="460.5" y="1233.5">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="316" y="1252" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="322" cy="1263" rx="6" ry="6" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="321.5" y="1265.5">
+                    !
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="336" y="1252" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="337.5" y="1266.25">
+                    Request rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="480" y="1252" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#c26a00" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));">
+                <text x="513.5" y="1266.25">
+                    19
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="316" y="1274" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="322" cy="1285" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="321.5" y="1287.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="336" y="1274" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="337.5" y="1288.25">
+                    P95 latency
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="480" y="1274" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="513.5" y="1288.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="316" y="1296" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="322" cy="1307" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="321.5" y="1309.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="336" y="1296" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="337.5" y="1310.25">
+                    429 rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="480" y="1296" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="513.5" y="1310.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="316" y="1318" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="322" cy="1329" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="321.5" y="1331.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="336" y="1318" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="337.5" y="1332.25">
+                    Error rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="480" y="1318" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="513.5" y="1332.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 316 1274.5 L 516 1274.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 316 1296.5 L 516 1296.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 316 1318.5 L 516 1318.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="568" y="1198" width="224" height="192" rx="5" ry="5" fill="#f2f8f2" stroke="#a0d8a0" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(242, 248, 242), rgb(22, 27, 22)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <rect x="580" y="1210" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="581.5" y="1228.5">
+                    Database
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="707" y="1236" width="73" height="20" rx="5" ry="5" fill="#ffffff" stroke="#a0d8a0" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <ellipse cx="719" cy="1246" rx="5" ry="5" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <rect x="733" y="1236" width="37" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="734.5" y="1249.5">
+                    Healthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="580" y="1268" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="586" cy="1279" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="585.5" y="1281.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="600" y="1268" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="601.5" y="1282.25">
+                    Connection pool
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="744" y="1268" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="777.5" y="1282.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="580" y="1290" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="586" cy="1301" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="585.5" y="1303.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="600" y="1290" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="601.5" y="1304.25">
+                    DTU utilization
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="744" y="1290" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="777.5" y="1304.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="580" y="1312" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="586" cy="1323" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="585.5" y="1325.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="600" y="1312" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="601.5" y="1326.25">
+                    Failed connections
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="744" y="1312" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="777.5" y="1326.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="580" y="1334" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="586" cy="1345" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="585.5" y="1347.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="600" y="1334" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="601.5" y="1348.25">
+                    Replication lag
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="744" y="1334" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="777.5" y="1348.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="580" y="1356" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="586" cy="1367" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="585.5" y="1369.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="600" y="1356" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="601.5" y="1370.25">
+                    Deadlocks
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="744" y="1356" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="777.5" y="1370.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 580 1290.5 L 780 1290.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 580 1312.5 L 780 1312.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 580 1334.5 L 780 1334.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 580 1356.5 L 780 1356.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="832" y="1214" width="224" height="152" rx="5" ry="5" fill="#faeceb" stroke="#ba0d16" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(250, 236, 235), rgb(41, 29, 28)); stroke: light-dark(rgb(186, 13, 22), rgb(255, 161, 169));"/>
+        </g>
+        <g>
+            <rect x="844" y="1226" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="845.5" y="1244.5">
+                    Redis cache
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="960" y="1252" width="84" height="20" rx="5" ry="5" fill="#ffffff" stroke="#ba0d16" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(186, 13, 22), rgb(255, 161, 169));"/>
+        </g>
+        <g>
+            <ellipse cx="972" cy="1262" rx="5" ry="5" fill="#c50f18" stroke="none" pointer-events="all" style="fill: light-dark(rgb(197, 15, 24), rgb(255, 157, 164));"/>
+        </g>
+        <g>
+            <rect x="986" y="1252" width="48" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="987.5" y="1265.5">
+                    Unhealthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="844" y="1284" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="850" cy="1295" rx="6" ry="6" fill="#c50f18" stroke="none" pointer-events="all" style="fill: light-dark(rgb(197, 15, 24), rgb(255, 157, 164));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="849.5" y="1297.5">
+                    ×
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="864" y="1284" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="865.5" y="1298.25">
+                    Hit ratio
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1008" y="1284" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#c50f18" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(197, 15, 24), rgb(255, 157, 164));">
+                <text x="1041.5" y="1298.25">
+                    116
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="844" y="1306" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="850" cy="1317" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="849.5" y="1319.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="864" y="1306" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="865.5" y="1320.25">
+                    Eviction rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1008" y="1306" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1041.5" y="1320.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="844" y="1328" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="850" cy="1339" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="849.5" y="1341.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="864" y="1328" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="865.5" y="1342.25">
+                    Memory pressure
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1008" y="1328" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1041.5" y="1342.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 844 1306.5 L 1044 1306.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 844 1328.5 L 1044 1328.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="1096" y="1230" width="224" height="152" rx="5" ry="5" fill="#fbf2e7" stroke="#db7500" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(251, 242, 231), rgb(35, 27, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <rect x="1108" y="1242" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1109.5" y="1260.5">
+                    Order queue
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1225" y="1268" width="83" height="20" rx="5" ry="5" fill="#ffffff" stroke="#db7500" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <ellipse cx="1237" cy="1278" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="1251" y="1268" width="47" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1252.5" y="1281.5">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1108" y="1300" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1114" cy="1311" rx="6" ry="6" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1113.5" y="1313.5">
+                    !
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1128" y="1300" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1129.5" y="1314.25">
+                    Queue depth
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1272" y="1300" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#c26a00" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));">
+                <text x="1305.5" y="1314.25">
+                    18
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1108" y="1322" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1114" cy="1333" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1113.5" y="1335.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1128" y="1322" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1129.5" y="1336.25">
+                    Oldest message age
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1272" y="1322" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1305.5" y="1336.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1108" y="1344" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1114" cy="1355" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1113.5" y="1357.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1128" y="1344" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1129.5" y="1358.25">
+                    Dead-letter count
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1272" y="1344" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1305.5" y="1358.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 1108 1322.5 L 1308 1322.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 1108 1344.5 L 1308 1344.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="1360" y="1246" width="224" height="128" rx="5" ry="5" fill="#f2f8f2" stroke="#a0d8a0" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(242, 248, 242), rgb(22, 27, 22)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <rect x="1372" y="1258" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1373.5" y="1276.5">
+                    Blob storage
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1499" y="1284" width="73" height="20" rx="5" ry="5" fill="#ffffff" stroke="#a0d8a0" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <ellipse cx="1511" cy="1294" rx="5" ry="5" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <rect x="1525" y="1284" width="37" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1526.5" y="1297.5">
+                    Healthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1372" y="1316" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1378" cy="1327" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1377.5" y="1329.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1392" y="1316" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1393.5" y="1330.25">
+                    Availability
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1536" y="1316" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1569.5" y="1330.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1372" y="1338" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1378" cy="1349" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1377.5" y="1351.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1392" y="1338" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1393.5" y="1352.25">
+                    Throttling rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1536" y="1338" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1569.5" y="1352.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 1372 1338.5 L 1572 1338.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="1624" y="1262" width="224" height="152" rx="5" ry="5" fill="#f6f6f5" stroke="#c8c6c4" stroke-width="2" stroke-dasharray="8 6" pointer-events="all" style="fill: light-dark(rgb(246, 246, 245), rgb(26, 26, 26)); stroke: light-dark(rgb(200, 198, 196), rgb(68, 66, 64));"/>
+        </g>
+        <g>
+            <rect x="1636" y="1274" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1637.5" y="1292.5">
+                    Identity provider
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1755" y="1300" width="81" height="20" rx="5" ry="5" fill="#ffffff" stroke="#c8c6c4" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(200, 198, 196), rgb(68, 66, 64));"/>
+        </g>
+        <g>
+            <ellipse cx="1767" cy="1310" rx="5" ry="5" fill="#8a8886" stroke="none" pointer-events="all" style="fill: light-dark(rgb(138, 136, 134), rgb(121, 119, 117));"/>
+        </g>
+        <g>
+            <rect x="1781" y="1300" width="45" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1782.5" y="1313.5">
+                    Unknown
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1636" y="1332" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1642" cy="1343" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1641.5" y="1345.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1656" y="1332" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1657.5" y="1346.25">
+                    Token failures
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1800" y="1332" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1833.5" y="1346.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1636" y="1354" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1642" cy="1365" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1641.5" y="1367.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1656" y="1354" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1657.5" y="1368.25">
+                    MFA challenges
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1800" y="1354" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1833.5" y="1368.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1636" y="1376" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1642" cy="1387" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1641.5" y="1389.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1656" y="1376" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1657.5" y="1390.25">
+                    Sign-in latency
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1800" y="1376" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="1833.5" y="1390.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 1636 1354.5 L 1836 1354.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 1636 1376.5 L 1836 1376.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="1888" y="1278" width="224" height="152" rx="5" ry="5" fill="#f2f8f2" stroke="#a0d8a0" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(242, 248, 242), rgb(22, 27, 22)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <rect x="1900" y="1290" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1901.5" y="1308.5">
+                    Search service
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2027" y="1316" width="73" height="20" rx="5" ry="5" fill="#ffffff" stroke="#a0d8a0" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <ellipse cx="2039" cy="1326" rx="5" ry="5" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <rect x="2053" y="1316" width="37" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2054.5" y="1329.5">
+                    Healthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1900" y="1348" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1906" cy="1359" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1905.5" y="1361.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1920" y="1348" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1921.5" y="1362.25">
+                    Index lag
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2064" y="1348" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2097.5" y="1362.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1900" y="1370" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1906" cy="1381" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1905.5" y="1383.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1920" y="1370" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1921.5" y="1384.25">
+                    Query latency
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2064" y="1370" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2097.5" y="1384.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1900" y="1392" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="1906" cy="1403" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="1905.5" y="1405.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="1920" y="1392" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="1921.5" y="1406.25">
+                    Error rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2064" y="1392" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2097.5" y="1406.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 1900 1370.5 L 2100 1370.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 1900 1392.5 L 2100 1392.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="2152" y="1294" width="224" height="168" rx="5" ry="5" fill="#f2f8f2" stroke="#a0d8a0" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(242, 248, 242), rgb(22, 27, 22)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <rect x="2164" y="1306" width="200" height="36" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2165.5" y="1324.5">
+                    Shipping service with a long
+                </text>
+                <text x="2165.5" y="1340.5">
+                    name
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2291" y="1350" width="73" height="20" rx="5" ry="5" fill="#ffffff" stroke="#a0d8a0" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(160, 216, 160), rgb(30, 79, 30));"/>
+        </g>
+        <g>
+            <ellipse cx="2303" cy="1360" rx="5" ry="5" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <rect x="2317" y="1350" width="37" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2318.5" y="1363.5">
+                    Healthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2164" y="1382" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="2170" cy="1393" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="2169.5" y="1395.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2184" y="1382" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2185.5" y="1396.25">
+                    Carrier API availability
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2328" y="1382" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2361.5" y="1396.25">
+                    2
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2164" y="1404" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="2170" cy="1415" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="2169.5" y="1417.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2184" y="1404" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2185.5" y="1418.25">
+                    Carrier API latency
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2328" y="1404" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2361.5" y="1418.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2164" y="1426" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="2170" cy="1437" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="2169.5" y="1439.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2184" y="1426" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2185.5" y="1440.25">
+                    Error rate
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2328" y="1426" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2361.5" y="1440.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 2164 1404.5 L 2364 1404.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 2164 1426.5 L 2364 1426.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="2416" y="1310" width="224" height="152" rx="5" ry="5" fill="#fbf2e7" stroke="#db7500" stroke-width="2" pointer-events="all" style="fill: light-dark(rgb(251, 242, 231), rgb(35, 27, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <rect x="2428" y="1322" width="200" height="18" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="13px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2429.5" y="1340.5">
+                    Background functions
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2545" y="1348" width="83" height="20" rx="5" ry="5" fill="#ffffff" stroke="#db7500" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(219, 117, 0), rgb(202, 114, 14));"/>
+        </g>
+        <g>
+            <ellipse cx="2557" cy="1358" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="2571" y="1348" width="47" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="10px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2572.5" y="1361.5">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2428" y="1380" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="2434" cy="1391" rx="6" ry="6" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="2433.5" y="1393.5">
+                    !
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2448" y="1380" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2449.5" y="1394.25">
+                    Invocation errors
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2592" y="1380" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#c26a00" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));">
+                <text x="2625.5" y="1394.25">
+                    9
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2428" y="1402" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="2434" cy="1413" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="2433.5" y="1415.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2448" y="1402" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2449.5" y="1416.25">
+                    Duration
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2592" y="1402" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2625.5" y="1416.25">
+                    0
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2428" y="1424" width="200" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <ellipse cx="2434" cy="1435" rx="6" ry="6" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <g fill="#ffffff" font-family="&quot;Helvetica&quot;" font-weight="bold" text-anchor="middle" font-size="8px" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18));">
+                <text x="2433.5" y="1437.5">
+                    ✓
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2448" y="1424" width="136" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="9.5px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="2449.5" y="1438.25">
+                    Throttles
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="2592" y="1424" width="36" height="22" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="end" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <text x="2625.5" y="1438.25">
+                    1
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 2428 1402.5 L 2628 1402.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 2428 1424.5 L 2628 1424.5" fill="none" stroke="#e6e4e2" stroke-miterlimit="10" pointer-events="all" style="stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <path d="M 152 1166 L 152 928 Q 152 918 162 918 L 629.7 918 Q 639.7 918 639.7 908 L 639.68 680.24" fill="none" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+            <path d="M 639.68 672.24 L 643.68 680.24 L 635.68 680.24 Z" fill="#4c9a2a" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51)); stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <path d="M 416 1182 L 416 936 Q 416 926 426 926 L 656.6 926 Q 666.6 926 666.6 916 L 666.56 680.24" fill="none" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+            <path d="M 666.56 672.24 L 670.56 680.24 L 662.56 680.24 Z" fill="#c26a00" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36)); stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <path d="M 657.6 1198 L 657.6 944 Q 657.6 934 667.6 934 L 683.4 934 Q 693.4 934 693.4 924 L 693.44 680.24" fill="none" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+            <path d="M 693.44 672.24 L 697.44 680.24 L 689.44 680.24 Z" fill="#4c9a2a" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51)); stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <path d="M 944 1214 L 944 952 Q 944 942 934 942 L 730.3 942 Q 720.3 942 720.3 932 L 720.32 680.24" fill="none" stroke="#c50f18" stroke-width="2" stroke-miterlimit="10" stroke-dasharray="16 10" pointer-events="stroke" style="stroke: light-dark(rgb(197, 15, 24), rgb(255, 157, 164));"/>
+            <path d="M 720.32 672.24 L 724.32 680.24 L 716.32 680.24 Z" fill="#c50f18" stroke="#c50f18" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(197, 15, 24), rgb(255, 157, 164)); stroke: light-dark(rgb(197, 15, 24), rgb(255, 157, 164));"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="middle" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <rect fill="#ffffff" stroke="#d8d6d4" x="904" y="1152" width="82" height="12" stroke-width="1" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(216, 214, 212), rgb(54, 52, 50));"/>
+                <text x="944" y="1159.75">
+                    limited propagation
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 702.4 1198 L 702.4 964 Q 702.4 954 712.4 954 L 911.6 954 Q 921.6 954 921.6 944 L 921.6 720.24" fill="none" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+            <path d="M 921.6 712.24 L 925.6 720.24 L 917.6 720.24 Z" fill="#4c9a2a" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51)); stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <path d="M 2000 1278 L 2000 1004 Q 2000 994 1990 994 L 976.4 994 Q 966.4 994 966.4 984 L 966.4 720.24" fill="none" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+            <path d="M 966.4 712.24 L 970.4 720.24 L 962.4 720.24 Z" fill="#4c9a2a" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51)); stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <path d="M 1208 1230 L 1208 988 Q 1208 978 1198 978 L 1184.4 978 Q 1174.4 978 1174.4 968 L 1174.4 736.24" fill="none" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+            <path d="M 1174.4 728.24 L 1178.4 736.24 L 1170.4 736.24 Z" fill="#c26a00" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36)); stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <path d="M 2264 1294 L 2264 1020 Q 2264 1010 2254 1010 L 1209 1010 Q 1199 1010 1199 1000 L 1199.04 736.24" fill="none" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+            <path d="M 1199.04 728.24 L 1203.04 736.24 L 1195.04 736.24 Z" fill="#4c9a2a" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51)); stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <path d="M 2528 1310 L 2528 1028 Q 2528 1018 2518 1018 L 1251.6 1018 Q 1241.6 1018 1241.6 1008 L 1241.6 736.24" fill="none" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+            <path d="M 1241.6 728.24 L 1245.6 736.24 L 1237.6 736.24 Z" fill="#c26a00" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36)); stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <path d="M 1736 1262 L 1736 1024 Q 1736 1014 1726 1014 L 1504.4 1014 Q 1494.4 1014 1494.4 1004 L 1494.4 776.24" fill="none" stroke="#8a8886" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(138, 136, 134), rgb(121, 119, 117));"/>
+            <path d="M 1494.4 768.24 L 1498.4 776.24 L 1490.4 776.24 Z" fill="#8a8886" stroke="#8a8886" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(138, 136, 134), rgb(121, 119, 117)); stroke: light-dark(rgb(138, 136, 134), rgb(121, 119, 117));"/>
+        </g>
+        <g>
+            <path d="M 1472 1246 L 1472 1016 Q 1472 1006 1462 1006 L 1455.8 1006 Q 1449.6 1006 1449.6 996 L 1449.6 776.24" fill="none" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+            <path d="M 1449.6 768.24 L 1453.6 776.24 L 1445.6 776.24 Z" fill="#4c9a2a" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51)); stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <path d="M 680 574 L 680 392 Q 680 382 690 382 L 1153.2 382 Q 1163.2 382 1163.2 372 L 1163.2 200.24" fill="none" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+            <path d="M 1163.2 192.24 L 1167.2 200.24 L 1159.2 200.24 Z" fill="#4c9a2a" stroke="#4c9a2a" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51)); stroke: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <path d="M 952.96 614 L 953 412 Q 953 402 963 402 L 1175.6 402 Q 1185.6 402 1185.6 392 L 1185.6 200.24" fill="none" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" stroke-dasharray="4 8" pointer-events="stroke" style="stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+            <path d="M 1185.6 192.24 L 1189.6 200.24 L 1181.6 200.24 Z" fill="#c26a00" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36)); stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <g fill="#605e5c" font-family="&quot;Helvetica&quot;" text-anchor="middle" font-size="9.5px" style="fill: light-dark(rgb(96, 94, 92), rgb(157, 156, 154));">
+                <rect fill="#ffffff" stroke="#d8d6d4" x="902" y="561" width="104" height="12" stroke-width="1" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(216, 214, 212), rgb(54, 52, 50));"/>
+                <text x="952.97" y="568.75">
+                    suppressed propagation
+                </text>
+            </g>
+        </g>
+        <g>
+            <path d="M 1216.96 654 L 1217 432 Q 1217 422 1220.35 422 L 1222.03 422 Q 1223.7 422 1223.7 412 L 1223.68 200.24" fill="none" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+            <path d="M 1223.68 192.24 L 1227.68 200.24 L 1219.68 200.24 Z" fill="#c26a00" stroke="#c26a00" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36)); stroke: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <path d="M 1480.96 694 L 1481 452 Q 1481 442 1471 442 L 1265 442 Q 1255 442 1255 432 L 1255.04 200.24" fill="none" stroke="#8a8886" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(138, 136, 134), rgb(121, 119, 117));"/>
+            <path d="M 1255.04 192.24 L 1259.04 200.24 L 1251.04 200.24 Z" fill="#8a8886" stroke="#8a8886" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(138, 136, 134), rgb(121, 119, 117)); stroke: light-dark(rgb(138, 136, 134), rgb(121, 119, 117));"/>
+        </g>
+        <g>
+            <path d="M 1744.96 734 L 1745 472 Q 1745 462 1735 462 L 1278.5 462 Q 1268.5 462 1268.5 452 L 1268.48 200.24" fill="none" stroke="#8661c5" stroke-width="2" stroke-miterlimit="10" pointer-events="stroke" style="stroke: light-dark(rgb(134, 97, 197), rgb(160, 128, 214));"/>
+            <path d="M 1268.48 192.24 L 1272.48 200.24 L 1264.48 200.24 Z" fill="#8661c5" stroke="#8661c5" stroke-width="2" stroke-miterlimit="10" pointer-events="all" style="fill: light-dark(rgb(134, 97, 197), rgb(160, 128, 214)); stroke: light-dark(rgb(134, 97, 197), rgb(160, 128, 214));"/>
+        </g>
+        <g/>
+        <g>
+            <rect x="0" y="1540" width="642" height="52" rx="4" ry="4" fill="#ffffff" stroke="#e6e4e2" pointer-events="all" style="fill: light-dark(rgb(255, 255, 255), rgb(18, 18, 18)); stroke: light-dark(rgb(230, 228, 226), rgb(42, 40, 38));"/>
+        </g>
+        <g>
+            <rect x="18" y="1556" width="44" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-weight="bold" font-size="11px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="19.5" y="1570">
+                    Legend
+                </text>
+            </g>
+        </g>
+        <g>
+            <ellipse cx="89" cy="1566" rx="5" ry="5" fill="#4c9a2a" stroke="none" pointer-events="all" style="fill: light-dark(rgb(76, 154, 42), rgb(80, 147, 51));"/>
+        </g>
+        <g>
+            <rect x="102" y="1556" width="43" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="11px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="103.5" y="1570">
+                    Healthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <ellipse cx="176" cy="1566" rx="5" ry="5" fill="#c26a00" stroke="none" pointer-events="all" style="fill: light-dark(rgb(194, 106, 0), rgb(203, 127, 36));"/>
+        </g>
+        <g>
+            <rect x="189" y="1556" width="54" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="11px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="190.5" y="1570">
+                    Degraded
+                </text>
+            </g>
+        </g>
+        <g>
+            <ellipse cx="274" cy="1566" rx="5" ry="5" fill="#c50f18" stroke="none" pointer-events="all" style="fill: light-dark(rgb(197, 15, 24), rgb(255, 157, 164));"/>
+        </g>
+        <g>
+            <rect x="287" y="1556" width="55" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="11px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="288.5" y="1570">
+                    Unhealthy
+                </text>
+            </g>
+        </g>
+        <g>
+            <ellipse cx="373" cy="1566" rx="5" ry="5" fill="#8a8886" stroke="none" pointer-events="all" style="fill: light-dark(rgb(138, 136, 134), rgb(121, 119, 117));"/>
+        </g>
+        <g>
+            <rect x="386" y="1556" width="51" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="11px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="387.5" y="1570">
+                    Unknown
+                </text>
+            </g>
+        </g>
+        <g>
+            <ellipse cx="468" cy="1566" rx="5" ry="5" fill="#8661c5" stroke="none" pointer-events="all" style="fill: light-dark(rgb(134, 97, 197), rgb(160, 128, 214));"/>
+        </g>
+        <g>
+            <rect x="481" y="1556" width="46" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="11px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="482.5" y="1570">
+                    Standby
+                </text>
+            </g>
+        </g>
+        <g>
+            <rect x="553" y="1562" width="28" height="8" rx="2" ry="2" fill="#0078d4" stroke="none" pointer-events="all" style="fill: light-dark(rgb(0, 120, 212), rgb(63, 166, 245));"/>
+        </g>
+        <g>
+            <rect x="589" y="1556" width="35" height="20" fill="none" stroke="none" pointer-events="all"/>
+        </g>
+        <g>
+            <g fill="#242424" font-family="&quot;Helvetica&quot;" font-size="11px" style="fill: light-dark(rgb(36, 36, 36), rgb(206, 206, 206));">
+                <text x="590.5" y="1570">
+                    Metric
+                </text>
+            </g>
+        </g>
+    </g>
+</svg>

@@ -16,6 +16,16 @@ const read = (...p) => readFileSync(join(ROOT, ...p), "utf8");
 const blocks = extractBlocks(read("examples", "showcase.md"), THEME_NAMES);
 const README = read("README.md");
 const FEATURES = read("docs", "FEATURES.md");
+const SKILL = read("skills", "diagrammo", "SKILL.md");
+
+test("browser editing comes first, CLI guidance uses the local checkout, and preparation has one documented owner", () => {
+  for (const [name, text] of [["README", README], ["FEATURES", FEATURES], ["skill", SKILL]]) {
+    assert.ok(text.indexOf("https://abossard.github.io/ahm-diagrammo/") < text.indexOf("node bin/diagrammo.mjs"), `${name}: browser before CLI`);
+    assert.doesNotMatch(text, /npx (?:--yes )?ahm-diagrammo\b/, `${name}: unpublished npm package`);
+  }
+  assert.match(README, /src\/document\.mjs/);
+  assert.match(read("docs", "how-it-works.md"), /prepareDocuments/);
+});
 
 test("showcase.md demonstrates every option channel exactly as documented", () => {
   assert.equal(blocks.length, 6);
@@ -130,7 +140,7 @@ test("docs/how-it-works.md holds a self-rendered health-model figure that regene
     assert.deepEqual(verifySvgString(r.svg), []);
   }
   // the exact regeneration command lives next to the source
-  assert.match(HOWTO, /ahm-diagrammo docs\/how-it-works\.md -o docs\/assets/);
+  assert.match(HOWTO, /node bin\/diagrammo\.mjs docs\/how-it-works\.md -o docs\/assets/);
 });
 
 test("the committed pipeline SVG ships under docs/, uses native text, and is embedded", () => {

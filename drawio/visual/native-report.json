@@ -1,0 +1,63 @@
+{
+  "generated": "2026-07-27T08:16:57.179Z",
+  "summary": {
+    "hero": {
+      "cells": 166,
+      "size": "1669x1457",
+      "shadowVisible": false,
+      "filterNodes": 0,
+      "fonts": [
+        "Helvetica"
+      ],
+      "edgeStrokes": [
+        "#4c9a2a",
+        "#c26a00"
+      ],
+      "image": "/Users/abossard/Desktop/projects/ahm-diagrammo/drawio/visual/native-hero.png",
+      "exportBytes": 52831,
+      "artifactSha256": "8d0ba4c6a0d9fa4f0f03bb609f623fc71b0eda33a432316130fd59ee9b2931f0",
+      "pngSha256": "165df5ed55927495ba38ae5976f77777685011b7d960680a098d26f30e765503",
+      "modelDigest": "445a8196c5887024def5a6f32be122007ca730d58e5a3a338997bb476e33e16f"
+    },
+    "kitchen-sink": {
+      "cells": 287,
+      "size": "2725x1793",
+      "shadowVisible": false,
+      "filterNodes": 0,
+      "fonts": [
+        "Helvetica"
+      ],
+      "edgeStrokes": [
+        "#4c9a2a",
+        "#c26a00",
+        "#c50f18",
+        "#8a8886",
+        "#8661c5"
+      ],
+      "image": "/Users/abossard/Desktop/projects/ahm-diagrammo/drawio/visual/native-kitchen-sink.png",
+      "exportBytes": 90363,
+      "artifactSha256": "d3f1fe6fd60e8cc4f4f8837b994d214d5143369b99d6e66cdbb1970d4fda2c2e",
+      "pngSha256": "ecb02bfc3ae831eb5575f452335b8e1384c88fdbf333ed6def41c6f2308affe4",
+      "modelDigest": "b06121ba2a8a142fa690c48968602251b61b6c156449450601fba789004352b6"
+    },
+    "pills-stress": {
+      "cells": 156,
+      "size": "1933x1473",
+      "shadowVisible": false,
+      "filterNodes": 0,
+      "fonts": [
+        "Helvetica"
+      ],
+      "edgeStrokes": [
+        "#4c9a2a",
+        "#c26a00",
+        "#c50f18"
+      ],
+      "image": "/Users/abossard/Desktop/projects/ahm-diagrammo/drawio/visual/native-pills-stress.png",
+      "exportBytes": 52514,
+      "artifactSha256": "8441307204cacbf7758ebb6f9e59b9d7aa8e2488f696bfbdaf76fb613736af3c",
+      "pngSha256": "e5dadaed56510c9e443d5e216d0e13874f2973ed1ce2d352764de7d0acf236c6",
+      "modelDigest": "1667817ea9f08f95cd7bdc974be5b889d2ea726fe2c1ebe0fa7c1c1626629d1d"
+    }
+  }
+}

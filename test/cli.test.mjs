@@ -71,6 +71,47 @@ test("--list explains detection without writing files", async () => {
   assert.ok(!existsSync(out), "--list must not create the output directory");
 });
 
+for (const [label, prefix] of [
+  ["inline backticks", "```inline```\n\n"],
+  ["literal managed marker", "```text\n<!-- diagrammo:sync x -->\n```\n\n"],
+]) {
+  test(`--list: ${label} leaves the real diagram and source untouched`, async () => {
+    const dir = tmp(), file = join(dir, "input.md"), out = join(dir, "out");
+    const source = prefix + "```mermaid\nflowchart BT\na[A]\nclass a green;\n```\n";
+    writeFileSync(file, source);
+    const result = await run(file, "--list", "-o", out);
+    assert.equal(result.code, 0, result.stderr);
+    assert.match(result.stdout, /input\.md: 1 mermaid block/);
+    assert.match(result.stdout, /diagram\s+→\s+swimlane · portal/);
+    assert.equal(readFileSync(file, "utf8"), source);
+    assert.equal(existsSync(out), false);
+  });
+}
+
+for (const genuine of [false, true]) {
+  test(`--sync-markdown: ${genuine ? "real" : "literal"} incomplete marker preserves the correct write policy`, async () => {
+    const dir = tmp(), file = join(dir, "input.md"), out = join(dir, "out");
+    const prefix = genuine ? "<!-- diagrammo:sync x -->\n\n" : "```text\n<!-- diagrammo:sync x -->\n```\n\n";
+    const source = prefix + "```mermaid\nflowchart BT\na[A]\nclass a green;\n```\n";
+    writeFileSync(file, source);
+    const result = await run(file, "--sync-markdown", "-o", out);
+    assert.equal(result.code, genuine ? 1 : 0, result.stderr);
+    if (genuine) {
+      assert.match(result.stderr, /line 1.*missing its end marker/);
+      assert.equal(readFileSync(file, "utf8"), source);
+      assert.equal(existsSync(out), false);
+    } else {
+      const once = readFileSync(file, "utf8");
+      assert.ok(once.startsWith(prefix));
+      assert.deepEqual(readdirSync(out), ["diagram.svg"]);
+      assert.match(readFileSync(join(out, "diagram.svg"), "utf8"), />A<\/text>/);
+      const again = await run(file, "--sync-markdown", "-o", out);
+      assert.equal(again.code, 0, again.stderr);
+      assert.equal(readFileSync(file, "utf8"), once);
+    }
+  });
+}
+
 test("broken blocks fail with file:line and per-line parse warnings; exit 1", async () => {
   const out = tmp();
   const r = await run(join(FIX, "errors.md"), "-o", out, "-r", "swimlane");
@@ -604,27 +645,29 @@ test("--sync-markdown: an existing managed slug plus a new plain colliding block
   assert.equal(readFileSync(checkoutSvg, "utf8"), checkoutSvgBefore, "the pre-existing managed asset must never be overwritten by an unrelated new block");
 });
 
-test("--sync-markdown: a managed slug duplicated across two input files targeting the same output directory fails before any write, with a clear diagnostic", async () => {
-  const dir = tmp();
-  const aPath = join(dir, "a.md");
-  const bPath = join(dir, "b.md");
-  const managed = (edge) => [
-    "<!-- diagrammo:sync checkout -->",
-    "![Checkout](checkout.svg)", "",
-    "<details>", "<summary>Mermaid source</summary>", "",
-    "```mermaid", "flowchart BT", edge, "```", "",
-    "</details>", "<!-- /diagrammo:sync checkout -->", "",
-  ].join("\n") + "\n";
-  writeFileSync(aPath, managed("a --> b"), "utf8");
-  writeFileSync(bPath, managed("c --> d"), "utf8");
-  const outDir = join(dir, "out");
-  const r = await run(aPath, bPath, "-o", outDir, "--sync-markdown");
-  assert.notEqual(r.code, 0);
-  assert.match(r.stderr, /managed slug "checkout" is already used by/);
-  assert.ok(!existsSync(outDir), "must fail before any render or sync write");
-  assert.equal(readFileSync(aPath, "utf8"), managed("a --> b"));
-  assert.equal(readFileSync(bPath, "utf8"), managed("c --> d"));
-});
+for (const flags of [["--sync-markdown"], []]) {
+  test(`${flags.length ? "--sync-markdown" : "render"}: a managed slug duplicated across two input files targeting the same output directory fails before any write, with a clear diagnostic`, async () => {
+    const dir = tmp();
+    const aPath = join(dir, "a.md");
+    const bPath = join(dir, "b.md");
+    const managed = (edge) => [
+      "<!-- diagrammo:sync checkout -->",
+      "![Checkout](checkout.svg)", "",
+      "<details>", "<summary>Mermaid source</summary>", "",
+      "```mermaid", "flowchart BT", edge, "```", "",
+      "</details>", "<!-- /diagrammo:sync checkout -->", "",
+    ].join("\n") + "\n";
+    writeFileSync(aPath, managed("a --> b"), "utf8");
+    writeFileSync(bPath, managed("c --> d"), "utf8");
+    const outDir = join(dir, "out");
+    const r = await run(aPath, bPath, "-o", outDir, "--renderer", "swimlane", ...flags);
+    assert.notEqual(r.code, 0);
+    assert.match(r.stderr, /managed slug "checkout" is already used by/);
+    assert.ok(!existsSync(outDir), "must fail before any render or sync write");
+    assert.equal(readFileSync(aPath, "utf8"), managed("a --> b"));
+    assert.equal(readFileSync(bPath, "utf8"), managed("c --> d"));
+  });
+}
 
 // ---- Tightly coupled defects: exit-listener growth and concurrent-sync temp-file race ---------
 

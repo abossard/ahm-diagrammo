@@ -1,0 +1,85 @@
+{
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "extensions": {
+    "recommendations": [
+      "hediet.vscode-drawio"
+    ]
+  },
+  "settings": {
+    "workbench.editorAssociations": {
+      "*.drawio.svg": "hediet.vscode-drawio-text"
+    },
+    "hediet.vscode-drawio.plugins": [
+      {
+        "file": "${workspaceFolder}/plugin/ahm-health.js"
+      }
+    ],
+    "hediet.vscode-drawio.customLibraries": [
+      {
+        "entryId": "general",
+        "libName": "AHM Diagrammo",
+        "file": "${workspaceFolder}/library/ahm-diagrammo.xml"
+      }
+    ],
+    "hediet.vscode-drawio.simpleLabels": true,
+    "hediet.vscode-drawio.customFonts": [
+      "Segoe UI"
+    ],
+    "hediet.vscode-drawio.colorNames": {
+      "FFFFFF": "Canvas",
+      "F8FAFC": "Band",
+      "242424": "Text",
+      "E5E7EB": "Hairline",
+      "F2F8F2": "Healthy",
+      "FBF2E7": "Degraded",
+      "FAECEB": "Unhealthy",
+      "F6F6F5": "Unknown",
+      "EFF6FC": "Metric"
+    },
+    "hediet.vscode-drawio.customColorSchemes": [
+      [
+        {
+          "title": "Healthy",
+          "fill": "#f2f8f2",
+          "stroke": "#a0d8a0",
+          "font": "#242424"
+        },
+        {
+          "title": "Degraded",
+          "fill": "#fbf2e7",
+          "stroke": "#db7500",
+          "font": "#242424"
+        },
+        {
+          "title": "Unhealthy",
+          "fill": "#faeceb",
+          "stroke": "#ba0d16",
+          "font": "#242424"
+        },
+        {
+          "title": "Unknown",
+          "fill": "#f6f6f5",
+          "stroke": "#c8c6c4",
+          "font": "#242424"
+        },
+        {
+          "title": "Metric",
+          "fill": "#eff6fc",
+          "stroke": "#0078D4",
+          "font": "#242424"
+        }
+      ]
+    ],
+    "hediet.vscode-drawio.defaultEdgeStyle": {
+      "edgeStyle": "orthogonalEdgeStyle",
+      "rounded": "1",
+      "html": "0",
+      "fontFamily": "Segoe UI",
+      "strokeColor": "#616161"
+    }
+  }
+}

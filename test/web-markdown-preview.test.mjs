@@ -1,174 +1,114 @@
-// web-markdown-preview.test.mjs — pure-logic tests for the two Node-safe helpers in
-// web/markdown-preview.mjs: the nonce-tagged marked pass (renderMarkdownSlots) and the ordered
-// slot -> outcome mapping (mapSlotsToOutcomes). Both run identically in Node and browser and never
-// call DOMPurify.sanitize — the browser-only sanitize-then-DOM-node-replace orchestrator
-// (renderMarkdownPreview) is exercised only by real-browser checks (see blueprint Test strategy).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 import { renderMarkdownSlots, mapSlotsToOutcomes, secureNonce } from "../web/markdown-preview.mjs";
 import { convertMarkdown } from "../web/convert.mjs";
+import { syncMarkdown, escapeCommentTerminator } from "../src/markdown-sync.mjs";
 
-const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
-const SHOWCASE = readFileSync(join(ROOT, "examples", "showcase.md"), "utf8");
-
-// Node 18 ESM exposes no Web Crypto global, so web/markdown-preview.mjs's default secureNonce()
-// (globalThis.crypto.randomUUID) cannot run here. Inject a fresh, genuinely unpredictable nonce per
-// call — backed by Node's own crypto.randomUUID — mirroring the browser's secure default without
-// making the browser module import node:crypto. Freshness per call is what keeps the anti-forgery
-// test below meaningful (each render mints a distinct, unguessable nonce).
+const health = '## Health\n```mermaid midnight\nflowchart BT\nchild["Child"] --> root["Root"]\nclass child,root green;\n```\n';
+const unsupported = "## Sequence\n```mermaid\nsequenceDiagram\nA->>B: hi\n```\n";
+const broken = "## Broken\n```mermaid\nflowchart BT\nunrecognized text\nclass foo green;\n```\n";
+const managed = syncMarkdown(health, [{ slug: "stable", openLine: 2, closeLine: 6, title: "Health", href: "old.svg" }]);
 const freshNonce = () => randomUUID();
 
-// Reused verbatim from test/web-convert.test.mjs rather than inventing new fixtures.
-const HEALTH_BLOCK = `## Checkout
-\`\`\`mermaid
-flowchart BT
-    webSig["Availability"] --> web["Web frontend<br/>healthy"]
-    web --> root["Workload root<br/>healthy"]
-    classDef green fill:#f2f8f2,stroke:#a0d8a0;
-    classDef blue fill:#eff6fc,stroke:#0078D4;
-    class webSig blue;
-    class web,root green;
-\`\`\`
-`;
-
-const SEQUENCE_BLOCK = `## Order flow
-\`\`\`mermaid
-sequenceDiagram
-    participant U as User
-    U->>W: Place order
-\`\`\`
-`;
-
-const ZERO_NODE_HEALTH_SHAPED_BLOCK = `## Broken
-\`\`\`mermaid
-flowchart BT
-total --- garbage === here
-class foo green;
-\`\`\`
-`;
-
-// A non-mermaid fenced code block, to prove the renderer override only claims mermaid fences.
-const JS_BLOCK = `## Snippet
-\`\`\`js
-const x = 1;
-\`\`\`
-`;
-
-test("secureNonce: delegates to the injected Web Crypto's randomUUID, and fails loud (never a weak fallback) when secure Web Crypto is unavailable", () => {
-  // Happy path: the browser default reads globalThis.crypto; here we inject the crypto source so the
-  // assertion is deterministic and version-independent (Node 18 ESM has no Web Crypto global at all).
-  assert.equal(secureNonce({ randomUUID: () => "11111111-1111-4111-8111-111111111111" }), "11111111-1111-4111-8111-111111111111");
-  // Production-default failure: a missing or incomplete Web Crypto must throw explicitly rather than
-  // silently mint a predictable nonce. Proven by injecting the source (no global state mutated).
-  // `null`/`{}` are used instead of `undefined` because passing `undefined` would re-trigger the
-  // `globalThis.crypto` default parameter (present on Node 20+, browsers), masking the guard.
-  assert.throws(() => secureNonce(null), /secure Web Crypto/);
-  assert.throws(() => secureNonce({}), /secure Web Crypto/);
-  assert.throws(() => secureNonce({ randomUUID: "not-a-function" }), /secure Web Crypto/);
+test("secureNonce: requires secure Web Crypto, never a predictable fallback", () => {
+  assert.equal(secureNonce({ randomUUID: () => "secure" }), "secure");
+  for (const input of [null, {}, { randomUUID: "not-a-function" }]) assert.throws(() => secureNonce(input), /secure Web Crypto/);
 });
 
-test("renderMarkdownSlots: plain Markdown (heading, list, emphasis, inline code, link, table) survives the pure marked pass", () => {
-  const doc = [
-    "# Title",
-    "",
-    "- one",
-    "- two",
-    "",
-    "**bold** and \`inline code\` and a [link](https://example.com).",
-    "",
-    "| a | b |",
-    "| - | - |",
-    "| 1 | 2 |",
-  ].join("\n");
-  const { html } = renderMarkdownSlots(doc, freshNonce);
-  assert.match(html, /<h1[^>]*>Title<\/h1>/);
-  assert.match(html, /<li>one<\/li>/);
-  assert.match(html, /<li>two<\/li>/);
-  assert.match(html, /<strong>bold<\/strong>/);
-  assert.match(html, /<code>inline code<\/code>/);
-  assert.match(html, /<a href="https:\/\/example\.com">link<\/a>/);
-  assert.match(html, /<table>/);
-});
-
-test("renderMarkdownSlots: a non-mermaid fenced code block falls back to marked's default renderer, untouched", () => {
-  const { html, slotCount } = renderMarkdownSlots(JS_BLOCK, freshNonce);
+test("renderMarkdownSlots: keeps full prose and non-Mermaid code", () => {
+  const source = "# Title\n\n- one\n- two\n\n**bold** and `inline` and [link](https://example.com).\n\n| a | b |\n| - | - |\n| 1 | 2 |\n\n```js\nconst x = 1;\n```\n";
+  const { html, slotCount } = renderMarkdownSlots(source, freshNonce, []);
+  for (const pattern of [/<h1>Title<\/h1>/, /<li>one<\/li>/, /<strong>bold<\/strong>/, /<code>inline<\/code>/, /<table>/, /language-js/]) assert.match(html, pattern);
   assert.equal(slotCount, 0);
-  assert.match(html, /<pre><code class="language-js">/);
-  assert.doesNotMatch(html, /data-ahm-slot/);
 });
 
-test("renderMarkdownSlots: every mermaid fence in examples/showcase.md gets one ordered nonce-tagged slot, matching convertMarkdown's own count", () => {
-  const results = convertMarkdown(SHOWCASE);
-  const { html, nonce, slotCount } = renderMarkdownSlots(SHOWCASE, freshNonce);
-  assert.equal(slotCount, results.length);
-  // slots appear in the html in ascending ordinal order (document order)
-  const ids = [...html.matchAll(/data-ahm-slot="([^"]+)"/g)].map((m) => m[1]);
-  assert.deepEqual(ids, results.map((_, i) => `${nonce}-${i}`));
-});
+for (const fence of ["````", "~~~~"]) {
+  test(`preview: Mermaid examples inside literal ${fence} Markdown remain code`, () => {
+    const source = `${fence}markdown\n${health}${fence}\n\n${health}`;
+    const results = convertMarkdown(source);
+    const prepared = renderMarkdownSlots(source, freshNonce, results);
+    assert.equal(results.length, 1);
+    assert.equal(prepared.slots.length, 1);
+    assert.match(prepared.html, /<pre><code class="language-markdown">/);
+    assert.match(prepared.html, /```mermaid midnight/);
+  });
+}
 
-test("mapSlotsToOutcomes: maps showcase.md's slots to convertMarkdown's own per-block outcome, in order", () => {
-  const results = convertMarkdown(SHOWCASE);
-  const { nonce, slotCount } = renderMarkdownSlots(SHOWCASE, freshNonce);
-  const slots = mapSlotsToOutcomes({ nonce, slotCount }, results);
-  assert.deepEqual(slots.map((s) => s.outcome.kind), results.map((r) => r.kind));
-  assert.deepEqual(slots.map((s) => s.slotId), results.map((_, i) => `${nonce}-${i}`));
-  // every health outcome carries the trusted SVG string from convertMarkdown, verbatim
-  slots.forEach((s, i) => {
-    if (s.outcome.kind === "health") {
-      assert.deepEqual(s.outcome, {
-        kind: "health",
-        svg: results[i].svg,
-        slug: results[i].slug,
-      });
+for (const [label, source] of [
+  ["tagged fences", `${health}\nBetween\n\n${unsupported}\n${broken}`],
+  ["managed hidden source", `Before\n\n${managed}\nAfter\n`],
+  ["managed legacy source", `Before\n\n<!-- diagrammo:sync stable -->\n<details>\n${health}\n</details>\n<!-- /diagrammo:sync stable -->\n\nAfter`],
+  ["CRLF", health.replaceAll("\n", "\r\n")],
+]) {
+  test(`preview: ${label} binds prepared identities, not outcome array positions`, () => {
+    const results = convertMarkdown(source);
+    const prepared = renderMarkdownSlots(source, freshNonce, results);
+    const slots = mapSlotsToOutcomes(prepared, [...results].reverse());
+    assert.equal(slots.length, results.length);
+    assert.deepEqual(slots.map((s) => s.outcome.kind), results.map((r) => r.kind));
+    assert.deepEqual(slots.map((s) => s.outcome.identity), results.map((r) => r.identity));
+    assert.equal(prepared.slotCount, results.length);
+    assert.doesNotMatch(prepared.html, /old\.svg|diagrammo:source|<details>/);
+    if (source.includes("Before")) {
+      assert.ok(prepared.html.indexOf("Before") < prepared.html.indexOf("data-ahm-slot"));
+      assert.ok(prepared.html.indexOf("After") > prepared.html.indexOf("data-ahm-slot"));
     }
   });
+}
+
+test("preview: an unknown identity is explicit without invalidating other mappings", () => {
+  const source = health + unsupported;
+  const results = convertMarkdown(source);
+  const prepared = renderMarkdownSlots(source, freshNonce, results);
+  const slots = mapSlotsToOutcomes(prepared, [results[0]]);
+  assert.equal(slots[0].outcome.kind, "health");
+  assert.equal(slots[1].outcome.kind, "unavailable");
 });
 
-test("mapSlotsToOutcomes: a document mixing health/unsupported/error fences classifies each slot independently, in source order", () => {
-  const doc = [HEALTH_BLOCK, SEQUENCE_BLOCK, ZERO_NODE_HEALTH_SHAPED_BLOCK].join("\n");
-  const results = convertMarkdown(doc);
-  const { nonce, slotCount } = renderMarkdownSlots(doc, freshNonce);
-  const slots = mapSlotsToOutcomes({ nonce, slotCount }, results);
-  assert.deepEqual(slots.map((s) => s.outcome.kind), ["health", "unsupported", "error"]);
-  assert.match(slots[0].outcome.svg, /^<svg[\s>]/);
-  assert.match(slots[1].outcome.message, /not a recognized health model/);
-  assert.match(slots[2].outcome.message, /no nodes parsed.*unrecognized line/s);
+test("preview: hostile previous-nonce HTML cannot own a new prepared diagram", () => {
+  const first = renderMarkdownSlots(health, freshNonce, convertMarkdown(health));
+  const forged = `<div data-ahm-slot="${first.nonce}-0"></div>`;
+  const source = `${forged}\n\n${health}`;
+  const results = convertMarkdown(source);
+  const next = renderMarkdownSlots(source, freshNonce, results);
+  assert.notEqual(next.nonce, first.nonce);
+  assert.equal(next.slots.length, 1);
+  assert.equal(next.slots[0].identity, results[0].identity);
+  assert.match(next.html, new RegExp(first.nonce));
 });
 
-test("renderMarkdownSlots: a raw-HTML fragment forging a previous call's exact nonce-tagged placeholder cannot desync the next call's own slot count", () => {
-  const { html: html1, nonce: nonce1 } = renderMarkdownSlots(HEALTH_BLOCK, freshNonce);
-  const forgedPlaceholder = html1.match(/<div data-ahm-slot="[^"]+"><\/div>/)[0];
-  assert.match(forgedPlaceholder, new RegExp(`^<div data-ahm-slot="${nonce1}-0"></div>$`));
+for (const hidden of [false, true]) {
+  test(`preview: shared ${hidden ? "hidden" : "ordinary"} source keeps ordered identities and trailing prose`, () => {
+    const body = health + unsupported + health.replace("Child", "Sibling");
+    const source = "Before\n\n" + (hidden ? "<!-- diagrammo:source\n" + escapeCommentTerminator(body) + "-->\n" : body) + "\nAfter\n\n" + broken;
+    const results = convertMarkdown(source);
+    assert.deepEqual(results.map((r) => r.kind), ["health", "unsupported", "health", "error"]);
+    const prepared = renderMarkdownSlots(source, freshNonce, [...results].reverse());
+    assert.equal(prepared.slotCount, 4);
+    assert.deepEqual(prepared.slots.map((s) => s.identity), results.map((r) => r.identity));
+    assert.deepEqual(mapSlotsToOutcomes(prepared, [...results].reverse()).map((s) => s.outcome.kind), results.map((r) => r.kind));
+    assert.equal((prepared.html.match(/data-ahm-slot=/g) || []).length, 4);
+    assert.match(prepared.html, /Before[\s\S]*data-ahm-slot[\s\S]*After[\s\S]*data-ahm-slot/);
+    assert.doesNotMatch(prepared.html, /Diagram unavailable|diagrammo:source/);
+  });
+}
 
-  // A new render call, whose source is literally the prior call's placeholder markup (raw HTML)
-  // followed by one real health fence.
-  const doc2 = `${forgedPlaceholder}\n\n${HEALTH_BLOCK}`;
-  const { html: html2, nonce: nonce2, slotCount: slotCount2 } = renderMarkdownSlots(doc2, freshNonce);
-
-  assert.notEqual(nonce2, nonce1, "each render call must mint a fresh nonce");
-  assert.equal(slotCount2, 1, "only the one real fence is counted; the forged placeholder is not a fence");
-  // The forged text survives as inert raw HTML (proving the attack surface is real)...
-  assert.match(html2, new RegExp(`data-ahm-slot="${nonce1}-0"`));
-  // ...but a nonce-prefix match for the *new* call's own nonce excludes it and equals slotCount.
-  const currentNonceIds = [...html2.matchAll(new RegExp(`data-ahm-slot="${nonce2}-\\d+"`, "g"))];
-  assert.equal(currentNonceIds.length, slotCount2);
-});
-
-test("mapSlotsToOutcomes: a slotCount/results-length mismatch degrades gracefully to an 'unavailable' descriptor per slot, never throws", () => {
-  const results = convertMarkdown(HEALTH_BLOCK); // 1 result
-  const mismatched = mapSlotsToOutcomes({ nonce: "test-nonce", slotCount: 3 }, results);
-  assert.equal(mismatched.length, 3);
-  for (const s of mismatched) assert.equal(s.outcome.kind, "unavailable");
-  assert.deepEqual(mismatched.map((s) => s.slotId), ["test-nonce-0", "test-nonce-1", "test-nonce-2"]);
-});
-
-test("renderMarkdownSlots: fence-info variants ('mermaid midnight', 'mermaid slate') are still recognized as mermaid slots", () => {
-  const doc = "```mermaid midnight\nflowchart BT\n  a --> b\n```\n";
-  const { slotCount, html } = renderMarkdownSlots(doc, freshNonce);
-  assert.equal(slotCount, 1);
-  assert.match(html, /data-ahm-slot/);
-});
+for (const [label, start, indent, end, listTag] of [
+  ["unordered", "- First", "    ", "- Second", "ul"],
+  ["ordered", "1. First", "   ", "2. Second", "ol"],
+  ["nested", "- Outer\n  - First", "      ", "  - Second", "ul"],
+]) {
+  test(`preview: ${label} list retains raw container ownership`, () => {
+    const fence = health.slice(health.indexOf("```")).trimEnd();
+    const source = start + "\n\n" + fence.split("\n").map((line) => indent + line).join("\n") + "\n\n" + end + "\n\nAfter";
+    const results = convertMarkdown(source);
+    assert.equal(results.length, 1);
+    const { html, slots } = renderMarkdownSlots(source, freshNonce, results);
+    assert.equal(slots.length, 1);
+    assert.match(html, new RegExp(`<${listTag}>[\\s\\S]*<li>[\\s\\S]*First[\\s\\S]*data-ahm-slot`));
+    assert.ok(html.indexOf("data-ahm-slot") < html.indexOf("</li>"), "diagram stays in the first item");
+    assert.match(html, /Second[\s\S]*After/);
+    assert.equal((html.match(new RegExp(`<${listTag}>`, "g")) || []).length, label === "nested" ? 2 : 1);
+  });
+}

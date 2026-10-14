@@ -18,7 +18,8 @@
 <body>
   <header>
     <h1>ahm-diagrammo editor</h1>
-    <p>Edit Markdown and preview its Mermaid health-model blocks as ahm-diagrammo swimlane diagrams, entirely in the browser.</p>
+    <p>Edit Markdown, preview health models, and download SVG + PNG diagrams. Start with the example below, or paste your own source.</p>
+    <p>For other Mermaid types and documentation publishing, use the <a href="https://github.com/abossard/ahm-diagrammo#usage">CLI workflow</a>.</p>
     <div class="toolbar">
       <label for="example-select">Example</label>
       <select id="example-select"></select>
@@ -36,7 +37,7 @@
     </div>
     <div class="pane" id="output-pane" data-pane="output">
       <div class="pane-header">
-        <h2 id="output-label">Rendered diagrams</h2>
+        <h2 id="output-label">Markdown preview</h2>
         <button id="maximize-output" type="button" aria-controls="output-pane" aria-pressed="false">Maximize preview</button>
       </div>
       <div id="output" role="region" aria-labelledby="output-label"></div>

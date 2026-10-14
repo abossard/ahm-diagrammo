@@ -114,6 +114,31 @@ test("decodeManagedSpans: a line that clearly attempts a hidden-source marker bu
   }
 });
 
+for (const fence of ["````", "~~~~"]) {
+  for (const [label, payload] of [
+    ["incomplete markers", "<!-- diagrammo:sync literal -->\n<!-- diagrammo:source"],
+    ["malformed markers", "<!-- diagrammo:sync bad_slug -->\n<!-- diagrammo:source wrong -->"],
+    ["encoded source example", "<!-- diagrammo:sync literal -->\n<!-- diagrammo:source\n```mermaid\nflowchart BT\na --&gt; b\n```\n-->\n<!-- /diagrammo:sync literal -->"],
+  ]) {
+    test(`managed codec: ${label} inside ${fence} stays literal in decode, identities and rewrite`, () => {
+      const prefix = `${fence}text\n${payload}\n${fence[0].repeat(3)}\n${fence[0].repeat(5)}\n\n`;
+      const real = "<!-- diagrammo:sync permanent -->\n<!-- diagrammo:source\n```mermaid\nflowchart BT\na --&gt; b\n```\n-->\n<!-- /diagrammo:sync permanent -->\n";
+      const source = prefix + real;
+      const decoded = decodeManagedSpans(source);
+      assert.equal(decoded, prefix + real.replace("--&gt;", "-->"));
+      for (const view of [source, decoded]) {
+        const identities = preferredIdentities(view);
+        assert.deepEqual(identities.slugs, ["permanent"]);
+        assert.deepEqual([...identities.byOpenLine], [[prefix.split("\n").length + 2, "permanent"]]);
+      }
+      const [block] = extractBlocks(decoded);
+      const synced = syncMarkdown(source, [{ slug: block.slug, openLine: block.line, closeLine: block.closeLine, title: "Real", href: "real.svg" }]);
+      assert.equal(synced.slice(0, prefix.length), prefix);
+      assert.deepEqual(preferredIdentities(synced).slugs, ["permanent"]);
+    });
+  }
+}
+
 test("syncMarkdown: wraps a plain fence into the exact literal managed block (visible <img> plus one hidden-source comment holding the escaped fence)", () => {
   const md = [
     "# Doc",

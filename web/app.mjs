@@ -18,6 +18,9 @@ const maximizeOutputButton = document.getElementById("maximize-output");
 
 let latestResults = [];
 let exportInFlight = false;
+let sourceIntent = 0;
+let sourceRevision = 0;
+let exportRevision = null;
 let maximizeActivator = null; // button that triggered the current maximize, for Escape focus return
 
 applyThemeVariables(getTheme("portal"));
@@ -26,7 +29,15 @@ render();
 loadSelected(); // show a non-empty starting point without changing the dropdown's option count
 
 select.addEventListener("change", loadSelected);
-editor.addEventListener("input", render);
+editor.addEventListener("input", () => {
+  sourceIntent++;
+  sourceRevision++;
+  render();
+  const warnings = latestResults.reduce((n, r) => n + r.diagnostics.filter((d) => d.level === "warn").length, 0);
+  const errors = latestResults.filter((r) => r.kind === "error").length;
+  const exporting = exportInFlight ? `Exporting ZIP from revision ${exportRevision}; ` : "";
+  setStatus(`${exporting}Preview revision ${sourceRevision}${warnings ? `, ${warnings} warning(s)` : ""}${errors ? `, ${errors} error(s)` : ""}`, errors > 0);
+});
 exportButton.addEventListener("click", handleExportClick);
 maximizeEditorButton.addEventListener("click", () => togglePaneMaximize("editor", maximizeEditorButton));
 maximizeOutputButton.addEventListener("click", () => togglePaneMaximize("output", maximizeOutputButton));
@@ -73,12 +84,17 @@ function populateExamples() {
 async function loadSelected() {
   const path = select.value;
   if (!path) return;
+  const intent = ++sourceIntent;
   setStatus(`Loading ${path}…`);
   try {
-    editor.value = await loadExample(path);
+    const source = await loadExample(path);
+    if (intent !== sourceIntent || path !== select.value) return;
+    editor.value = source;
+    sourceRevision++;
     render();
-    setStatus(`Loaded ${path}`);
+    setStatus(`Loaded ${path} (revision ${sourceRevision})`);
   } catch (e) {
+    if (intent !== sourceIntent || path !== select.value) return;
     setStatus(e.message, true);
   }
 }
@@ -94,18 +110,23 @@ async function handleExportClick() {
   const healthCount = latestResults.filter((r) => r.kind === "health").length;
   if (healthCount === 0) return; // nothing to export; the control is already disabled
 
+  const capturedResults = latestResults;
+  const capturedRevision = sourceRevision;
   exportInFlight = true;
+  exportRevision = capturedRevision;
   updateExportButton();
-  setStatus("Exporting ZIP…");
+  setStatus(`Exporting ZIP from revision ${capturedRevision}…`);
   try {
-    const { bytes, count, skipped } = await buildDiagramZip(latestResults);
+    const { bytes, count, skipped } = await buildDiagramZip(capturedResults);
     downloadZip(bytes);
     const skippedNote = skipped > 0 ? ` (${skipped} unsupported/error block${skipped === 1 ? "" : "s"} skipped)` : "";
-    setStatus(`Exported ${count} diagram${count === 1 ? "" : "s"} as ZIP${skippedNote}`);
+    const currentNote = sourceRevision !== capturedRevision ? `; editor is now revision ${sourceRevision}` : "";
+    setStatus(`Exported ${count} diagram${count === 1 ? "" : "s"} as ZIP from revision ${capturedRevision}${skippedNote}${currentNote}`);
   } catch (e) {
-    setStatus(`Export failed: ${e.message}`, true);
+    setStatus(`Export failed for revision ${capturedRevision}: ${e.message}`, true);
   } finally {
     exportInFlight = false;
+    exportRevision = null;
     updateExportButton();
   }
 }

@@ -138,6 +138,17 @@ export function stripDiagrammoKey(rawFrontmatter) {
 }
 
 // ---------- markdown walk ----------
+export function markdownFenceOpening(line) {
+  const match = line.match(/^\s*(`{3,}|~{3,})(.*)$/);
+  if (!match || (match[1][0] === "`" && match[2].includes("`"))) return null;
+  return { marker: match[1], info: match[2].trim() };
+}
+
+export function closesMarkdownFence(line, marker) {
+  const match = line.match(/^\s*(`+|~+)\s*$/);
+  return !!match && match[1][0] === marker[0] && match[1].length >= marker.length;
+}
+
 export function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "diagram";
 }
@@ -174,14 +185,20 @@ export function extractBlocks(md, themeNames = [], used = new Map(), preferred =
   const blocks = [];
   let heading = "diagram";
   let inBlock = false, buf = [], info = "", openLine = 0, openFence = "";
+  let literalFence = null;
   for (let li = 0; li < lines.length; li++) {
     const line = lines[li];
+    if (literalFence) {
+      if (closesMarkdownFence(line, literalFence)) literalFence = null;
+      continue;
+    }
+    const fence = !inBlock && markdownFenceOpening(line);
+    const open = fence && fence.info.match(/^mermaid\b(.*)$/);
+    if (fence && !open) { literalFence = fence.marker; continue; }
     const h = line.match(/^#{1,6}\s+(.*)/);
     if (h && !inBlock) heading = h[1].trim();
-    const open = line.match(/^\s*(`{3,}|~{3,})\s*mermaid\b(.*)$/);
-    if (!inBlock && open) { inBlock = true; buf = []; info = open[2].trim(); openLine = li + 1; openFence = open[1]; continue; }
-    const close = inBlock && line.match(/^\s*(`+|~+)\s*$/);
-    if (close && close[1][0] === openFence[0] && close[1].length >= openFence.length) {
+    if (!inBlock && open) { inBlock = true; buf = []; info = open[1].trim(); openLine = li + 1; openFence = fence.marker; continue; }
+    if (inBlock && closesMarkdownFence(line, openFence)) {
       inBlock = false;
       blocks.push(buildBlock({ heading, info, code: buf.join("\n"), line: openLine, closeLine: li + 1, themeNames, used, preferredSlug: preferred ? preferred.get(openLine) : null }));
       continue;

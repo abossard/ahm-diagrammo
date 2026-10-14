@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { convertMarkdown } from "../web/convert.mjs";
+import { syncMarkdown } from "../src/markdown-sync.mjs";
 
 const HEALTH_BLOCK = `## Checkout
 \`\`\`mermaid
@@ -32,6 +33,48 @@ total --- garbage === here
 class foo green;
 \`\`\`
 `;
+
+for (const [label, markdown, kind, level, line, message] of [
+  ["malformed directive", HEALTH_BLOCK.replace("flowchart BT", "%%| broken\nflowchart BT"), "health", "warn", 3, /malformed directive/],
+  ["ignored graph line", HEALTH_BLOCK.replace("flowchart BT", "flowchart BT\nunrecognized words"), "health", "warn", 4, /unrecognized line/],
+  ["frontmatter graph line", HEALTH_BLOCK.replace("flowchart BT", "---\ntitle: Frontmatter\n---\nflowchart BT\nunrecognized words"), "health", "warn", 7, /unrecognized line/],
+  ["invalid renderer", HEALTH_BLOCK.replace("```mermaid", "```mermaid renderer=invalid"), "error", "error", 2, /unknown renderer/],
+  ["invalid theme", HEALTH_BLOCK.replace("```mermaid", "```mermaid theme=invalid"), "error", "error", 2, /unknown theme/],
+  ["unsupported", SEQUENCE_BLOCK, "unsupported", "warn", 2, /Only ahm-diagrammo/],
+  ["render failure", ZERO_NODE_HEALTH_SHAPED_BLOCK, "error", "error", 2, /no nodes parsed/],
+]) {
+  test(`convertMarkdown: ${label} keeps severity and raw source line`, () => {
+    const [result] = convertMarkdown(markdown);
+    assert.equal(result.kind, kind);
+    assert.ok(result.diagnostics.some((d) => d.level === level && d.line === line && message.test(d.message)));
+    if (kind === "health") assert.match(result.svg, /^<svg/);
+  });
+}
+
+for (const [format, wrap] of [
+  ["hidden", (source) => syncMarkdown(source, [{ slug: "stable", openLine: 2, closeLine: 10, title: "Checkout", href: "old.svg" }])],
+  ["legacy", (source) => `<!-- diagrammo:sync stable -->\n<details>\n${source}\n</details>\n<!-- /diagrammo:sync stable -->`],
+]) {
+  test(`convertMarkdown: ${format} managed source renders once with stable identity`, () => {
+    const source = wrap(HEALTH_BLOCK);
+    const [result] = convertMarkdown(source);
+    assert.equal(result.kind, "health");
+    assert.equal(result.slug, "stable");
+    assert.ok(result.identity);
+    assert.ok(result.location);
+    const [edited] = convertMarkdown(source.replace("Web frontend", "Updated frontend"));
+    assert.equal(edited.slug, "stable");
+    assert.notEqual(edited.svg, result.svg);
+  });
+}
+
+test("convertMarkdown: malformed managed source returns a document error without modifying source", () => {
+  const source = "<!-- diagrammo:source wrong -->\n" + HEALTH_BLOCK;
+  const [result] = convertMarkdown(source);
+  assert.equal(result.kind, "error");
+  assert.equal(result.diagnostics[0].line, 1);
+  assert.equal(result.diagnostics[0].origin, "document");
+});
 
 // A lane wide enough (10 leaves sharing one root) to stress a real browser-editor health-model
 // layout.

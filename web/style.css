@@ -180,12 +180,18 @@ main[data-maximized="output"] .pane[data-pane="editor"] {
 
 .svg-wrap {
   margin: 1rem 0;
+  overflow: auto;
+  max-width: 100%;
 }
 
 .svg-wrap svg {
   max-width: 100%;
   height: auto;
   display: block;
+}
+
+.diagram-result .svg-wrap svg {
+  max-width: none;
 }
 
 .message {
@@ -216,15 +222,26 @@ button:focus-visible {
   outline-offset: 1px;
 }
 
+.svg-wrap:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 /* Structural responsive behavior: stack panes below tablet width. */
 @media (max-width: 800px) {
   main {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 1fr;
+    min-height: 28rem;
   }
   .toolbar select {
     min-width: 0;
-    flex: 1;
+    flex: 1 1 14rem;
+  }
+  #status {
+    flex-basis: 100%;
+    margin-left: 0;
+    overflow-wrap: anywhere;
   }
 }
 

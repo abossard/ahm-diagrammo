@@ -38,14 +38,14 @@ test("Claude and Copilot expose one shared diagrammo skill", () => {
   }
 });
 
-test("the diagrammo skill uses the packaged CLI and verifies its outputs", () => {
+test("the diagrammo skill uses the existing CLI and verifies its outputs", () => {
   const skill = read("skills", "diagrammo", "SKILL.md");
   const frontmatter = skill.match(/^---\n([\s\S]*?)\n---\n/);
 
   assert.ok(frontmatter, "SKILL.md needs YAML frontmatter");
   assert.match(frontmatter[1], /^name: diagrammo$/m);
   assert.match(frontmatter[1], /^description: .+$/m);
-  assert.match(skill, /npx --yes ahm-diagrammo/);
+  assert.match(skill, /node bin\/diagrammo\.mjs/);
   assert.match(skill, /--list/);
   assert.match(skill, /inspect before render/i);
   assert.doesNotMatch(skill, /manifest\.json|gallery\.html|--no-gallery/);

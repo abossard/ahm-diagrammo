@@ -260,3 +260,21 @@ test("extractBlocks: closing fence matches opener character and minimum length",
   assert.match(blocks[1].code, /```/);
   assert.ok(!blocks.some((b) => b.issues.some((i) => i.message.includes("never closed"))));
 });
+
+for (const [label, prefix] of [
+  ["inline triple backticks", "```inline```\n\n"],
+  ["inline longer backticks", "````inline````\n\n"],
+  ["backtick in literal info", "```text `example`\n\n"],
+  ["backtick in Mermaid info", "```mermaid title=`example`\n\n"],
+  ["backtick literal with shorter closer", "````markdown\n```mermaid\nnot a diagram\n```\n`````\n\n"],
+  ["tilde literal with mixed and shorter closers", "~~~~text `example`\n```mermaid\nnot a diagram\n```\n~~~\n~~~~~\n\n"],
+]) {
+  test(`extractBlocks: ${label} does not claim a later real fence`, () => {
+    const source = prefix + "```mermaid\nflowchart BT\na[A]\nclass a green;\n```\n";
+    const blocks = extractBlocks(source, THEME_NAMES);
+    assert.equal(blocks.length, 1);
+    assert.equal(blocks[0].line, prefix.split("\n").length);
+    assert.equal(blocks[0].code, "flowchart BT\na[A]\nclass a green;");
+    assert.deepEqual(blocks[0].issues, []);
+  });
+}

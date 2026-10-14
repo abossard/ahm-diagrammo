@@ -26,10 +26,10 @@ const WEB_FILES = [
   "web/export-zip.mjs",
 ];
 
-// Exactly the 7-module browser-safe closure: swimlane -> extract/themes/text/diag/layout;
-// text -> font-metrics. src/index.mjs and src/mermaid.mjs (node: builtins) are deliberately
-// excluded.
+// Browser-safe calculation closure. The Node barrel, Mermaid subprocess and sync paths stay out.
 const SRC_FILES = [
+  "src/document.mjs",
+  "src/managed-source.mjs",
   "src/extract.mjs",
   "src/swimlane.mjs",
   "src/themes.mjs",
