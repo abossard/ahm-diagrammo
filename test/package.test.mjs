@@ -45,6 +45,7 @@ const EXPECTED_PACKED_FILES = [
   "src/mermaid.mjs",
   "src/render.mjs",
   "src/swimlane.mjs",
+  "src/swimlane-route.mjs",
   "src/text.mjs",
   "src/themes.mjs",
   "svg/hero.svg",
