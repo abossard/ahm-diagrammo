@@ -22,7 +22,6 @@ import { textWidth, wrapText } from "./text.mjs";
 import { Diagnostics } from "./diag.mjs";
 import { relaxCoordinates } from "./layout.mjs";
 import { planRoutes } from "./swimlane-route.mjs";
-export { straightenTrackedX } from "./swimlane-route.mjs";
 
 const STATE_LABEL = { healthy: "Healthy", degraded: "Degraded", unhealthy: "Unhealthy", unknown: "Unknown", alt: "Standby" };
 const CLASS_STATE = { blue: "signal", green: "healthy", amber: "degraded", red: "unhealthy", purple: "alt" };

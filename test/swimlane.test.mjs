@@ -92,7 +92,7 @@ for (const file of fixtureFiles) {
     test(`geometry: ${file} block ${bi + 1} (${b.slug})`, () => {
       const diag = new Diagnostics({ file });
       const r = renderSwimlane(b.code, { theme: "portal", title: b.heading, diag, baseLine: b.codeLine - 1 });
-      const geo = verifyGeometry(r);
+      const geo = verifyGeometry(r, { minRouteTrack: 10 });
       assert.deepEqual(geo, [], `geometry violations:\n  ${geo.join("\n  ")}`);
       const sv = verifySvgString(r.svg);
       assert.deepEqual(sv, [], `svg violations:\n  ${sv.join("\n  ")}`);
@@ -101,6 +101,18 @@ for (const file of fixtureFiles) {
       const tooltips = (r.svg.match(/<title>/g) || []).length;
       assert.ok(tooltips >= clippedWarns.length, "every clipped text needs a tooltip");
     });
+  });
+}
+
+// Fan-in (the AKS top-level rollup): children of one parent nest instead of crossing, and parallel
+// lines of different edges stay at least 10px apart.
+for (const k of [2, 3, 5, 8, 12]) {
+  test(`fan-in of ${k} children: no crossings, parallel lines >= 10px apart`, () => {
+    const lines = ["flowchart BT"];
+    for (let i = 0; i < k; i++) lines.push(`c${i}["Child ${i} ${"wide ".repeat(i % 4)}"] --> root["Root"]`);
+    const r = renderSwimlane(lines.join("\n"), { theme: "portal", title: "fan-in" });
+    assert.equal(countCrossings(r.debug), 0);
+    assert.deepEqual(verifyGeometry(r, { minRouteTrack: 10 }), []);
   });
 }
 

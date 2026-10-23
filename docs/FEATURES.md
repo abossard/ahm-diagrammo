@@ -328,11 +328,13 @@ qualifier. Entity icons are picked from name keywords (web, api, database, queue
 Lanes come from the longest path to the root: 1–3 lanes get the standard labels (Workload root /
 Business & user flows / Application components), deeper models add Dependencies, Subsystems,
 `Layer n` — or set your own with `lanes:` (or hide the label text entirely with
-`laneLabels: false`, reclaiming its gutter width for row content). Edge visuals: unlabeled solid
-edges sharing a target can reuse shared geometry, branching onto a short per-edge stub near their
-own source and the shared target; labeled and dashed edges route individually with the label in a
-pill; connectors take the **source** state color, and grey connector strokes are used only for
-unknown-state sources.
+`laneLabels: false`, reclaiming its gutter width for row content). Edge visuals: every edge draws
+its own line from its own port; the ports on one card side are spread across it and ordered by
+where their edges go, so siblings fanning into one parent nest instead of crossing, and an edge
+whose two cards overlap drops straight. Labeled and dashed edges carry the label in a pill;
+connectors take the **source** state color, and grey connector strokes are used only for
+unknown-state sources. How the router minimizes crossings, and why it beat a generic orthogonal
+router, is in [ROUTING.md](ROUTING.md).
 
 Turning off lane labels (`laneLabels: false`) hides lane-label text and reclaims gutter width for
 row content without changing route topology.
@@ -372,8 +374,8 @@ model, on every stress fixture:
 1. Cards never overlap each other, never leave their lane band or the canvas.
 2. Connectors never pass through a card's interior — lane-skipping edges ride corridors between
    cards of intermediate lanes.
-3. No two horizontal or vertical connector segments of different edges are ever collinear —
-   *unless* both belong to the same intentionally-shared bundle trunk, tagged and verified as such.
+3. No two horizontal or vertical connector segments of different edges are ever collinear, and
+   parallel segments of different edges stay at least 10px apart.
 4. Label pills never overlap other pills, cards, or any other edge's connector; long labels wrap
    to two lines.
 5. Text never leaves the canvas or its container (card, pill). Entity names widen their card up to
@@ -394,7 +396,8 @@ model, on every stress fixture:
 
 Density costs height, not legibility: channels between lanes grow rows to fit their edges.
 
-*Verified by:* `swimlane.test.mjs` — every `geometry:` test, "torture-text: long content wraps
+*Verified by:* `swimlane.test.mjs` — every `geometry:` test, the `fan-in of n children` tests (no
+crossings, 10px spacing), "torture-text: long content wraps
 instead of vanishing", "entity titles remain complete beyond the card width cap", "rendering is
 deterministic", and the `laneLabels` tests; `regression-pr6.test.mjs` root `pills-stress` sweep
 across all themes; `layout.test.mjs` — projection separations, track disjointness, corridor

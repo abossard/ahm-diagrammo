@@ -16,16 +16,17 @@
 // ---------- 1-D constrained projection (cluster-merge / "priority" method) ----------
 // Given nodes in fixed order with desired positions and pairwise minimum separations
 // (sep[i] = min distance between center i and center i+1), find positions that keep the order,
-// respect every separation, and minimize squared distance to the desired positions.
+// respect every separation, and minimize (weighted) squared distance to the desired positions.
 // Classic optimal algorithm: scan left to right; each node starts as its own cluster at its
 // desired position; while the last two clusters violate their separation, merge them and place
-// the merged cluster at the average of (desired − internal offset) of its members.
-export function projectPositions(desired, sep) {
+// the merged cluster at the weighted average of (desired − internal offset) of its members.
+export function projectPositions(desired, sep, weights = null) {
   const n = desired.length;
   if (n === 0) return [];
   const clusters = []; // { sum, count, off0, offs:[...], first, last }
   for (let i = 0; i < n; i++) {
-    let cur = { sum: desired[i], count: 1, offs: [0], first: i, last: i };
+    const w0 = weights ? weights[i] : 1;
+    let cur = { sum: w0 * desired[i], count: w0, offs: [0], first: i, last: i };
     while (clusters.length) {
       const prev = clusters[clusters.length - 1];
       const need = sep[cur.first - 1]; // min distance between prev.last and cur.first
@@ -39,8 +40,9 @@ export function projectPositions(desired, sep) {
         const off = cur.offs[k] + base;
         prev.offs.push(off);
         // member's desired contributes (desired − its offset) to the cluster position estimate
-        prev.sum += desired[cur.first + k] - off;
-        prev.count++;
+        const w = weights ? weights[cur.first + k] : 1;
+        prev.sum += w * (desired[cur.first + k] - off);
+        prev.count += w;
       }
       prev.last = cur.last;
       cur = clusters.pop();

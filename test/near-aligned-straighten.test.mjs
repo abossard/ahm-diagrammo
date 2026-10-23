@@ -1,15 +1,14 @@
 // Near-aligned-edge straightening (user feedback: "if a line has only a very small horizontal
 // shift ... can we make the line straight?"). A single-channel tracked (labeled/dashed) edge whose
-// two risers only differ by the slot registry's anti-collinearity bump draws a redundant jog around its
-// label row; we collapse that to one straight vertical. Genuine L-shaped routing (real horizontal
-// travel) must survive. Verified at the public renderSwimlane boundary via debug.segs + the exact
-// snap threshold via the pure straightenTrackedX predicate.
+// cards overlap gets one port x on both cards, so it is one straight vertical instead of a jog around
+// its label row. Genuine L-shaped routing (real horizontal travel) must survive. Verified at the
+// public renderSwimlane boundary via debug.segs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderSwimlane, straightenTrackedX } from "../src/swimlane.mjs";
+import { renderSwimlane } from "../src/swimlane.mjs";
 import { extractBlocks } from "../src/extract.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
 import { verifyGeometry, verifySvgString } from "./helpers/geo.mjs";
@@ -19,28 +18,6 @@ const FIX = join(dirname(fileURLToPath(import.meta.url)), "fixtures");
 // segments the renderer emitted for one edge ("from->to"); "v" = vertical, "h" = horizontal.
 const edgeSegs = (r, edge) => r.debug.segs.filter((s) => s.edge === edge);
 const kinds = (segs) => ({ v: segs.filter((s) => s.kind === "v").length, h: segs.filter((s) => s.kind === "h").length });
-
-// --- exact snap boundary (pure predicate; layout only ever yields the 6px bump or a large offset,
-//     so the 8/12 boundary is unreachable through a diagram and is proven here directly) ---
-const uLo = 50, uHi = 150, xIn = 100; // xIn is inside [uLo,uHi]
-for (const { delta, straight } of [
-  { delta: 0, straight: true },     // perfectly aligned
-  { delta: 6, straight: true },     // the observed one-pitch bump (screenshot 1)
-  { delta: 8, straight: true },     // STRAIGHT_SNAP_DX boundary, inclusive
-  { delta: 12, straight: false },   // two pitches: an intervening vertical could hide here
-  { delta: 34.5, straight: false }, // screenshot 2's genuine L-shape travel
-]) {
-  test(`straightenTrackedX: |Δ|=${delta} → ${straight ? "snap" : "keep dogleg"}`, () => {
-    assert.equal(straightenTrackedX(xIn, xIn + delta, uLo, uHi), straight);
-    assert.equal(straightenTrackedX(xIn, xIn - delta, uLo, uHi), straight); // sign-symmetric
-  });
-}
-
-test("straightenTrackedX: near-aligned but exit x outside the parent slot range keeps the dogleg", () => {
-  // Δ=2 (well under threshold) yet the snap x would land off the upper card → must not snap.
-  assert.equal(straightenTrackedX(uHi + 40, uHi + 42, uLo, uHi), false);
-  assert.equal(straightenTrackedX(uLo - 40, uLo - 42, uLo, uHi), false);
-});
 
 // --- screenshot 1: the real consumer diagram that regressed (a golden fixture) ---
 const OP_SLUG = "add-operational-quality-signals-to-the-workload-model";
@@ -86,11 +63,13 @@ test("aligned adjacent dashed edge straightens, and laneLabels off changes only 
 });
 
 // --- screenshot 2 essence: a genuine horizontal offset must keep its L-shape ---
+// two wide siblings push the labeled child out from under its parent, so the cards don't overlap
 const MEANINGFUL_L = [
   "flowchart BT",
-  'order["Order service<br/>unhealthy"] -. "limited<br/>propagation" .-> appRoot["Application root<br/>degraded"]',
-  'sibling["A wide neighbour card padding padding<br/>healthy"] --> appRoot',
-  "class order red; class appRoot amber; class sibling green;",
+  'sibling["A wide neighbour card padding padding<br/>healthy"] --> appRoot["Application root<br/>degraded"]',
+  'other["Another wide neighbour card padding<br/>healthy"] --> appRoot',
+  'order["Order service<br/>unhealthy"] -. "limited<br/>propagation" .-> appRoot',
+  "class order red; class appRoot amber; class sibling,other green;",
 ].join("\n");
 
 test("meaningful L-shaped labeled edge (real horizontal travel) stays orthogonal", () => {
