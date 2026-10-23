@@ -107,7 +107,10 @@ export function relaxCoordinates(laneNodes, widths, neighbors, gap, { iterations
 export function assignTracks(items) {
   const levelOf = new Map();
   const levels = []; // each: { occ: [[xL,xR]...], pill:boolean }
-  const place = (it, wantPill) => {
+  const sorted = [...items].sort((a, b) =>
+    (a.pill ? 1 : 0) - (b.pill ? 1 : 0) || (a.order ?? a.xL) - (b.order ?? b.xL) || a.xL - b.xL);
+  for (const it of sorted) {
+    const wantPill = !!it.pill;
     for (let lvl = 0; ; lvl++) {
       if (!levels[lvl]) levels[lvl] = { occ: [], pill: wantPill };
       const L = levels[lvl];
@@ -115,13 +118,10 @@ export function assignTracks(items) {
       if (L.occ.every(([a, b]) => it.xR < a - 1e-9 || it.xL > b + 1e-9)) {
         L.occ.push([it.xL, it.xR]);
         levelOf.set(it.id, lvl);
-        return;
+        break;
       }
     }
-  };
-  const sorted = [...items].sort((a, b) =>
-    (a.pill ? 1 : 0) - (b.pill ? 1 : 0) || (a.order ?? a.xL) - (b.order ?? b.xL) || a.xL - b.xL);
-  for (const it of sorted) place(it, !!it.pill);
+  }
   // renumber levels: plain rows first (top of channel), pill rows after (bottom)
   const used = [...new Set([...levelOf.values()])].sort((a, b) => {
     const pa = levels[a].pill ? 1 : 0, pb = levels[b].pill ? 1 : 0;
@@ -154,7 +154,6 @@ export function corridorsOf(cards, { margin = 10, flank = 60 } = {}) {
 // Pick an x for a vertical riser through a lane: nearest usable point to `want` among the
 // corridors, avoiding already-taken xs (min spacing). taken: array of xs already used.
 export function pickCorridorX(corridors, want, taken = [], { spacing = 7 } = {}) {
-  const free = (x) => taken.every((t) => Math.abs(t - x) >= spacing - 1e-9);
   let best = null, bestCost = Infinity;
   for (const [lo, hi] of corridors) {
     // candidates: the clamped wish, plus one slot beside every taken position
@@ -162,7 +161,7 @@ export function pickCorridorX(corridors, want, taken = [], { spacing = 7 } = {})
     for (const t of taken) cands.push(t + spacing, t - spacing);
     cands.push(lo, hi);
     for (const c of cands) {
-      if (c < lo - 1e-9 || c > hi + 1e-9 || !free(c)) continue;
+      if (c < lo - 1e-9 || c > hi + 1e-9 || !taken.every((t) => Math.abs(t - c) >= spacing - 1e-9)) continue;
       const cost = Math.abs(c - want);
       if (cost < bestCost) { bestCost = cost; best = c; }
     }

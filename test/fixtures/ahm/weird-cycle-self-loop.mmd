@@ -1,0 +1,9 @@
+flowchart BT
+    a["Node A<br/>healthy"] --> b["Node B<br/>degraded"]
+    b --> a
+    c["Node C<br/>healthy"] --> c
+    a --> r["Root<br/>healthy"]
+    classDef green fill:#f2f8f2,stroke:#a0d8a0;
+    classDef amber fill:#fbf2e7,stroke:#db7500;
+    class a,c,r green;
+    class b amber;

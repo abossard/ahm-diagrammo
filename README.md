@@ -1,434 +1,190 @@
 # ahm-diagrammo
 
-**[Open the browser editor](https://abossard.github.io/ahm-diagrammo/)** to edit Markdown,
-preview health-model diagrams, and download SVGs and PNGs without installing anything.
-An editable example opens immediately. Paste your Markdown, including previously synced hidden
-Mermaid source, and read warnings or errors beside the affected diagram. Download ZIP captures
-one source revision, even if you keep editing while PNGs are generated.
+Turn the ` ```mermaid ` blocks in a Markdown file into static SVG files.
 
-Use the [CLI publishing workflow](#usage) to write SVGs alongside documentation or render other
-Mermaid diagram types. The browser keeps your source in the editor only, with no draft storage.
-
-Its specialty is **Azure Monitor health models**: Mermaid `flowchart BT` health models become
-SVGs that look like the Azure portal health graph, render as `<img>` on Microsoft Learn (native
-`<text>`, no `foreignObject`), and scale without blurring. Every other mermaid block in the
-file, including sequence, state, ER and plain flowcharts, is rendered by the CLI through mermaid-cli with the
-same theme, so a whole document stays visually consistent.
-
-## Why not just vanilla mermaid?
-
-The exact same mermaid block, rendered by vanilla mermaid and by diagrammo:
-
-| Vanilla mermaid | diagrammo CLI |
-|---|---|
-| ![Vanilla mermaid rendering](svg/compare-vanilla.svg) | ![diagrammo rendering](svg/compare-diagrammo.svg) |
-
-Same source, but diagrammo understands what the diagram *means*:
-
-- **Signals fold into their entity** as a status table with per-row status dots, metric icons,
-  and right-aligned results — instead of floating as separate boxes with `=` signs in prose.
-- **States become the visual language**: Azure-portal state colors, status pills on every card,
-  a legend, and connectors colored by each source entity's state (grey only when the source is
-  unknown) so failing dependencies stay traceable.
-- **Swimlanes** (Workload root / flows / components) replace an unlabeled scatter, and each
-  entity gets an icon matched from its name.
-- **Labels sit in collision-free pills** on their own routing tracks; the layout engine
-  guarantees nothing overlaps or gets truncated, no matter how dense the model gets.
-- **Title, subtitle, and theme** come from the block's own tags — nothing configured anywhere else.
-
-<details>
-<summary>The shared mermaid source of both renderings</summary>
-
-```mermaid
-flowchart BT
-    apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%<br/>Requests = 1.2k/s"] --> api["Order API<br/>degraded"]
-    qSig["Queue depth = 18<br/>Oldest message = 4 s"] --> queue["Order queue<br/>healthy"]
-    paySig["Auth failures = 7% (unhealthy)<br/>Settlement lag = 12 min (degraded)"] --> pay["Payment service<br/>unhealthy"]
-
-    api --> orders["Order intake<br/>degraded"]
-    queue --> orders
-    pay -. "limited<br/>propagation" .-> orders
-    orders --> root["Storefront<br/>(worstOf)<br/>degraded"]
-
-    classDef blue fill:#eff6fc,stroke:#0078D4;
-    classDef green fill:#f2f8f2,stroke:#a0d8a0;
-    classDef amber fill:#fbf2e7,stroke:#db7500;
-    classDef red fill:#faeceb,stroke:#ba0d16;
-    class apiSig,qSig,paySig blue;
-    class queue green;
-    class api,orders,root amber;
-    class pay red;
-```
-
-</details>
-
-## Examples
-
-Signals live **inside** each entity as a status table (status dot, name, metric icon, result). Health
-rolls up through business flows to the workload root. Relationship labels render as pills.
+- **Azure health models** get a purpose-built look: Azure-portal style **swimlanes** (default) or
+  **Pele** signal tables (`-r pele`), from the same Mermaid source.
+- **Every other Mermaid diagram** (sequence, state, ER, flowchart, pie, ...) is rendered by
+  [Pele](https://pele.run) in the same theme, so a whole document looks consistent.
+- The SVGs use native text and fixed colors, so they work as `<img>` on GitHub and Microsoft Learn.
+  No browser, no Chrome, no system fonts are involved.
 
 ![Hero](svg/hero.svg)
 
-[Editable hero source](hero.md).
+The same [source](hero.md) with `-r pele`:
 
-### Kitchen sink: one figure, every feature
+![Hero, Pele look](svg/pele/hero.svg)
 
-Healthy, Degraded, Unhealthy, Unknown, and Standby states. Multi-row signal tables. Dashed propagation
-edges. Qualifiers like worstOf and active-active. Long names, straight and elbow connectors.
+**[See the gallery](docs/gallery/README.md)**: every feature, each health model in both looks.
 
-![Kitchen sink](svg/kitchen-sink.svg)
+## Quick start
 
-[Editable kitchen-sink source](kitchen-sink.md).
-
-### Pills stress test: labels that never collide
-
-Many labeled edges converge on one parent, and one child feeds several parents. Each pill anchors on its
-child's vertical drop, and the router levels edges by horizontal span. No pill overlaps another, no line
-crosses another, and every pill belongs to one relationship.
-
-![Pills stress test](svg/pills-stress.svg)
-
-[Editable pills-stress source](pills-stress.md).
-
-### More examples
-
-[examples/showcase.md](examples/showcase.md) contains editable examples of themes, option channels
-and supported diagrams. Select it in the browser editor for health models, or use the CLI for
-its ordinary Mermaid examples.
-
-## Usage
-
-Run from a checkout. The package is not currently published on npm:
+Node 20 or newer. Run from a checkout (the package is not published to npm):
 
 ```bash
-git clone https://github.com/abossard/ahm-diagrammo.git
-cd ahm-diagrammo
-npm ci
+git clone https://github.com/abossard/ahm-diagrammo.git && cd ahm-diagrammo && npm ci
 ```
+
+Render every Mermaid block in a Markdown file into `out/`, one SVG per block:
 
 ```bash
-node bin/diagrammo.mjs doc.md                       # SVGs into ./diagrams
-node bin/diagrammo.mjs doc.md -o out -t midnight      # output directory and default theme
-node bin/diagrammo.mjs doc.md --list                 # dry run, writes nothing
-node bin/diagrammo.mjs doc.md --verbose              # parsed nodes, edges and fold decisions
-node bin/diagrammo.mjs doc.md --strict               # warnings fail the run
-node bin/diagrammo.mjs doc.md --sync-markdown        # visible SVG + fully hidden source
-node bin/diagrammo.mjs doc.md --sync-markdown --image-format learn   # Learn image directives
+node bin/diagrammo.mjs hero.md -o out
 ```
 
-The command walks the file, and for each ` ```mermaid ` block:
+Same file, Pele look for health models:
 
-- a **health model** (`flowchart BT` whose classes bind to `blue/green/amber/red/purple`) becomes a
-  portal-style **swimlane** figure — pure code, no browser needed;
-- **anything else** is rendered through mermaid-cli in the same theme (this path needs Chrome/Chromium;
-  it finds one via `PUPPETEER_EXECUTABLE_PATH`, `CHROME_PATH`, or the usual install locations).
+```bash
+node bin/diagrammo.mjs hero.md -o out -r pele
+```
 
-Each run writes one SVG per mermaid block. Try the
-[browser editor](https://abossard.github.io/ahm-diagrammo/) or run
-`node bin/diagrammo.mjs examples/showcase.md -o out-showcase`.
+## Write a health model
 
-## Check in both the Mermaid and the SVG
+A health model is a `flowchart BT` whose nodes carry health classes. Children point at their
+parents, so health rolls up to the root at the top:
 
-`--sync-markdown` is the only mode that mutates your Markdown, and it's opt-in. It renders every
-block exactly like the default command, then rewrites each fence in place into a managed block: a
-visible SVG `<img>`, followed by the Mermaid source **fully hidden** (not merely collapsed) inside
-an HTML comment — every literal `-->` in the fence is escaped to `--&gt;` first, so the comment
-never closes early. On GitHub, only the `<img>` renders; no disclosure widget, no leaked fence
-text — verified live against this exact shape via `gh api markdown` (mode=gfm): the response is
-just the heading and the `<img>`, nothing else.
-
-The loop:
-
-1. Edit the Mermaid fence directly in the raw Markdown (bare, or inside an existing managed block —
-   see [docs/FEATURES.md](docs/FEATURES.md#sync-svgs-into-markdown) for the exact hidden-comment
-   shape and how to hand-edit it safely).
-2. `node bin/diagrammo.mjs doc.md --sync-markdown` (or `-o docs/assets --sync-markdown` to colocate the
-   SVG next to the doc).
-3. Preview the *rendered* Markdown — only the SVG shows; the source stays fully hidden.
-4. Commit the Markdown and the emitted `.svg` together.
-
-See [the checked-in sync example](examples/sync-markdown/) for a real, already-synced Markdown
-file plus the rendered SVG and the exact regeneration command.
-
-By default the visible embed is core CommonMark `![alt](href)`. For docsets built on Microsoft
-Learn (Markdig), add `--image-format learn` to emit a `:::image type="content" source="…"
-alt-text="…" lightbox="…" border="false":::` content directive as the visible token instead —
-everything else about the managed block (hidden source, stable slug/filename, idempotent reruns,
-untouched-on-failure) is unchanged. See
-[docs/FEATURES.md](docs/FEATURES.md#visible-token-format---image-format-commonmark--learn).
-
-**Per-diagram alt text (`%%| alt:`).** The visible embed's accessibility alt text follows the
-precedence **explicit `%%| alt:` override → `title` → nearest heading**. Add a `%%| alt:` directive
-inside the fence to give one diagram accurate, unique alt text (useful when several diagrams share a
-heading, or when a docset flags duplicate/redundant alt text):
-
-````markdown
 ```mermaid
-%%| alt: Active-passive roll-up: two regions collapse to one healthy root
 flowchart BT
-  ...
-```
-````
-
-Because the directive lives inside the hidden Mermaid source, it survives every resync (it is the
-source of truth, not a hand-edit the next sync would overwrite) and is applied identically to both
-the CommonMark and Learn visible tokens, escaped for each. An empty/whitespace-only `%%| alt:` warns
-and falls back to `title`/heading — it never emits empty alt text.
-
-Reruns are idempotent, and editing the fence inside an already-synced block and rerunning updates
-that same block's SVG in place — no nested wrappers, no drift. **The first generated filename is
-stable for the life of that managed block:** once a fence is synced, its `<!-- diagrammo:sync
-SLUG -->` marker is the block's permanent identity — later renaming the heading it sits under, or
-adding/changing an in-fence `title=`/`name=`, only updates the visible alt text, never the filename
-or marker. Resyncing any subset of a previously multi-file sync (even a single file on its own)
-keeps that file's own reserved slugs and never renames or overwrites another file's SVG. A real
-render failure, a corrupted managed block, or a fence whose text already contains the reserved
-`--&gt;` token (ambiguous to decode later), leaves the file's bytes completely untouched and exits
-non-zero rather than guessing a repair. An existing managed block from any prior version of this
-tool (the old, merely-collapsed `<details>` shape) is recognized as valid and migrated to the new
-hidden-comment shape automatically on its next resync, keeping the same slug and filename.
-
-A separate `.mmd` sidecar file was considered and rejected: it splits the single-file edit/preview
-loop. Wrapping the raw, *unescaped* Mermaid source directly in an HTML comment was also rejected —
-an HTML comment ends at the first literal `-->`, and Mermaid edges like `a --> b` would truncate it
-and leak the remainder as visible content; escaping every `-->` to `--&gt;` first (and rejecting,
-before any write, a fence that already contains that literal token — it would decode ambiguously)
-is what makes the comment safe. See
-[docs/FEATURES.md](docs/FEATURES.md#sync-svgs-into-markdown) for the full mechanism, the exact
-codec, and the GitHub/Microsoft Learn/CommonMark verification boundary.
-
-## Agent plugin
-
-The repository exposes one shared `diagrammo` skill to GitHub Copilot CLI and Claude Code. Copilot can
-install it directly:
-
-```bash
-copilot plugin install abossard/ahm-diagrammo
+    apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4% (healthy)"] --> api["Order API"]
+    api --> checkout["Checkout flow"]
+    db["Database"] --> checkout
+    cache["Redis cache"] -. "limited propagation" .-> checkout
+    checkout --> root["Workload root<br/>(worstOf)"]
+    class apiSig blue;
+    class api,checkout,root amber;
+    class db green;
+    class cache red;
 ```
 
-Or add this repository as a marketplace and install the same plugin:
+| You write | It means |
+|-----------|----------|
+| `class x green` / `amber` / `red` / `purple` | healthy / degraded / unhealthy / standby; no health class means unknown |
+| `class s blue` | `s` is a signal: each label line becomes a row in its entity's table |
+| `name = value (state)` in a signal label | a row with its own value and state (`healthy`, `degraded`, `unhealthy`, `unknown`) |
+| `child --> parent` | a roll-up; the connector takes the child's state color |
+| `-->\|label\|` and `-. "label" .->` | a labeled roll-up and a dashed one (limited propagation) |
+| `(worstOf)` as a label line | a qualifier, shown under the name |
 
-```bash
-copilot plugin marketplace add abossard/ahm-diagrammo
-copilot plugin install ahm-diagrammo@ahm-diagrammo
-```
+Anything else is an ordinary Mermaid diagram. The [gallery](docs/gallery/README.md) shows every
+rule with a rendered example.
 
-In Claude Code, run `/plugin marketplace add abossard/ahm-diagrammo`, then
-`/plugin install ahm-diagrammo@ahm-diagrammo`. Invoke `/ahm-diagrammo:diagrammo` for a rendering task.
-In Copilot CLI, `/skills list` confirms discovery; ask Copilot to use the `diagrammo` skill. Both hosts
-load [`skills/diagrammo/SKILL.md`](skills/diagrammo/SKILL.md).
+## Choose the look
 
-## How it works
+| `renderer` | Health model | Any other diagram |
+|------------|--------------|-------------------|
+| `auto` (default) | swimlane | Pele |
+| `swimlane` | swimlane | swimlane parser (health models only) |
+| `pele` | Pele signal tables | Pele |
+| `mermaid` | Mermaid shapes, themed | Pele |
 
-The browser and CLI call `prepareDocuments` in `src/document.mjs` for managed-source decoding,
-extraction, option precedence, stable batch slugs, raw source locations and renderer selection.
-The browser owns preview, status, Canvas and download; the CLI owns files, subprocesses and sync.
-The figure below shows the rendering stages, drawn by ahm-diagrammo from
-its own health model in [docs/how-it-works.md](docs/how-it-works.md):
+Set it for a run with `-r` or for one block with `renderer:` (see below).
 
-![How ahm-diagrammo renders one Markdown file](docs/assets/how-it-works-pipeline.svg)
+## Options per block
 
-Regenerate it from the source:
-
-```bash
-node bin/diagrammo.mjs docs/how-it-works.md -o docs/assets
-```
-
-Read it bottom-up: a Markdown file enters at the bottom and the output bundle rolls up at the top.
-Signal tables show where options, runtime requirements, render stages, and output artifacts enter
-the pipeline. The
-[lane-by-lane reference](docs/how-it-works.md) maps each stage to its code and test.
-
-## Tags & YAML: per-block options
-
-Every block can override the CLI defaults, three ways — all invisible to GitHub's and VS Code's
-mermaid preview:
-
-**1. The fence line.** GitHub only reads the first word of the info string, so extra tokens are free:
+Every option can live in the block itself. All three places are invisible to GitHub's and VS
+Code's Mermaid preview; later ones win:
 
 ````markdown
-```mermaid midnight
-flowchart BT
-  ...
-```
-````
-
-**2. `%%|` directive comments.** Mermaid treats `%%` lines as comments:
-
-````markdown
-```mermaid
-%%| theme: candy
-%%| title: Order pipeline
+```mermaid midnight title="Checkout"
+---
+diagrammo:
+  subtitle: Live order path
+  lanes: [Storefront, Flows, Services]
+---
 %%| legend: false
 flowchart BT
-  ...
-```
-````
-
-**3. YAML frontmatter.** Mermaid understands the frontmatter block natively (`title:` even shows up
-in previews); diagrammo reads the `diagrammo:` key:
-
-````markdown
-```mermaid
----
-title: Order pipeline health
-diagrammo:
-  theme: slate
-  lanes: [Storefront, Order flows, Services]
-  subtitle: Live measurements from the collectors.
----
-flowchart BT
-  ...
+    ...
 ```
 ````
 
 | Key | What it does |
 |-----|--------------|
-| `renderer` | `auto` (default), `swimlane`, or `mermaid` |
+| `renderer` | `auto`, `swimlane`, `pele` or `mermaid` |
 | `theme` | `portal` (default), `midnight`, `candy`, `slate` |
-| `title` / `subtitle` | figure header text (title defaults to the nearest Markdown heading) |
-| `lanes` | custom swimlane labels, top to bottom: `[Root, Flows, Services]` |
-| `legend` | `false` hides the legend |
-| `laneLabels` | swimlane only; `false` hides the lane label text and reclaims its gutter width for row content — bands/hairlines stay visible; **default shown** |
-| `name` | output file name (defaults to a slug of the title/heading) |
-| `background` | canvas background color (mermaid renderer only) |
-| `alt` | accessibility alt text for the `--sync-markdown` visible embed; overrides `title`/heading (see below) |
+| `title` / `subtitle` | header text of the swimlane look (title defaults to the nearest heading) |
+| `lanes` | swimlane row names, top to bottom |
+| `legend` | `false` hides the legend (both looks) |
+| `laneLabels` | `false` hides the swimlane lane names and reclaims their gutter |
+| `name` | output file name (defaults to a slug of the title or heading) |
+| `background` | canvas color for non-health diagrams |
+| `alt` | alt text of the image written by `--sync-markdown` |
 
-Signal rows can carry a real measurement and their own state, straight in the mermaid label:
+The full reference, with every guarantee and the test that pins it, is [docs/FEATURES.md](docs/FEATURES.md).
 
-```text
-apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%"] --> api[...]
+## Publish to GitHub or Microsoft Learn
+
+`--sync-markdown` renders the SVGs and rewrites each fence in place into a visible image followed
+by the Mermaid source, fully hidden in an HTML comment. Edit the hidden source, rerun, commit both.
+`--image-format learn` writes Microsoft Learn's `:::image:::` directive instead of `![alt](href)`:
+
+```bash
+node bin/diagrammo.mjs docs/health.md -o docs/assets --sync-markdown --image-format learn
 ```
 
-Rows without an explicit value get a deterministic placeholder derived from the row name.
+Reruns are idempotent and file names stay stable. [examples/sync-markdown/](examples/sync-markdown/)
+is a real synced file. On Learn, `.svg` must be listed in the docset's `docfx.json` resources.
 
-The complete feature reference — every CLI flag, option key, theme, diagnostic message, and
-layout guarantee, each mapped to the test that verifies it — is in
-[docs/FEATURES.md](docs/FEATURES.md).
+## Use it as a library
 
-## Diagnostics: compiler-grade parse logging
+```js
+import { renderDiagram, renderAhm } from "ahm-diagrammo";
 
-Every line of every block is classified. Anything the parser can't place produces a warning with
-the **absolute file line** and a hint; blocks that can't render at all fail with a reason:
+// one entry point for every look: renderer is auto | swimlane | pele | mermaid
+const { svg } = renderDiagram(mermaidSource, { renderer: "pele", theme: "slate" });
 
-```text
-  FAIL doc.md:5  checkout-model: no nodes parsed — 3 unrecognized line(s), first at line 7
-       warn  doc.md:7   unrecognized line: "this is not === valid mermaid at all"
-             ↳ expected a node (id[Label]), an edge, class/classDef, or a comment
-       warn  doc.md:9   unrecognized line: "---> dangling arrow"
-             ↳ looks like an edge — supported forms: A --> B, A -->|label| B, A -- "label" --> B, ...
+// the Pele look with options the CLI does not expose
+const { svg: wide } = renderAhm(flowchartSource, { direction: "LR", lanes: true, tableHeaders: false, fontSize: 18 });
 ```
 
-Warnings cover: unknown themes/renderers/option keys (each with the valid values), malformed
-`%%|` directives, non-BT flowchart directions, unknown `class` names, ignored `subgraph`/`style`
-statements, cycles and self-loops, same-lane or downward edges, orphan signal nodes, unclosed
-fences, and any text that had to be clipped (which always keeps the full text as an SVG tooltip).
-`--verbose` additionally logs every parsed edge, node, signal fold, and the graph summary.
-`--strict` turns warnings into a failing exit code. Progress goes to stdout, diagnostics to stderr.
+`renderAhm` also takes `colors` (palette overrides), `fontFamily`, `legend`, `idPrefix`, size
+limits and `nested` (model views); the gallery shows each one. Runnable scripts live in
+[examples/](examples/README.md).
 
-## Layout guarantees
+## Gallery
 
-The swimlane engine is a Sugiyama-style layered renderer with hard no-overlap rules, each
-enforced by geometric tests:
+[docs/gallery/README.md](docs/gallery/README.md) is generated from
+[docs/gallery/source.md](docs/gallery/source.md). To add or change an example, edit the source
+and regenerate:
 
-- **Everything is measured.** Text widths come from per-glyph advance tables measured once in
-  headless Chrome against the real font stack (`scripts/measure-font.mjs` regenerates them), so
-  cards, pills, lane gutters, and the legend size to their content. Long names wrap (cards grow
-  to a cap) before anything is ever ellipsized; the rare clip keeps a tooltip and warns.
-- **Cards can't overlap.** Per-lane coordinates come from constrained 1-D projection
-  (cluster-merge): nodes sit at the mean of their neighbors subject to minimum separations.
-- **Connectors can't cross cards.** Lane-skipping edges ride corridors — the verified gaps
-  between cards of the lanes they pass through.
-- **Horizontal runs can't collide.** Each channel between lanes reserves interval-colored
-  tracks for labeled/dashed/skipping edges and for the per-parent buses; the channel grows to
-  fit its rows, so density costs height, never legibility.
-- **Pills stay readable.** Label pills wrap to two lines when long, sit on rows nearest their
-  child (where crossing connectors are sparse), get repaired onto a different row when the
-  assignment pins them under a connector, and finally slide along their own line to a
-  verified-clear spot.
-- **Lane labels are optional.** Setting `laneLabels: false` removes the lane label text and
-  reclaims its gutter width for row content, while preserving lane bands/hairlines and route
-  geometry.
-- **One logical lane stays one physical band.** Dense fixtures keep exactly one rendered band per
-  logical lane label. The layout may grow taller, but never wraps one logical lane into multiple
-  physical rows.
-- **Shared routes still keep source ownership.** Solid, unlabeled edges that share a target may
-  reuse coincident geometry, but each relationship keeps its own source-state color. Grey connector
-  strokes appear only for unknown-state sources.
-- **Rendering is static-only.** Legacy `interactive` values are inert, rendered SVGs expose no
-  `data-ahm-*` hooks, and render results include no animation payload.
+```bash
+npm run gallery
+```
 
-`npm test` runs the suite: unit tests for the layout algorithms, parse-diagnostic tests, CLI
-end-to-end tests (real process spawns, exit codes, log format), a mermaid-cli smoke test (skipped
-without Chrome), a geometric verifier that renders stress fixtures (lane-skipping meshes, a
-16-pill flood, 14-row tables, unicode extremes, cycles) and asserts that no card, pill,
-connector, or text box overlaps, escapes its container, or leaves the canvas — and golden-file
-tests: rendering is deterministic, so the committed SVGs under `test/golden/` pin the exact
-output, and any visual change shows up as a reviewable diff (`npm run goldens` after intended
-changes).
+CI runs `npm run gallery:check`, which fails when the committed gallery is out of date.
 
-### Publishing
+## How it works
 
-CI runs `npm ci` and the complete suite on Node 18, 22, and 24, then packs the package and executes
-both CLI aliases from the tarball. Publishing is triggered only by a GitHub Release tagged exactly
-`v<package.json version>`; the release workflow repeats those checks before publishing publicly to
-npm with provenance.
+The CLI calls `prepareDocuments` in `src/document.mjs` to find the blocks, merge their options and
+pick a renderer, then `renderDiagram` in `src/render.mjs` for each block. Library callers use the
+same two functions. ahm-diagrammo draws its own pipeline
+([source](docs/how-it-works.md)):
 
-For the first publication, create a temporary granular npm token that can publish the new public
-package and save it as the `NPM_TOKEN` Actions secret. After that succeeds, open the package's
-**Trusted Publisher** settings on npm, select GitHub Actions, and set the owner to `abossard`, the
-repository to `ahm-diagrammo`, and the workflow filename to `release.yml`. No GitHub environment is
-used. Then remove the Actions secret and revoke the bootstrap token; subsequent releases
-authenticate through GitHub OIDC.
+![How ahm-diagrammo renders one Markdown file](docs/assets/how-it-works-pipeline.svg)
 
-## What's inside
+## Command line
 
-| Tool | What it does |
-|------|--------------|
-| `src/document.mjs` | Shared browser-safe document preparation: decoded source, ordered identities, resolved options, renderer choice and raw source locations. Reserves managed slugs across the batch before allocating new names. |
-| `src/managed-source.mjs` | The single managed-source codec and marker validator, reused by preparation and Markdown sync. |
-| `bin/diagrammo.mjs` | CLI host: reads files, prepares the batch, renders, logs diagnostics, writes SVGs and optionally syncs Markdown. Both packaged aliases remain available. |
-| `src/swimlane.mjs` | The swimlane engine. Parses `flowchart BT` into a graph, folds signals into their entity as a status table, layers the graph into swimlanes, and renders portal-styled SVG with roll-up connectors and pill labels. |
-| `src/mermaid.mjs` | Themed Mermaid via mermaid-cli for everything else. Keeps the original node shapes, applies the theme palette, polishes corners and shadows. |
-| `src/themes.mjs` | The four themes, shared by both renderers. |
-| `src/layout.mjs` | The pure layout algorithms: constrained 1-D projection, interval-colored track assignment, corridor picking. |
-| `src/text.mjs` | Browser-free text measurement and wrapping, backed by the generated `src/font-metrics.mjs` (regenerate with `scripts/measure-font.mjs`). |
-| `src/diag.mjs` | Structured diagnostics with file:line attribution. |
-| `src/extract.mjs` | Markdown fence extraction plus the three option channels (fence info, `%%\|` directives, frontmatter), with option validation. |
-| `test/` | The suite: layout unit tests, parse-diagnostic tests, CLI e2e tests, and the geometric overlap verifier run against the stress fixtures in `test/fixtures/`. |
-| `swimlane-auto.mjs`, `convert.mjs` | Deprecated shims — they print a note and forward to the CLI so old workflows keep working. |
-| `arch/` | Declarative Azure architecture-diagram engine: containers, orthogonal routing, pluggable icons. |
-| `ingest-demo/` | An `az monitor health-models` deploy plus `ingest-health-report` recipe. Force live states, then screenshot the real portal. |
-| `examples/showcase.md` | One file exercising every feature — render it and inspect the emitted SVGs. |
-| `EVALUATION.md` | The options analysis: Mermaid theme, draw.io, portal CSS, screenshots, layered. |
+```text
+node bin/diagrammo.mjs <file.md> [more.md ...] [options]
 
-The reference set of generated SVGs lives under [`svg/`](svg/).
+  -o, --out <dir>          output directory (default: ./diagrams)
+  -t, --theme <name>       portal | midnight | candy | slate (default: portal)
+  -r, --renderer <name>    auto | swimlane | pele | mermaid (default: auto)
+  -l, --list               show what each block becomes, write nothing
+  -v, --verbose            log every parsed node, edge and signal fold
+      --strict             warnings fail the run
+      --sync-markdown      write images plus hidden source back into the Markdown
+      --image-format <f>   commonmark | learn (with --sync-markdown)
+```
 
-## Design notes
+## Development
 
-- **Learn-safe SVG.** Set `htmlLabels:false` everywhere, so labels become native `<text>`/`<tspan>` and
-  render inside `<img>`. Never `<foreignObject>`.
-- **Portal palette** from the health-models portal source: Healthy `#a0d8a0`, Degraded `#db7500`,
-  Unhealthy `#ba0d16`, Unknown `#c8c6c4`, signal and azure `#0078d4`.
-- **Signals sit in the entity**, not beside it. The generator folds each signal into an attached
-  4-column table.
-- **Roll-up connectors take the child's state color.** A tolerated failure (active-active, worst-of)
-  keeps the parent green while the failing child's own line stays red.
-- **Pills anchor at the child's vertical drop** and level by horizontal span, so they never overlap and
-  always sit on one line.
-- **Zero install weight for the common path.** The package has no runtime dependencies; the swimlane
-  renderer is pure Node. Only non-health blocks need mermaid-cli, which is resolved from your project,
-  your PATH, or fetched once via npx.
-- Render preview PNGs with headless Chrome, not librsvg. librsvg drops leading `<tspan>` spaces.
+```bash
+npm test
+```
 
-## Icons and licensing
-
-The health-model generators draw only original, in-code glyphs. No external icon assets.
-
-The architecture engine (`arch/`) takes pluggable icons and can use the official Microsoft Azure
-architecture icons once you drop them into `arch/icons/`. This repo does not carry those icons; the
-checked-in architecture SVG uses the original fallback glyphs instead. See `arch/icons/README.md`.
+After an intended change to the swimlane look, refresh the pinned outputs with `npm run goldens`
+and `npm run gallery`, then review the SVG diffs. Tests rasterize SVGs with the bundled Unifont
+fonts in `test/assets/fonts`; system fonts are never loaded.
 
 ## License
 
-MIT (see `LICENSE`). Diagrams generated by these tools carry no third-party icon assets.
+MIT (see `LICENSE`). The renderers draw only original, in-code glyphs; no third-party icons.

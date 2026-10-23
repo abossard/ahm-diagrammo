@@ -52,62 +52,8 @@ function scalar(v) {
 }
 
 // ---------- option sources ----------
-const RENDERERS = new Set(["auto", "swimlane", "mermaid"]);
-
-// fence info string after "mermaid": bare words match a renderer or theme name; key=value otherwise
-export function parseFenceInfo(info, themeNames, issues = null, line = null) {
-  const opts = {};
-  const { tokens, unclosedQuote } = tokenizeFenceInfo(info);
-  if (unclosedQuote && issues) {
-    issues.push({ level: "warn", message: `unterminated ${unclosedQuote} quote in fence options`, line });
-  }
-  for (const tok of tokens) {
-    const kv = tok.match(/^([\w-]+)=(.*)$/);
-    if (kv) {
-      opts[kv[1]] = scalar(kv[2].replace(/^["']|["']$/g, ""));
-      continue;
-    }
-    const w = tok.toLowerCase();
-    if (RENDERERS.has(w)) opts.renderer = w;
-    else if (themeNames.includes(w)) opts.theme = w;
-    else if (issues) issues.push({ level: "warn", message: `fence token "${tok}" is neither a renderer (${[...RENDERERS].join("/")}) nor a theme (${themeNames.join("/")}) — ignored`, line });
-  }
-  return opts;
-}
-
-function tokenizeFenceInfo(info) {
-  const tokens = [];
-  let token = "", quote = null;
-  for (const char of (info || "").replace(/[{}]/g, " ")) {
-    if (quote) {
-      token += char;
-      if (char === quote) quote = null;
-    } else if (char === '"' || char === "'") {
-      quote = char;
-      token += char;
-    } else if (/\s/.test(char)) {
-      if (token) { tokens.push(token); token = ""; }
-    } else {
-      token += char;
-    }
-  }
-  if (token) tokens.push(token);
-  return { tokens, unclosedQuote: quote };
-}
-
-// %%| directives inside the block, one `key: value` per line
-export function parseDirectives(code, issues = null, codeLine = 0) {
-  const opts = {};
-  const lines = code.split("\n");
-  for (let i = 0; i < lines.length; i++) {
-    const m = lines[i].match(/^\s*%%\|\s*(.+)$/);
-    if (!m) continue;
-    const kv = m[1].match(/^([\w-]+)\s*:\s*(.*)$/);
-    if (kv) opts[kv[1]] = scalar(kv[2]);
-    else if (issues) issues.push({ level: "warn", message: `malformed directive "%%| ${m[1].trim()}" — expected "%%| key: value"`, line: codeLine + i });
-  }
-  return opts;
-}
+// auto: health models → swimlane, anything else → mermaid. pele: health models → Pele AHM look.
+export const RENDERERS = ["auto", "swimlane", "pele", "mermaid"];
 
 // frontmatter at the top of the block: returns { fm, body } (body = code without frontmatter)
 export function splitFrontmatter(code) {
@@ -216,9 +162,58 @@ export function extractBlocks(md, themeNames = [], used = new Map(), preferred =
 function buildBlock({ heading, info, code, line, closeLine, themeNames, used, preferredSlug }) {
   const issues = [];
   const { fm } = splitFrontmatter(code);
-  const fence = parseFenceInfo(info, themeNames, issues, line);
-  const fmOpts = fm && typeof fm === "object" && !Array.isArray(fm) ? extractFmOptions(fm) : {};
-  const directives = parseDirectives(code, issues, line + 1);
+
+  // fence info string after "mermaid": bare words match a renderer or theme name; key=value otherwise
+  const fence = {};
+  const tokens = [];
+  let token = "", quote = null;
+  for (const char of (info || "").replace(/[{}]/g, " ")) {
+    if (quote) {
+      token += char;
+      if (char === quote) quote = null;
+    } else if (char === '"' || char === "'") {
+      quote = char;
+      token += char;
+    } else if (/\s/.test(char)) {
+      if (token) { tokens.push(token); token = ""; }
+    } else {
+      token += char;
+    }
+  }
+  if (token) tokens.push(token);
+  if (quote) issues.push({ level: "warn", message: `unterminated ${quote} quote in fence options`, line });
+  for (const tok of tokens) {
+    const kv = tok.match(/^([\w-]+)=(.*)$/);
+    if (kv) {
+      fence[kv[1]] = scalar(kv[2].replace(/^["']|["']$/g, ""));
+      continue;
+    }
+    const w = tok.toLowerCase();
+    if (RENDERERS.includes(w)) fence.renderer = w;
+    else if (themeNames.includes(w)) fence.theme = w;
+    else issues.push({ level: "warn", message: `fence token "${tok}" is neither a renderer (${RENDERERS.join("/")}) nor a theme (${themeNames.join("/")}) — ignored`, line });
+  }
+
+  // frontmatter: mermaid's own title, plus everything under the diagrammo: key
+  const fmOpts = {};
+  if (fm && typeof fm === "object" && !Array.isArray(fm)) {
+    if (typeof fm.title === "string") fmOpts.title = fm.title;
+    const d = fm.diagrammo;
+    if (d && typeof d === "object" && !Array.isArray(d)) Object.assign(fmOpts, d);
+    else if (typeof d === "string") fmOpts.renderer = d;
+  }
+
+  // %%| directives inside the block, one `key: value` per line
+  const directives = {};
+  const codeLines = code.split("\n");
+  for (let i = 0; i < codeLines.length; i++) {
+    const m = codeLines[i].match(/^\s*%%\|\s*(.+)$/);
+    if (!m) continue;
+    const kv = m[1].match(/^([\w-]+)\s*:\s*(.*)$/);
+    if (kv) directives[kv[1]] = scalar(kv[2]);
+    else issues.push({ level: "warn", message: `malformed directive "%%| ${m[1].trim()}" — expected "%%| key: value"`, line: line + 1 + i });
+  }
+
   const options = { ...fence, ...fmOpts, ...directives };
   for (const src of [fmOpts, directives]) {
     for (const k of Object.keys(src)) {
@@ -226,8 +221,8 @@ function buildBlock({ heading, info, code, line, closeLine, themeNames, used, pr
         issues.push({ level: "warn", message: `unknown option "${k}" (known: ${KNOWN_OPTIONS.join(", ")})`, line });
     }
   }
-  if (options.renderer != null && !["auto", "swimlane", "mermaid"].includes(String(options.renderer).toLowerCase()))
-    issues.push({ level: "error", message: `unknown renderer "${options.renderer}" (use auto, swimlane, or mermaid)`, line });
+  if (options.renderer != null && !RENDERERS.includes(String(options.renderer).toLowerCase()))
+    issues.push({ level: "error", message: `unknown renderer "${options.renderer}" (use ${RENDERERS.join(", ")})`, line });
   if (options.theme != null && themeNames.length && !themeNames.includes(String(options.theme).toLowerCase()))
     issues.push({ level: "error", message: `unknown theme "${options.theme}" (themes: ${themeNames.join(", ")})`, line });
   if (options.lanes != null && !Array.isArray(options.lanes))
@@ -235,7 +230,7 @@ function buildBlock({ heading, info, code, line, closeLine, themeNames, used, pr
   // An `alt` override that is present but empty/whitespace-only must not silently become empty
   // accessibility text (an empty `![]`/`alt-text=""` is worse than none) — warn and let the shared
   // alt pipeline fall back to title/heading. A `%%| alt` line with no colon is already reported by
-  // parseDirectives' "malformed directive" path, so only the empty-value case is handled here.
+  // directive loop's "malformed directive" path, so only the empty-value case is handled here.
   if (options.alt != null && !String(options.alt).trim())
     issues.push({ level: "warn", message: `empty "alt" override — falling back to title/heading for the accessibility text`, line });
   // `laneLabels` uses explicit warn-and-drop normalization. This improves on `legend`'s own
@@ -257,13 +252,4 @@ function buildBlock({ heading, info, code, line, closeLine, themeNames, used, pr
     slug = n === 1 ? base : `${base}-${n}`;
   }
   return { slug, heading, info, code, options, line, codeLine: line + 1, closeLine, issues };
-}
-
-function extractFmOptions(fm) {
-  const opts = {};
-  if (typeof fm.title === "string") opts.title = fm.title;
-  const d = fm.diagrammo;
-  if (d && typeof d === "object" && !Array.isArray(d)) Object.assign(opts, d);
-  else if (typeof d === "string") opts.renderer = d;
-  return opts;
 }

@@ -1,0 +1,83 @@
+.ahm-root {
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif;
+}
+
+.ahm-root .state-healthy {
+  color: #4c9a2a;
+}
+
+.ahm-root .state-degraded {
+  color: #c26a00;
+}
+
+.ahm-root .state-unhealthy {
+  color: #c50f18;
+}
+
+.ahm-root .state-unknown {
+  color: #8a8886;
+}
+
+.ahm-root .state-standby {
+  color: #8661c5;
+}
+
+.ahm-root[data-ahm-theme="midnight"] .state-healthy {
+  color: #6ccb5f;
+}
+
+.ahm-root[data-ahm-theme="midnight"] .state-degraded {
+  color: #f7a350;
+}
+
+.ahm-root[data-ahm-theme="midnight"] .state-unhealthy {
+  color: #f1707b;
+}
+
+.ahm-root[data-ahm-theme="midnight"] .state-unknown {
+  color: #979593;
+}
+
+.ahm-root[data-ahm-theme="midnight"] .state-standby {
+  color: #a58fd8;
+}
+
+.ahm-root[data-ahm-theme="candy"] .state-healthy {
+  color: #2eb884;
+}
+
+.ahm-root[data-ahm-theme="candy"] .state-degraded {
+  color: #f39114;
+}
+
+.ahm-root[data-ahm-theme="candy"] .state-unhealthy {
+  color: #ef476f;
+}
+
+.ahm-root[data-ahm-theme="candy"] .state-unknown {
+  color: #9a8f9a;
+}
+
+.ahm-root[data-ahm-theme="candy"] .state-standby {
+  color: #8b5cf6;
+}
+
+.ahm-root[data-ahm-theme="slate"] .state-healthy {
+  color: #10b981;
+}
+
+.ahm-root[data-ahm-theme="slate"] .state-degraded {
+  color: #d97706;
+}
+
+.ahm-root[data-ahm-theme="slate"] .state-unhealthy {
+  color: #dc2626;
+}
+
+.ahm-root[data-ahm-theme="slate"] .state-unknown {
+  color: #94a3b8;
+}
+
+.ahm-root[data-ahm-theme="slate"] .state-standby {
+  color: #7c3aed;
+}

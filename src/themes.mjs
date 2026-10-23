@@ -1,7 +1,3 @@
-// themes.mjs — palettes shared by the swimlane renderer and the themed-mermaid renderer.
-// Every theme carries the full set of colors the swimlane renderer draws with, plus the
-// state colors the mermaid renderer maps onto the article's classDefs (blue/green/amber/red/purple).
-
 const portal = {
   name: "portal",
   bg: "#ffffff", band: "#faf9f8", ink: "#242424", muted: "#605e5c",
@@ -73,49 +69,4 @@ export function getTheme(name) {
   const t = THEMES[String(name || "portal").toLowerCase()];
   if (!t) throw new Error(`unknown theme "${name}" (themes: ${THEME_NAMES.join(", ")})`);
   return t;
-}
-
-// Mermaid-side theming: classDef bodies for the article's five class names, in this theme.
-export function mermaidClassDefs(theme) {
-  const s = theme.state, tx = theme.ink;
-  return {
-    blue:   `classDef blue fill:${s.signal.fill},stroke:${s.signal.border},stroke-width:2px,color:${tx};`,
-    green:  `classDef green fill:${s.healthy.fill},stroke:${s.healthy.border},stroke-width:2.5px,color:${tx};`,
-    amber:  `classDef amber fill:${s.degraded.fill},stroke:${s.degraded.border},stroke-width:2.5px,color:${tx};`,
-    red:    `classDef red fill:${s.unhealthy.fill},stroke:${s.unhealthy.border},stroke-width:2.5px,color:${tx};`,
-    purple: `classDef purple fill:${s.alt.fill},stroke:${s.alt.border},stroke-width:2px,color:${tx};`,
-  };
-}
-
-// Mermaid config (themeVariables) for plain mermaid blocks rendered via mmdc, in this theme.
-export function mermaidConfig(theme) {
-  return {
-    securityLevel: "loose",
-    theme: "base",
-    themeVariables: {
-      fontFamily: "Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif",
-      fontSize: "13px",
-      darkMode: theme.name === "midnight",
-      background: theme.bg,
-      lineColor: theme.muted,
-      primaryColor: theme.band,
-      primaryBorderColor: theme.state.unknown.border,
-      primaryTextColor: theme.ink,
-      secondaryColor: theme.state.signal.fill,
-      secondaryBorderColor: theme.state.signal.border,
-      tertiaryColor: theme.bg,
-      clusterBkg: theme.band,
-      clusterBorder: theme.state.unknown.border,
-      edgeLabelBackground: theme.pillFill,
-      titleColor: theme.ink,
-      nodeTextColor: theme.ink,
-      // sequence / state / pie share these
-      actorBkg: theme.band, actorBorder: theme.state.signal.border, actorTextColor: theme.ink,
-      signalColor: theme.muted, signalTextColor: theme.ink,
-      labelBoxBkgColor: theme.band, labelBoxBorderColor: theme.state.unknown.border, labelTextColor: theme.ink,
-      noteBkgColor: theme.state.degraded.fill, noteBorderColor: theme.state.degraded.border, noteTextColor: theme.ink,
-    },
-    flowchart: { htmlLabels: false, curve: "basis", nodeSpacing: 45, rankSpacing: 55, padding: 10 },
-    htmlLabels: false,
-  };
 }

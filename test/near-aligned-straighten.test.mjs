@@ -1,6 +1,6 @@
 // Near-aligned-edge straightening (user feedback: "if a line has only a very small horizontal
 // shift ... can we make the line straight?"). A single-channel tracked (labeled/dashed) edge whose
-// two risers only differ by makeSlots' anti-collinearity bump draws a redundant jog around its
+// two risers only differ by the slot registry's anti-collinearity bump draws a redundant jog around its
 // label row; we collapse that to one straight vertical. Genuine L-shaped routing (real horizontal
 // travel) must survive. Verified at the public renderSwimlane boundary via debug.segs + the exact
 // snap threshold via the pure straightenTrackedX predicate.

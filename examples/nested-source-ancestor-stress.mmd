@@ -1,0 +1,25 @@
+flowchart TB
+subgraph platform["Platform"]
+subgraph payments["Payments"]
+api["Payments API"]
+worker["Worker queue"]
+subgraph ledger["Ledger"]
+db["Primary DB"]
+end
+end
+infra["Shared platform services"]
+end
+shared["Latency = 120 ms (degraded)"]:::blue
+shared --> api
+shared --> infra
+payments --> infra
+infra --> payments
+ledger --> payments
+api --> worker
+worker --> db
+infra --> api
+infra --> worker
+class api healthy;
+class worker degraded;
+class db unhealthy;
+class infra standby;

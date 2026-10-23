@@ -1,8 +1,0 @@
-{
-  "name": "ahm-installed-probe",
-  "displayName": "AHM installed probe",
-  "publisher": "abossard",
-  "version": "0.0.1",
-  "engines": { "vscode": "^1.74.0" },
-  "main": "./probe.js"
-}

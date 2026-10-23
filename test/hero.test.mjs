@@ -128,7 +128,7 @@ test("running the documented CLI command against hero.md reproduces svg/hero.svg
   const out1 = tmp();
   const r1 = await run(join(ROOT, "hero.md"), "-o", out1);
   assert.equal(r1.code, 0, r1.stderr || r1.stdout);
-  assert.match(r1.stdout, /swimlane/, "expected the Chrome-free swimlane renderer, not mermaid-cli");
+  assert.match(r1.stdout, /swimlane/, "expected the swimlane renderer, not the plain mermaid renderer");
   const svgPath1 = join(out1, "diagram.svg");
   assert.ok(existsSync(svgPath1), "expected hero.md's single block to render to diagram.svg (no heading -> default slug)");
   const fresh1 = readFileSync(svgPath1, "utf8");
@@ -171,6 +171,23 @@ for (const artifact of ROOT_ARTIFACTS) {
     assert.equal(r2.code, 0, r2.stderr || r2.stdout);
     const fresh2 = readFileSync(join(out2, artifact.output), "utf8");
     assert.equal(fresh2, fresh1, `${artifact.source} regeneration must stay byte-identical across runs`);
+  });
+}
+
+const PELE_ARTIFACTS = [
+  { source: "hero.md", output: "diagram.svg", committed: join("svg", "pele", "hero.svg") },
+  { source: "kitchen-sink.md", output: "kitchen-sink-health-model.svg", committed: join("svg", "pele", "kitchen-sink.svg") },
+  { source: "pills-stress.md", output: "pills-stress-test.svg", committed: join("svg", "pele", "pills-stress.svg") },
+];
+for (const artifact of PELE_ARTIFACTS) {
+  test(`${artifact.source}: -r pele regenerates ${artifact.committed} byte-identically`, async () => {
+    const out = tmp();
+    const r = await run(join(ROOT, artifact.source), "-o", out, "-r", "pele", "--strict");
+    assert.equal(r.code, 0, r.stderr || r.stdout);
+    assert.match(r.stdout, /\[pele · portal\]/);
+    const fresh = readFileSync(join(out, artifact.output), "utf8");
+    assert.equal(fresh, read(artifact.committed), `fresh -r pele render of ${artifact.source} drifted from ${artifact.committed}`);
+    assert.notEqual(fresh, read(artifact.committed.replace(join("pele", ""), "")), "the Pele look must differ from the swimlane look");
   });
 }
 

@@ -9,23 +9,19 @@ import { FONT } from "./font-metrics.mjs";
 
 const SAFETY = 1.02;
 
-function charW(ch, table) {
-  const key = ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch;
-  const w = table[ch] ?? table[key];
-  if (w != null) return w;
-  const cp = ch.codePointAt(0);
-  // CJK, emoji, and other wide scripts ≈ 1em; everything else unknown ≈ 0.62em
-  if (cp >= 0x1100 && (cp <= 0x115f || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3)
-      || (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe30 && cp <= 0xfe4f) || (cp >= 0xff00 && cp <= 0xff60)
-      || (cp >= 0x1f000 && cp <= 0x1ffff) || (cp >= 0x2600 && cp <= 0x27bf))) return 1000;
-  return 620;
-}
-
 // width in px of `text` at `fontSize`; `weight` >= 600 uses the measured bold table
 export function textWidth(text, fontSize, weight = 400) {
   const table = weight >= 600 ? FONT.bold : FONT.regular;
   let units = 0;
-  for (const ch of String(text)) units += charW(ch, table);
+  for (const ch of String(text)) {
+    const key = ch === "&" ? "&amp;" : ch === "<" ? "&lt;" : ch === ">" ? "&gt;" : ch;
+    const cp = ch.codePointAt(0);
+    // CJK, emoji, and other wide scripts ≈ 1em; everything else unknown ≈ 0.62em
+    const wide = cp >= 0x1100 && (cp <= 0x115f || (cp >= 0x2e80 && cp <= 0xa4cf) || (cp >= 0xac00 && cp <= 0xd7a3)
+      || (cp >= 0xf900 && cp <= 0xfaff) || (cp >= 0xfe30 && cp <= 0xfe4f) || (cp >= 0xff00 && cp <= 0xff60)
+      || (cp >= 0x1f000 && cp <= 0x1ffff) || (cp >= 0x2600 && cp <= 0x27bf));
+    units += table[ch] ?? table[key] ?? (wide ? 1000 : 620);
+  }
   return (units / 1000) * fontSize * SAFETY;
 }
 

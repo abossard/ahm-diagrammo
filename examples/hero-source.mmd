@@ -1,0 +1,26 @@
+%% Demonstration data only: supplied example readings/states, not live telemetry.
+flowchart BT
+    webSig["Web latency = 210 ms (healthy)<br/>HTTP 5xx rate = 0.31% (degraded)<br/>Request rate = 1.18k/s (healthy)"] --> web["Web frontend<br/>healthy"]
+    appSig["CPU = 62% (healthy)<br/>Memory = 79% (degraded)<br/>Restart count = 3/h (unhealthy)"] --> app["App hosting<br/>healthy"]
+    dbSig["Connection = 84% (degraded)<br/>DTU utilization = 71% (healthy)<br/>Failed connections = 2/min (degraded)"] --> db["Database<br/>healthy"]
+    anaSig["Pipeline lag = 42 s (degraded)<br/>Ingestion errors = 0.7% (degraded)<br/>Data freshness = 95.2% (healthy)"] --> analytics["Analytics store<br/>healthy"]
+    queueSig["Queue depth = 49 (unhealthy)<br/>Oldest message age = 21 s (degraded)<br/>Dead-letter count = 7 (unhealthy)"] --> queue["Order queue<br/>degraded"]
+    shipSig["Carrier API availability = 99.97% (healthy)<br/>Carrier API latency = 620 ms (degraded)<br/>Error rate = 8.4% (unhealthy)"] --> ship["Shipping service<br/>healthy"]
+
+    web --> shop["Shop and commerce<br/>healthy"]
+    app --> shop
+    db --> shop
+    db --> reporting["Reporting<br/>healthy"]
+    analytics --> reporting
+    queue --> logistics["Logistics<br/>degraded"]
+    ship --> logistics
+    shop --> root["Workload root<br/>degraded"]
+    reporting --> root
+    logistics --> root
+
+    classDef blue fill:#eff6fc,stroke:#0078D4;
+    classDef green fill:#f2f8f2,stroke:#a0d8a0;
+    classDef amber fill:#fbf2e7,stroke:#db7500;
+    class webSig,appSig,dbSig,anaSig,queueSig,shipSig blue;
+    class web,app,db,analytics,ship,shop,reporting green;
+    class queue,logistics,root amber;

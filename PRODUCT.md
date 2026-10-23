@@ -6,28 +6,24 @@ product
 
 ## Users
 
-Engineers and technical writers maintaining Azure health-model documentation. They work directly with Markdown and Mermaid and need to understand how the source will render before publishing it.
+Engineers and technical writers maintaining Azure health-model documentation. They work directly with Markdown and Mermaid and need static SVG for publishing targets such as Microsoft Learn, which do not render Mermaid.
 
 ## Product Purpose
 
-ahm-diagrammo turns Mermaid blocks in Markdown into consistent, readable health-model diagrams. The browser editor shortens the edit-preview loop by loading representative examples, accepting local edits, and rendering supported health models without a server.
+ahm-diagrammo turns Mermaid blocks in Markdown into consistent, readable, static SVG through one entry point (`bin/diagrammo.mjs`, or `renderDiagram()` for library callers):
 
-## Brand Personality
-
-Precise, calm, technical. The interface should feel dependable and focused without becoming visually cold or overly dense.
-
-## Anti-references
-
-Avoid flashy AI and SaaS dashboard styling, especially decorative gradients, glass effects, inflated metrics, and ornamental controls that compete with the source and rendered diagram.
+- health models render in the swimlane look (default) or the Pele AHM look (`renderer: pele`) from the same source
+- every other Mermaid diagram renders through Pele in the same theme
+- `--sync-markdown` keeps each SVG and its hidden Mermaid source together, with Learn image directives on request
+- the Pele AHM look is also a package API (`renderAhm()`): caller supplies source and semantic states, signal rows render as in-card Signal/Value/State tables, row state colors stay independent from entity state
 
 ## Design Principles
 
-- Keep the Markdown source and rendered result central to every screen.
-- Reuse the renderer's visual language so the tool demonstrates its own output faithfully.
-- Make supported, unsupported, and invalid input states explicit.
-- Prefer direct controls and predictable behavior over decorative interaction.
-- Preserve enough context for users to understand which example and diagram they are editing.
+- One entry point; the renderer is a per-block or per-run choice, not a separate tool
+- Explicit diagnostics instead of silent drops
+- Deterministic outputs for identical inputs and options
+- Static, Learn-safe SVG: native text, concrete colors, no browser at render time
 
-## Accessibility & Inclusion
+## Out of Scope
 
-Use semantic HTML and complete keyboard support for the primary workflow. Do not rely on color alone for control state or error communication.
+Browser editor, Python/Azure ingestion tutorials, draw.io and VS Code extension surfaces, npm publishing automation.

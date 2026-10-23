@@ -2,7 +2,7 @@
 // `--sync-markdown`: one canonical managed block, a real SVG the current CLI actually produced
 // from the embedded fence (never hand-crafted/copied), and a byte-identical, idempotent rerun of
 // the exact documented command. Own helper set (tmp()/run()), matching test/cli.test.mjs and
-// test/build-pages.test.mjs's per-file convention rather than a shared helper module.
+// test/hero.test.mjs's per-file convention rather than a shared helper module.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { marked } from "marked";
@@ -125,7 +125,7 @@ test("running the documented command against a tmp copy reproduces byte-identica
   // absolute path differs so the subprocess can be spawned from a tmp cwd
   const r1 = await runIn(dir, "README.md", "-o", "assets", "--sync-markdown");
   assert.equal(r1.code, 0, r1.stderr || r1.stdout);
-  assert.match(r1.stdout, /swimlane/, "expected the Chrome-free swimlane renderer, not mermaid-cli");
+  assert.match(r1.stdout, /swimlane/, "expected the swimlane renderer, not the plain mermaid renderer");
   const mdAfterFirst = readFileSync(join(dir, "README.md"), "utf8");
   const svgAfterFirst = readFileSync(join(dir, href), "utf8");
   assert.equal(mdAfterFirst, committedMd, "regenerated Markdown drifted from the committed file");

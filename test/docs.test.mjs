@@ -1,4 +1,4 @@
-// Documentation stays true: examples/showcase.md is the living feature demo, so every claim in
+// Documentation stays true: docs/gallery/source.md is the living feature demo, so every claim in
 // it must keep working — renderer detection, all three option channels, themes, custom lanes,
 // measurements, and clean geometry. If a feature changes, this test (and the docs) must too.
 import { test } from "node:test";
@@ -8,79 +8,83 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractBlocks, KNOWN_OPTIONS } from "../src/extract.mjs";
 import { renderSwimlane, looksLikeHealthModel } from "../src/swimlane.mjs";
+import { renderDiagram, resolveRenderer } from "../src/render.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
 import { verifyGeometry, verifySvgString } from "./helpers/geo.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (...p) => readFileSync(join(ROOT, ...p), "utf8");
-const blocks = extractBlocks(read("examples", "showcase.md"), THEME_NAMES);
+const blocks = extractBlocks(read("docs", "gallery", "source.md"), THEME_NAMES);
+const bySlug = Object.fromEntries(blocks.map((b) => [b.slug, b]));
 const README = read("README.md");
 const FEATURES = read("docs", "FEATURES.md");
-const SKILL = read("skills", "diagrammo", "SKILL.md");
 
-test("browser editing comes first, CLI guidance uses the local checkout, and preparation has one documented owner", () => {
-  for (const [name, text] of [["README", README], ["FEATURES", FEATURES], ["skill", SKILL]]) {
-    assert.ok(text.indexOf("https://abossard.github.io/ahm-diagrammo/") < text.indexOf("node bin/diagrammo.mjs"), `${name}: browser before CLI`);
+test("CLI guidance uses the local checkout, and preparation and rendering each have one documented owner", () => {
+  for (const [name, text] of [["README", README], ["FEATURES", FEATURES]]) {
+    assert.match(text, /node bin\/diagrammo\.mjs/, `${name}: local-checkout CLI`);
     assert.doesNotMatch(text, /npx (?:--yes )?ahm-diagrammo\b/, `${name}: unpublished npm package`);
   }
   assert.match(README, /src\/document\.mjs/);
-  assert.match(read("docs", "how-it-works.md"), /prepareDocuments/);
+  assert.match(README, /src\/render\.mjs/);
+  assert.match(read("docs", "how-it-works.md"), /prepareDocuments[\s\S]*renderDiagram/);
 });
 
-test("showcase.md demonstrates every option channel exactly as documented", () => {
-  assert.equal(blocks.length, 6);
-  const bySlug = Object.fromEntries(blocks.map((b) => [b.slug, b]));
-
-  // block 1: zero config → auto-detected health model
-  assert.equal(looksLikeHealthModel(bySlug["health-model-zero-config"].code), true);
-  assert.deepEqual(bySlug["health-model-zero-config"].options, {});
-
-  // block 2: fence info sets the theme
-  assert.equal(bySlug["fence-info-options-theme-in-the-fence-line"].options.theme, "midnight");
-
-  // block 3: frontmatter sets title/theme/subtitle/lanes
-  const fm = bySlug["order-pipeline-health"].options;
-  assert.equal(fm.title, "Order pipeline health");
-  assert.equal(fm.theme, "candy");
-  assert.deepEqual(fm.lanes, ["Storefront", "Order flows", "Services"]);
-
-  // block 4: %%| directives set theme/title/subtitle/legend
-  const dir = bySlug["ingestion-path"].options;
-  assert.equal(dir.theme, "slate");
-  assert.equal(dir.legend, false);
-
-  // blocks 5–6: non-health blocks route to the mermaid renderer
-  assert.equal(looksLikeHealthModel(bySlug["any-other-mermaid-still-works"].code), false);
-  assert.equal(looksLikeHealthModel(bySlug["plain-flowchart-forced-theme"].code), false);
-  assert.equal(bySlug["plain-flowchart-forced-theme"].options.theme, "slate");
-
-  // no block carries option mistakes
+test("the gallery source carries no option mistakes", () => {
   for (const b of blocks) assert.deepEqual(b.issues, [], `${b.slug}: ${JSON.stringify(b.issues)}`);
 });
 
-test("every showcase health model renders geometrically clean in its declared theme", () => {
-  for (const b of blocks) {
-    if (!looksLikeHealthModel(b.code)) continue;
+const CHANNELS = [
+  { name: "zero config: the classes alone mark a health model", slug: "health-model-zero-config",
+    check: (b) => { assert.equal(looksLikeHealthModel(b.code), true); assert.deepEqual(b.options, {}); } },
+  { name: "the fence line sets the theme", slug: "theme-midnight",
+    check: (b) => assert.equal(b.options.theme, "midnight") },
+  { name: "frontmatter sets title and subtitle", slug: "order-pipeline-health",
+    check: (b) => { assert.equal(b.options.title, "Order pipeline health"); assert.equal(b.options.subtitle, "Measurements from the order collectors."); } },
+  { name: "frontmatter sets lane names", slug: "lane-names",
+    check: (b) => assert.deepEqual(b.options.lanes, ["Storefront", "Order flows", "Services"]) },
+  { name: "a directive switches the legend off", slug: "legend-off",
+    check: (b) => assert.equal(b.options.legend, false) },
+  { name: "a directive hides lane labels", slug: "lane-labels-off",
+    check: (b) => assert.equal(b.options.laneLabels, false) },
+  { name: "a directive forces the plain Mermaid look on a health model", slug: "plain-mermaid-look",
+    check: (b) => { assert.equal(looksLikeHealthModel(b.code), true); assert.equal(resolveRenderer(b.options.renderer, b.code), "mermaid"); } },
+  { name: "other diagrams route to the mermaid renderer", slug: "sequence-diagram",
+    check: (b) => assert.equal(resolveRenderer(undefined, b.code), "mermaid") },
+];
+for (const { name, slug, check } of CHANNELS) {
+  test(`gallery: ${name} (${slug})`, () => {
+    assert.ok(bySlug[slug], `docs/gallery/source.md has no block "${slug}"`);
+    check(bySlug[slug]);
+  });
+}
+
+for (const b of blocks.filter((x) => looksLikeHealthModel(x.code))) {
+  test(`gallery health model ${b.slug} renders geometrically clean in its declared theme`, () => {
     const r = renderSwimlane(b.code, {
       theme: b.options.theme || "portal",
       title: b.options.title ?? b.heading,
       subtitle: b.options.subtitle,
       lanes: b.options.lanes,
       legend: b.options.legend,
+      laneLabels: b.options.laneLabels,
     });
     const geo = verifyGeometry(r);
     assert.deepEqual(geo, [], `${b.slug}:\n  ${geo.join("\n  ")}`);
     assert.deepEqual(verifySvgString(r.svg), []);
-  }
-});
+  });
+}
 
-test("showcase measurement syntax lands in the output (value + state per row)", () => {
-  const b = blocks.find((x) => x.slug === "order-pipeline-health");
-  const r = renderSwimlane(b.code, { theme: "candy", title: b.options.title, lanes: b.options.lanes });
-  assert.match(r.svg, /230 ms/);   // explicit result survives
-  assert.match(r.svg, /0\.4%/);
-  assert.match(r.svg, /12 min/);
-  assert.match(r.svg, />Storefront</); // custom lane label
+test("gallery signal-row syntax lands in both looks (value and state per row)", () => {
+  const { code } = bySlug["signal-rows"];
+  const swimlane = renderDiagram(code, { renderer: "swimlane" }).svg;
+  const pele = renderDiagram(code, { renderer: "pele" }).svg;
+  for (const svg of [swimlane, pele]) {
+    assert.match(svg, /230 ms/);
+    assert.match(svg, /2\.4%/);
+    assert.match(svg, /1\.2k\/s/);
+  }
+  assert.match(pele, /∅/, "Pele marks a missing value");
+  assert.match(pele, /row-state-unknown/, "Pele treats a row without a state as unknown");
 });
 
 // ---- Precision guards: docs stay in lock-step with the code they describe --------------------
@@ -96,12 +100,9 @@ test("README and FEATURES list every theme and option key the code exports", () 
   }
 });
 
-test("README and FEATURES keep source-state/static contracts and reject stale neutral-trunk claims", () => {
-  assert.match(README, /connectors colored by each source entity's state[\s\S]*grey only when the source is\s+unknown/i);
+test("FEATURES keeps the source-state/static contracts; no doc claims stale neutral trunks", () => {
   assert.match(FEATURES, /connectors take the \*\*source\*\* state color[\s\S]*grey connector strokes are used only for\s+unknown-state sources/i);
-  assert.match(README, /One logical lane stays one physical band/);
   assert.match(FEATURES, /One logical lane always renders as one physical lane band/);
-  assert.match(README, /Rendering is static-only/);
   assert.match(FEATURES, /Rendering is static-only/);
 
   for (const text of [README, FEATURES]) {

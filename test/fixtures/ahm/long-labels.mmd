@@ -1,0 +1,9 @@
+flowchart BT
+    wideSig["Carrier API availability probe east = 99 % (healthy)<br/>Sustained end-to-end checkout completion latency across every region = 4100 ms (unhealthy)<br/>Supercalifragilisticexpialidociousmeasurementidentifier = 7 (degraded)<br/>Sustained end-to-end checkout completion latency across every region and every partner integration tier = 12 m (unknown)"] --> wide["Wide label service<br/>unhealthy"]
+    wide --> flow["Wide label flow<br/>unhealthy"]
+    flow --> root["Workload root<br/>unhealthy"]
+
+    classDef blue fill:#eff6fc,stroke:#0078D4;
+    classDef red fill:#fdf3f4,stroke:#d13438;
+    class wideSig blue;
+    class wide,flow,root red;

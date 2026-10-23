@@ -2,16 +2,17 @@
 
 Many labeled relationships to verify pills never overlap and always clearly belong to one line.
 
+All supplied example readings and states in this specimen are demonstration data.
+
 ```mermaid
 flowchart BT
-    aSig["m1<br/>m2"] --> a["Service A<br/>healthy"]
-    bSig["m1<br/>m2"] --> b["Service B<br/>degraded"]
-    cSig["m1<br/>m2"] --> c["Service C<br/>healthy"]
-    dSig["m1<br/>m2"] --> d["Service D<br/>healthy"]
-    eSig["m1<br/>m2"] --> e["Service E<br/>unhealthy"]
-    fSig["m1<br/>m2"] --> f["Service F<br/>healthy"]
+    aSig["m1 = 81% (healthy)<br/>m2 = 220 ms (degraded)"] --> a["Service A<br/>healthy"]
+    bSig["m1 = 74% (degraded)<br/>m2 = 6.4% (unhealthy)"] --> b["Service B<br/>degraded"]
+    cSig["m1 = 96% (healthy)<br/>m2 = 190 ms (healthy)"] --> c["Service C<br/>healthy"]
+    dSig["m1 = 89% (healthy)<br/>m2 = 410 ms (degraded)"] --> d["Service D<br/>healthy"]
+    eSig["m1 = 63% (unhealthy)<br/>m2 = 9.2% (unhealthy)"] --> e["Service E<br/>unhealthy"]
+    fSig["m1 = 93% (healthy)<br/>m2 = 0.9% (degraded)"] --> f["Service F<br/>healthy"]
 
-    %% many labeled edges converging on one parent (tests stacking + no overlap)
     a -->|reads| mid["Middle flow<br/>degraded"]
     b -->|writes| mid
     c -->|caches| mid
@@ -19,15 +20,12 @@ flowchart BT
     e -. "limited propagation" .-> mid
     f -->|streams events to| mid
 
-    %% one child with multiple labeled outgoing edges (tests same-source separation)
     shared["Shared dependency<br/>degraded"] -->|used by| mid
     shared -->|also feeds| other["Other flow<br/>healthy"]
     shared -. "suppressed propagation" .-> root["Workload root<br/>degraded"]
+    sSig["m1 = 71% (degraded)"] --> shared
+    oSig["m1 = 98% (healthy)"] --> other
 
-    sSig["m1"] --> shared
-    oSig["m1"] --> other
-
-    %% straight labeled edge (child directly under parent) + siblings
     mid -->|primary rollup| root
     other -->|secondary rollup with a long label| root
 

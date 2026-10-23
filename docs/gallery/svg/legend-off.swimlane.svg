@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="724" height="366" viewBox="0 0 724 366" font-family="Segoe UI, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif">
+<defs><filter id="cs" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="1" stdDeviation="1.3" flood-color="#000" flood-opacity="0.1"/></filter></defs>
+<rect width="724" height="366" fill="#ffffff"/>
+<rect x="0" y="78.0" width="724" height="90.0" fill="#ffffff"/>
+<line x1="0" y1="78.0" x2="724" y2="78.0" stroke="#e6e4e2"/>
+<text x="558.0" y="127.5" font-size="13" font-weight="700" fill="#323130">Workload root</text>
+<rect x="0" y="168.0" width="724" height="90.0" fill="#faf9f8"/>
+<line x1="0" y1="168.0" x2="724" y2="168.0" stroke="#e6e4e2"/>
+<text x="558.0" y="217.5" font-size="13" font-weight="700" fill="#323130">Business &amp; user flows</text>
+<rect x="0" y="258.0" width="724" height="90.0" fill="#ffffff"/>
+<line x1="0" y1="258.0" x2="724" y2="258.0" stroke="#e6e4e2"/>
+<text x="558.0" y="299.0" font-size="13" font-weight="700" fill="#323130">Application</text>
+<text x="558.0" y="316.0" font-size="13" font-weight="700" fill="#323130">components</text>
+<line x1="0" y1="365.5" x2="724" y2="365.5" stroke="#e6e4e2"/>
+<text x="40" y="34" font-size="18" font-weight="700" fill="#242424">Legend off</text>
+<text x="40" y="52" font-size="12" fill="#605e5c">Signals live inside each entity; health rolls up to the workload root.</text>
+<g transform="translate(40.0,0)">
+<g fill="none" stroke-linecap="butt" stroke-linejoin="round">
+<path d="M194.0 276.0 L194.0 244.0" stroke="#a0d8a0" stroke-width="1.7"/>
+<path d="M248.0 276.0 L248.0 244.0" stroke="#db7500" stroke-width="1.7"/>
+<path d="M228.0 186.0 L228.0 154.0" stroke="#db7500" stroke-width="1.7"/>
+</g>
+<g filter="url(#cs)"><rect x="0.0" y="276.0" width="206" height="58" rx="10" fill="#f2f8f2" stroke="#a0d8a0" stroke-width="2"/></g><g transform="translate(6.0,295.16) scale(0.82)"><path d="M4 20h16" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 20v-6M12 20V6.5M17.5 20v-9" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g><text x="34.0" y="308.5" font-size="12.5" font-weight="600" fill="#242424">Ingest gateway</text><rect x="133.7" y="296.00" width="64.3" height="18" rx="9" fill="#ffffff" stroke="#a0d8a0" stroke-width="1"/><circle cx="144.7" cy="305.0" r="6" fill="#4c9a2a"/><path d="M142.0 305.0 l1.9 1.9 l3.4 -3.9" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/><text x="153.7" y="308.57" font-size="10.5" fill="#323130">Healthy</text>
+<g filter="url(#cs)"><rect x="109.5" y="186.0" width="237" height="58" rx="10" fill="#fbf2e7" stroke="#db7500" stroke-width="2"/></g><g transform="translate(115.5,205.16) scale(0.82)"><path d="M4 20h16" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.5 20v-6M12 20V6.5M17.5 20v-9" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g><text x="143.5" y="218.5" font-size="12.5" font-weight="600" fill="#242424">Telemetry pipeline</text><rect x="263.5" y="206.00" width="75.0" height="18" rx="9" fill="#ffffff" stroke="#db7500" stroke-width="1"/><circle cx="274.5" cy="215.0" r="6" fill="#c26a00"/><text x="283.5" y="218.57" font-size="10.5" fill="#323130">Degraded</text>
+<g filter="url(#cs)"><rect x="236.0" y="276.0" width="234" height="58" rx="10" fill="#fbf2e7" stroke="#db7500" stroke-width="2"/></g><g transform="translate(242.0,295.16) scale(0.82)"><rect x="4" y="4.5" width="16" height="6" rx="1.2" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><rect x="4" y="13.5" width="16" height="6" rx="1.2" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.2 7.5h.01M7.2 16.5h.01" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g><text x="270.0" y="308.5" font-size="12.5" font-weight="600" fill="#242424">Stream processor</text><rect x="387.0" y="296.00" width="75.0" height="18" rx="9" fill="#ffffff" stroke="#db7500" stroke-width="1"/><circle cx="398.0" cy="305.0" r="6" fill="#c26a00"/><text x="407.0" y="308.57" font-size="10.5" fill="#323130">Degraded</text>
+<g filter="url(#cs)"><rect x="110.5" y="96.0" width="235" height="58" rx="10" fill="#fbf2e7" stroke="#db7500" stroke-width="2"/></g><g transform="translate(116.5,115.16) scale(0.82)"><circle cx="12" cy="12" r="8.4" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M4.2 12h3l2-3.6 2.8 7.2 1.8-3.6h4" fill="none" stroke="#605e5c" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></g><text x="144.5" y="128.5" font-size="12.5" font-weight="600" fill="#242424">Observability root</text><rect x="262.5" y="116.00" width="75.0" height="18" rx="9" fill="#ffffff" stroke="#db7500" stroke-width="1"/><circle cx="273.5" cy="125.0" r="6" fill="#c26a00"/><text x="282.5" y="128.57" font-size="10.5" fill="#323130">Degraded</text>
+</g></svg>

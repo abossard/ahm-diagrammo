@@ -2,11 +2,9 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+    branches: [main]
 
 permissions:
   contents: read
@@ -18,10 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node-version:
-          - 18
-          - 22
-          - 24
+        node-version: [20, 22, 24]
     steps:
       - name: Checkout
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -31,12 +26,16 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: npm
       - name: Install dependencies
-        run: npm ci
-      - name: Run complete test suite
+        run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Run test suite
+        env:
+          AHM_TEST_FONT_FILES: ./test/assets/fonts/unifont-18.0.01.otf,./test/assets/fonts/unifont_upper-18.0.01.otf
+          AHM_TEST_FONT_SHA256: 88d0a14d4aa9a96419720b39ba5da921a59560d76d4ec7d523acc06ed85cd3c2,472201e45a050bff4c7658208b8c73e34ebce3764b287a5a46c7774038ef9391
+          AHM_TEST_FONT_FAMILY: Unifont
         run: npm test
 
-  package:
-    name: Pack and verify CLI aliases
+  package-consumer:
+    name: Package consumer proof
     needs: test
     runs-on: ubuntu-latest
     steps:
@@ -48,64 +47,109 @@ jobs:
           node-version: 24
           cache: npm
       - name: Install dependencies
-        run: npm ci
-      - name: Pack npm artifact
+        run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Pack artifact
         id: pack
         shell: bash
         run: |
           set -euo pipefail
-          pack_dir="${RUNNER_TEMP}/diagrammo-pack"
-          consumer_dir="${RUNNER_TEMP}/diagrammo-consumer"
-          rm -rf "${pack_dir}" "${consumer_dir}"
-          mkdir -p "${pack_dir}" "${consumer_dir}"
-
-          package_name="$(node -p "require('${GITHUB_WORKSPACE}/package.json').name")"
-          package_version="$(node -p "require('${GITHUB_WORKSPACE}/package.json').version")"
+          pack_dir="${RUNNER_TEMP}/ahm-pack"
+          rm -rf "${pack_dir}"
+          mkdir -p "${pack_dir}"
           pack_json="$(npm pack --json --pack-destination "${pack_dir}")"
-          filename="$(node -e '
-            const [entry] = JSON.parse(process.argv[1]);
-            if (!entry || entry.name !== process.argv[2] || entry.version !== process.argv[3] || !entry.filename) {
-              console.error("packed metadata does not match package.json");
-              process.exit(1);
-            }
-            process.stdout.write(entry.filename);
-          ' "${pack_json}" "${package_name}" "${package_version}")"
-
-          echo "tarball=${pack_dir}/${filename}" >> "${GITHUB_OUTPUT}"
-          echo "consumer=${consumer_dir}" >> "${GITHUB_OUTPUT}"
-      - name: Execute both packed CLI aliases
+          tarball="$(node -e 'const [entry] = JSON.parse(process.argv[1]); process.stdout.write(entry.filename);' "${pack_json}")"
+          echo "tarball=${pack_dir}/${tarball}" >> "${GITHUB_OUTPUT}"
+      - name: Verify isolated consumer render
         shell: bash
-        working-directory: ${{ steps.pack.outputs.consumer }}
         env:
           TARBALL: ${{ steps.pack.outputs.tarball }}
         run: |
           set -euo pipefail
-          if [[ -n "$(find . -mindepth 1 -maxdepth 1 -print -quit)" ]]; then
-            echo "consumer directory is not empty" >&2
-            exit 1
-          fi
+          tmp_dir="$(mktemp -d)"
+          trap 'rm -rf "${tmp_dir}"' EXIT
+          cd "${tmp_dir}"
+          npm init -y >/dev/null
+          npm install --ignore-scripts --registry=https://registry.npmjs.org "${TARBALL}" >/dev/null
+          node node_modules/ahm-diagrammo/examples/source-to-svg.mjs \
+            node_modules/ahm-diagrammo/examples/hero-source.mmd ./hero.svg
+          node node_modules/ahm-diagrammo/examples/source-to-svg.mjs \
+            node_modules/ahm-diagrammo/examples/hero-source.mmd ./hero-2.svg
+          cmp -s ./hero.svg ./hero-2.svg
 
-          expected="$(node -p "require('${GITHUB_WORKSPACE}/package.json').version")"
-          diagrammo_version="$(npx --yes --package="${TARBALL}" diagrammo --version)"
-          ahm_version="$(npx --yes --package="${TARBALL}" ahm-diagrammo --version)"
-          [[ "${diagrammo_version}" == "${expected}" ]]
-          [[ "${ahm_version}" == "${expected}" ]]
+          expected_version="$(node -p "require('${GITHUB_WORKSPACE}/package.json').version")"
+          for alias in diagrammo ahm-diagrammo; do
+            [[ "$(npx --no-install "${alias}" --version)" == "${expected_version}" ]]
+          done
+          npx --no-install diagrammo node_modules/ahm-diagrammo/hero.md -o ./cli-swimlane --strict
+          npx --no-install ahm-diagrammo node_modules/ahm-diagrammo/hero.md -o ./cli-pele -r pele --strict
+          test -f ./cli-swimlane/diagram.svg
+          test -f ./cli-pele/diagram.svg
 
-          cat > smoke.md <<'MARKDOWN'
-          # Packed artifact smoke test
+          node --input-type=module -e "globalThis.window=undefined;globalThis.document=undefined;globalThis.OffscreenCanvas=undefined;import('ahm-diagrammo').then(({renderAhm})=>{const src='flowchart TB\\na[\"A\"]-->b[\"B\"]\\nclass a green;\\nclass b amber;';const out=renderAhm(src,{legend:false});if(!out.svg.startsWith('<svg')){throw new Error('invalid svg output')}})"
+          test -f ./node_modules/ahm-diagrammo/src/ahm.css
 
-          ```mermaid
-          flowchart BT
-              child["Child"] --> root["Root"]
-          ```
-          MARKDOWN
-          list_output="$(npx --yes --package="${TARBALL}" diagrammo smoke.md --list)"
-          case "${list_output}" in
-            *"1 mermaid block"*) ;;
-            *)
-              echo "packed CLI did not list the smoke-test block" >&2
-              exit 1
-              ;;
-          esac
-          printf 'diagrammo %s\nahm-diagrammo %s\n%s\n' \
-            "${diagrammo_version}" "${ahm_version}" "${list_output}"
+          expected_files="$(cat <<'EOF'
+LICENSE
+README.md
+bin/diagrammo.mjs
+examples/README.md
+examples/hero-source.mmd
+examples/nested-metadata.json
+examples/nested-source-ancestor-stress.mmd
+examples/nested-source-stress.mmd
+examples/nested-source.mmd
+examples/render-nested-views.mjs
+examples/source-to-svg.mjs
+examples/sync-markdown/README.md
+examples/sync-markdown/assets/notification-delivery-platform-health.svg
+hero.md
+kitchen-sink.md
+package.json
+pills-stress.md
+src/ahm-render.mjs
+src/ahm-card-plan.mjs
+src/ahm-nested-model.mjs
+src/route-presentation.mjs
+src/ahm-tokens.mjs
+src/ahm.css
+src/diag.mjs
+src/document.mjs
+src/extract.mjs
+src/font-metrics.mjs
+src/health-model.mjs
+src/index.mjs
+src/layout.mjs
+src/managed-source.mjs
+src/markdown-sync.mjs
+src/mermaid.mjs
+src/render.mjs
+src/swimlane.mjs
+src/text.mjs
+src/themes.mjs
+svg/hero.svg
+svg/kitchen-sink.svg
+svg/pele/hero.svg
+svg/pele/kitchen-sink.svg
+svg/pele/pills-stress.svg
+svg/pills-stress.svg
+EOF
+)"
+          actual_files="$(tar -tzf "${TARBALL}" | sed 's#^package/##' | grep -v '/$' | sort)"
+          diff -u <(printf '%s\n' "${expected_files}" | sort) <(printf '%s\n' "${actual_files}")
+
+  gallery-check:
+    name: Gallery stale check
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --ignore-scripts --registry=https://registry.npmjs.org
+      - name: Check docs/gallery is regenerated
+        run: npm run gallery:check

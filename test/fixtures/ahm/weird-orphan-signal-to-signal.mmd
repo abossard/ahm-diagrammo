@@ -1,0 +1,8 @@
+flowchart BT
+    s1["Orphan metric"] --> s2["Another signal"]
+    s3["Owned metric"] --> owner["Owner entity<br/>healthy"]
+    owner --> root["Root<br/>healthy"]
+    classDef blue fill:#eff6fc,stroke:#0078D4;
+    classDef green fill:#f2f8f2,stroke:#a0d8a0;
+    class s1,s2,s3 blue;
+    class owner,root green;

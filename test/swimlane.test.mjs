@@ -270,7 +270,7 @@ test("laneLabels: false drops a custom `lanes:` label the same way — it must n
 // ---------- status pill vs header text (regression: long subtitle slid under the pill) ----------
 // The header qualifier (subtitle) shares its row with the right-aligned status pill. The card is
 // sized to reserve the pill's horizontal band plus a gap; these tests hold that contract at the
-// render boundary. See fix: measureNode's HEADER_SAFETY weight buffer for regular-weight text.
+// render boundary. See fix: the card measurement's HEADER_SAFETY weight buffer for regular-weight text.
 const HEADER_PILL_GAP = 12; // reserved estimator-space gap between subtitle right and pill left
 const sameBox = (a, b) => a && b && Math.abs(a.x - b.x) < 0.6 && Math.abs(a.y - b.y) < 0.6;
 
@@ -428,60 +428,6 @@ test("browser: kitchen-sink route/card/pill geometry is disjoint and every rende
     assert.deepEqual(JSON.parse(m[0]), {
       routeCard: [], routePill: [], cardPill: [], pillPill: [], outside: [], suppressedInside: true,
     });
-  });
-
-test("browser: kitchen-sink preview has no horizontal overflow at responsive split and maximized widths",
-  { skip: !CHROME ? "no Chrome/Chromium available" : false }, () => {
-    const [b] = extractBlocks(readRoot("kitchen-sink.md"), THEME_NAMES);
-    const r = renderSwimlane(b.code, { theme: "portal", title: "Kitchen sink health model" });
-    const css = readFileSync(join(ROOT, "web", "style.css"), "utf8");
-    const inner = (maximized) => `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><style>${css}</style>
-      <body><header><h1>Editor</h1><div class="toolbar"><label>Example</label><select><option>Kitchen sink health model with representative content</option></select></div></header>
-      <main${maximized ? ' data-maximized="output"' : ""}>
-        <div class="pane" data-pane="editor"><div class="pane-header"><h2>Markdown source</h2><button>Maximize editor</button></div><textarea id="editor"></textarea></div>
-        <div class="pane" data-pane="output"><div class="pane-header"><h2>Rendered diagrams</h2><button>Maximize preview</button></div><div id="output"><div class="svg-wrap">${r.svg}</div></div></div>
-      </main></body>`;
-    const page = `<!doctype html><meta charset="utf-8"><body><script>
-      const configs=${JSON.stringify([360, 800, 801, 1440].flatMap((width) => [
-        {width,mode:'split'}, {width,mode:'maximized'},
-      ]))};
-      const templates={split:${JSON.stringify(inner(false))},maximized:${JSON.stringify(inner(true))}};
-      const jobs=configs.map(c=>new Promise(resolve=>{
-        const frame=document.createElement('iframe'); frame.style.cssText='width:'+c.width+'px;height:1000px;border:0';
-        frame.onload=()=>{
-          const d=frame.contentDocument,w=frame.contentWindow,body=d.body,main=d.querySelector('main');
-          const output=d.querySelector('#output'),svg=d.querySelector('svg');
-          const outputRect=output.getBoundingClientRect(),svgRect=svg.getBoundingClientRect();
-          const expectedColumns=c.mode==='split'&&c.width>800?2:1;
-          const columns=w.getComputedStyle(main).gridTemplateColumns.split(/\\s+/).filter(Boolean).length;
-          const errors=[];
-          const paneMin=w.getComputedStyle(output.closest('.pane')).minWidth;
-          if(w.innerWidth!==c.width)errors.push('viewport '+w.innerWidth);
-          if(paneMin!=='0px')errors.push('pane min-width '+paneMin);
-          if(columns!==expectedColumns)errors.push('columns '+columns+' expected '+expectedColumns);
-          if(body.scrollWidth!==body.clientWidth)errors.push('body '+body.scrollWidth+'>'+body.clientWidth);
-          if(output.scrollWidth!==output.clientWidth)errors.push('output '+output.scrollWidth+'>'+output.clientWidth);
-          if(svgRect.left<outputRect.left-.5||svgRect.right>outputRect.right+.5)errors.push('svg outside output');
-          const content=[...svg.children].find(el=>el.matches('g[transform]')&&el.querySelector(':scope > g[fill="none"]'));
-          for(const el of content.querySelectorAll(':scope > g[filter="url(#cs)"] > rect, :scope > g[stroke="none"]')){
-            const rect=el.getBoundingClientRect();
-            if(rect.left<svgRect.left-.5||rect.right>svgRect.right+.5||rect.left<outputRect.left-.5||rect.right>outputRect.right+.5){
-              errors.push('clipped static diagram element'); break;
-            }
-          }
-          resolve({...c,columns,paneMin,body:[body.scrollWidth,body.clientWidth],output:[output.scrollWidth,output.clientWidth],errors});
-        };
-        frame.srcdoc=templates[c.mode]; document.body.append(frame);
-      }));
-      Promise.all(jobs).then(results=>{document.body.textContent=JSON.stringify(results)});
-    <\/script></body>`;
-    const dom = dumpChromeDom(page, ["--headless", "--no-sandbox", "--disable-gpu", "--virtual-time-budget=5000", "--dump-dom"], 20 * 1024 * 1024);
-    const m = dom.match(/\[\{"width":360.*?\}\]/s);
-    assert.ok(m, "could not read responsive iframe measurements from Chrome");
-    const results = JSON.parse(m[0]);
-    assert.equal(results.length, 8);
-    for (const result of results)
-      assert.deepEqual(result.errors, [], `${result.width}px/${result.mode}: ${JSON.stringify(result)}`);
   });
 
 test("browser: the Shop subtitle's real glyph box clears the status pill by >= 12px",

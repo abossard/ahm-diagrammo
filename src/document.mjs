@@ -1,7 +1,7 @@
 // One calculation for both hosts: decode, options, identities, locations and renderer selection.
 import { extractBlocks, reserveSlug } from "./extract.mjs";
 import { decodeManagedDocument, preferredIdentities, assertBlocksEncodable } from "./managed-source.mjs";
-import { looksLikeHealthModel } from "./swimlane.mjs";
+import { resolveRenderer } from "./render.mjs";
 import { THEME_NAMES } from "./themes.mjs";
 
 export function prepareDocuments(inputs, defaults = {}, { sync = false } = {}) {
@@ -37,8 +37,7 @@ export function prepareDocuments(inputs, defaults = {}, { sync = false } = {}) {
         theme: b.options.theme || defaults.theme || "portal",
         renderer: b.options.renderer || defaults.renderer || "auto",
       };
-      const requested = String(effectiveOptions.renderer).toLowerCase();
-      const renderer = requested === "auto" ? (looksLikeHealthModel(b.code) ? "swimlane" : "mermaid") : requested;
+      const renderer = resolveRenderer(effectiveOptions.renderer, b.code);
       const end = b.closeLine ?? doc.source.split("\n").length;
       const span = [...identities.spans, ...sourceSpans].find((s) => s.beginLine <= b.line && end <= s.endLine);
       return {

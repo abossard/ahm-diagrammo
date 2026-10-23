@@ -1,0 +1,24 @@
+{
+  "models": {
+    "payments": {
+      "state": "degraded",
+      "detailRef": "diagram://payments-detail"
+    },
+    "ledger": {
+      "state": "unhealthy",
+      "detailRef": "diagram://ledger-detail"
+    }
+  },
+  "views": {
+    "expanded": {
+      "mode": "expanded"
+    },
+    "collapsed": {
+      "mode": "collapsed"
+    },
+    "detail": {
+      "mode": "detail",
+      "detailFocus": "payments"
+    }
+  }
+}

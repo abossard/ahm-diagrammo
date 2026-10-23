@@ -1,7 +1,7 @@
 {
   "name": "ahm-diagrammo",
-  "version": "3.1.3",
-  "description": "Turn the mermaid blocks in a Markdown file into good-looking themed SVGs — including Azure-portal style health-model swimlanes",
+  "version": "4.0.0",
+  "description": "Turn the mermaid blocks in a Markdown file into themed static SVGs: Azure-portal style health-model swimlanes, Pele AHM signal tables, and every other Mermaid diagram via Pele",
   "type": "module",
   "license": "MIT",
   "bin": {
@@ -10,42 +10,53 @@
   },
   "main": "src/index.mjs",
   "exports": {
-    ".": "./src/index.mjs"
+    ".": "./src/index.mjs",
+    "./styles.css": "./src/ahm.css"
   },
   "files": [
     "bin",
     "src",
-    "docs",
+    "examples",
+    "hero.md",
+    "kitchen-sink.md",
+    "pills-stress.md",
+    "svg/hero.svg",
+    "svg/kitchen-sink.svg",
+    "svg/pills-stress.svg",
+    "svg/pele/hero.svg",
+    "svg/pele/kitchen-sink.svg",
+    "svg/pele/pills-stress.svg",
     "README.md",
     "LICENSE"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=20"
   },
   "keywords": [
+    "azure-health-model",
+    "health-model",
     "mermaid",
-    "diagram",
-    "svg",
     "markdown",
     "swimlane",
-    "azure",
-    "health-model"
+    "pele",
+    "svg"
   ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/abossard/ahm-diagrammo.git"
   },
   "dependencies": {
-    "dompurify": "3.4.12",
-    "fflate": "0.8.3",
-    "marked": "15.0.12"
+    "pele": "1.6.0"
   },
   "devDependencies": {
-    "@mermaid-js/mermaid-cli": "^11.16.0"
+    "@resvg/resvg-js": "2.6.2",
+    "fontkit": "^2.0.4",
+    "marked": "15.0.12"
   },
   "scripts": {
     "test": "node scripts/test.mjs",
     "goldens": "UPDATE_GOLDENS=1 node --test test/golden.test.mjs",
-    "build:pages": "node scripts/build-pages.mjs"
+    "gallery": "node scripts/gallery.mjs",
+    "gallery:check": "node scripts/gallery.mjs --check"
   }
 }

@@ -6,32 +6,15 @@ notes name the test that pins the behavior. If a statement here stops being true
 For a visual overview, see [how-it-works.md](how-it-works.md), a health model that ahm-diagrammo
 renders of its own pipeline, mapping each lane to the code and test behind it.
 
-Quick links: [Browser editor](#browser-editor) · [CLI](#command-line) · [Renderer selection](#renderer-selection) ·
+Quick links: [CLI](#command-line) · [Renderer selection](#renderer-selection) ·
 [Per-block options](#per-block-options) · [Themes](#themes) ·
 [Health-model swimlanes](#health-model-swimlanes) · [Signal rows](#signal-rows) ·
 [Layout guarantees](#layout-guarantees) · [Plain mermaid](#plain-mermaid-blocks) ·
 [Diagnostics](#diagnostics-reference) · [Exit codes](#exit-codes) ·
-[Programmatic API](#programmatic-api) · [Legacy commands](#legacy-entry-points) ·
+[Programmatic API](#programmatic-api) · [Pele AHM renderer](#pele-ahm-renderer) ·
 [Sync SVGs into Markdown](#sync-svgs-into-markdown)
 
 ---
-
-## Browser editor
-
-[Open the editor](https://abossard.github.io/ahm-diagrammo/). It loads an editable health model
-and shows full Markdown with diagrams in their source locations. Hidden managed Mermaid source
-and legacy managed blocks preview once, using the same permanent slugs as the CLI. Errors and
-warnings include source lines; warnings do not hide successful SVGs.
-
-Choose an example or edit the source. Late example responses never replace newer choices or edits.
-Export ZIP includes SVG and PNG for each successful health model from one captured revision.
-Other Mermaid types remain explicit unsupported states in the browser; use the CLI below for those.
-Maximize either pane, press Escape to restore it, or focus a diagram to scroll its full-size content
-on narrow screens. The editor does not persist drafts.
-
-Both hosts use `prepareDocuments` in `src/document.mjs`; the browser import graph contains no
-Node filesystem or subprocess modules. *Verified by:* `document.test.mjs`, `web-convert.test.mjs`,
-`web-markdown-preview.test.mjs`, `web-export-zip.test.mjs`, and native `web-browser.test.mjs`.
 
 ## Command line
 
@@ -42,7 +25,7 @@ node bin/diagrammo.mjs <file.md> [more.md ...] [options]
 
   -o, --out <dir>        output directory                    (default: ./diagrams)
   -t, --theme <name>     portal | midnight | candy | slate   (default: portal)
-  -r, --renderer <name>  auto | swimlane | mermaid           (default: auto)
+  -r, --renderer <name>  auto | swimlane | pele | mermaid    (default: auto)
   -l, --list             list detected blocks and options, render nothing
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
@@ -60,11 +43,12 @@ one output directory, with duplicate slugs receiving `-2`, `-3`, and so on. Prog
 with `--sync-markdown`:
 
 ```
-examples/showcase.md: 6 mermaid blocks
-  examples/showcase.md:11  health-model-zero-config  →  swimlane · portal
-  examples/showcase.md:35  fence-info-options-…      →  swimlane · midnight  (theme="midnight")
-  examples/showcase.md:56  order-pipeline-health     →  swimlane · candy  (title="Order pipeline health" …)
-  examples/showcase.md:114 any-other-mermaid-…       →  mermaid · portal
+docs/gallery/source.md: 27 mermaid blocks
+  docs/gallery/source.md:29  health-model-zero-config  →  swimlane · portal
+  docs/gallery/source.md:207  theme-midnight  →  swimlane · midnight  (theme="midnight")
+  docs/gallery/source.md:344  plain-mermaid-look  →  mermaid · portal  (renderer="mermaid")
+  docs/gallery/source.md:371  sequence-diagram  →  mermaid · portal
+  …
 ```
 
 *Verified by:* `cli.test.mjs` — "renders a healthy file", "--list explains detection without
@@ -227,13 +211,25 @@ Per block, in this order:
 
 1. Block option `renderer:` (any of the three channels below), else
 2. CLI `-r/--renderer`, else
-3. **auto**: a block is a *health model* — and gets the swimlane renderer — when it is a
-   `flowchart BT` (or `graph BT`) **and** binds at least one `class … blue|green|amber|red|purple`.
-   Everything else (sequence, state, ER, class, non-BT or unclassed flowcharts) goes through
-   mermaid-cli with the same theme.
+3. **auto**.
 
-*Verified by:* `swimlane.test.mjs` — "looksLikeHealthModel detects health flowcharts only";
-`docs.test.mjs` — "showcase.md demonstrates every option channel".
+A block is a *health model* when it is a `flowchart BT` (or `graph BT`) **and** binds at least one
+`class … blue|green|amber|red|purple`. The requested renderer then resolves as follows:
+
+| Requested | Health model | Any other diagram |
+|-----------|--------------|-------------------|
+| `auto` (default) | `swimlane` | `mermaid` |
+| `swimlane` | `swimlane` | `swimlane` (parse warnings; use only for health models) |
+| `pele` | `pele` ([Pele AHM renderer](#pele-ahm-renderer)) | `mermaid` |
+| `mermaid` | `mermaid` (plain flowchart, theme colors) | `mermaid` |
+
+`resolveRenderer()` in `src/render.mjs` owns this table; `renderDiagram()` in the same module is
+the single dispatch the CLI and library callers share. Both health-model looks read the same
+source, including `Signal = Value (state)` rows.
+
+*Verified by:* `render-diagram.test.mjs` — the resolution table and one render per renderer;
+`swimlane.test.mjs` — "looksLikeHealthModel detects health flowcharts only";
+`docs.test.mjs` — the "gallery:" option-channel and renderer cases.
 
 ## Per-block options
 
@@ -252,7 +248,7 @@ warned about and ignored.
 
 **2. YAML frontmatter** — mermaid understands the block natively (`title:` even shows in
 previews); diagrammo reads the `diagrammo:` key and strips *only that key* before handing the
-block to mermaid-cli, so native keys like `config:` pass through:
+block to Pele, so native keys like `title:` pass through:
 
 ````markdown
 ```mermaid
@@ -297,7 +293,7 @@ fail the block with its fence line; a non-list `lanes` warns and is ignored; a n
 
 *Verified by:* `extract.test.mjs` — option merge/precedence, line numbers, unknown-key/value
 issues, `stripDiagrammoKey`, yamlite scalars/nesting/lists, `~~~` fences, duplicate slugs,
-unclosed fences; `docs.test.mjs` — all three channels live in `examples/showcase.md`.
+unclosed fences; `docs.test.mjs` — all three channels live in `docs/gallery/source.md`.
 
 ## Themes
 
@@ -305,10 +301,11 @@ Four built-in themes, shared by both renderers so a whole document matches:
 **`portal`** (Azure portal light, default), **`midnight`** (dark), **`candy`** (warm pastel),
 **`slate`** (cool gray-blue). A theme defines background/band/ink/muted colors, the five state
 palettes (healthy, degraded, unhealthy, unknown-dashed, standby), pill colors, metric-bar colors,
-and the mermaid `themeVariables` used for non-health blocks.
+and the Pele theme variables used for non-health blocks. The Pele AHM renderer maps the same four
+names onto its semantic tokens (`getAhmPalette()`).
 
 *Verified by:* `swimlane.test.mjs` — "pill flood stays clean in every theme" renders the hardest
-fixture in all four; `mermaid.test.mjs` — themed sequence diagram.
+fixture in all four; `mermaid.test.mjs` — themed diagrams in every theme; `themes.test.mjs`.
 
 ## Health-model swimlanes
 
@@ -365,7 +362,7 @@ apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%<br/>Requests = 1.2
 - A signal pointing at several entities folds into each of them.
 
 *Verified by:* `swimlane.test.mjs` — "foldSignals: explicit results and states survive";
-`docs.test.mjs` — "showcase measurement syntax lands in the output".
+`docs.test.mjs` — "gallery signal-row syntax lands in both looks".
 
 ## Layout guarantees
 
@@ -405,16 +402,19 @@ picking.
 
 ## Plain mermaid blocks
 
-Non-health blocks render through mermaid-cli (`mmdc`) with the block's theme mapped onto
-mermaid's `themeVariables`, and `classDef blue/green/amber/red/purple` remapped to the theme's
-state palette. Output is Learn-safe: `htmlLabels:false`, native `<text>` only, no
-`foreignObject`. Cards get rounded corners and a soft shadow. `mmdc` is resolved from the
-package, the project, the PATH, or fetched once via `npx`; Chrome is found via
-`PUPPETEER_EXECUTABLE_PATH`, `CHROME_PATH`, or common install locations. Failures retry 3× and
-then surface the underlying mmdc error.
+Non-health blocks render through [Pele](https://pele.run), in Node, with no browser. The block's
+theme is mapped onto Pele's `--pele-*` CSS variables, and `classDef blue/green/amber/red/purple`
+is remapped to the theme's state palette. Every CSS variable is then resolved to a concrete value,
+so the SVG looks the same inline and inside `<img>` (Microsoft Learn): native `<text>` only, no
+`foreignObject`, no `<style>`, no `var(--…)`. Text is measured with the renderer's own glyph
+metrics (`src/text.mjs`), never with a canvas or the host's installed fonts, so output does not
+depend on the machine. `midnight` gets its background painted; other
+themes stay transparent unless `background` is set. Parse failures surface as
+`pele failed: <reason>`.
 
-*Verified by:* `mermaid.test.mjs` — themed sequence diagram without `foreignObject`, failure
-surfaces "mmdc failed after 3 attempts" (suite auto-skips without Chrome).
+*Verified by:* `mermaid.test.mjs` — every diagram type in every theme stays static and
+variable-free, classDef remapping, background, failure message; `render-diagram.test.mjs` —
+poisoned canvas globals stay untouched for every renderer.
 
 ## Diagnostics reference
 
@@ -457,10 +457,14 @@ fail fast".
 
 ```js
 import {
-  extractBlocks, renderSwimlane, renderMermaid, looksLikeHealthModel,
+  renderDiagram, resolveRenderer, prepareDocuments,
+  extractBlocks, renderSwimlane, renderAhm, renderMermaid, looksLikeHealthModel,
   getTheme, THEMES, THEME_NAMES, Diagnostics,
   parseGraph, foldSignals, layout, textWidth, wrapText,
 } from "ahm-diagrammo";
+
+// one entry point for every look; renderer: auto | swimlane | pele | mermaid
+const { renderer, svg, width, height } = renderDiagram(code, { renderer: "pele", theme: "slate" });
 
 const blocks = extractBlocks(markdown, THEME_NAMES); // [{slug, heading, code, options, line, issues}]
 const diag = new Diagnostics({ file: "doc.md" });
@@ -472,18 +476,6 @@ const { svg, W, H, nodes, lanes, debug } = renderSwimlane(blocks[0].code, {
 
 *Verified by:* the entire suite imports through these entry points.
 
-## Legacy entry points
-
-The original commands are deprecated shims: they print a deprecation note on stderr and forward
-to the CLI, so old workflows keep producing the same files in the same places:
-
-```bash
-node swimlane-auto.mjs <article.md> <outDir>   # → diagrammo <md> -o <outDir> -r swimlane
-node convert.mjs <article.md> <outDir>         # → diagrammo <md> -o <outDir> -r mermaid
-```
-
-*Verified by:* `cli.test.mjs` — "legacy wrappers forward to the CLI with a deprecation note".
-
 ## Golden files
 
 Rendering is deterministic, so `test/golden/` holds the exact SVG output for every swimlane
@@ -493,3 +485,74 @@ what moved.
 
 *Verified by:* `golden.test.mjs` — one test per pinned diagram; `swimlane.test.mjs` —
 "rendering is deterministic".
+
+## Pele AHM renderer
+
+`renderer: pele` (or `-r pele`) renders a health model through `renderAhm()`: signals become
+in-card Signal/Value/State tables, laid out by Pele, with the AHM legend footer. The CLI passes
+`theme`, `legend` and `lanes: true`; library callers can use every option below directly.
+
+### Public interface
+
+- `renderAhm(source, options?)` returns `{ svg, width, height, diagnostics }`, and includes `trace` when `options.nested` is provided.
+- `parseAhmSource(source, options?)` validates and normalizes AHM semantics
+- `buildPeleAhmSource(model, options?)` emits Pele-compatible source
+- `getAhmPalette(themeName, colors?)` returns semantic color tokens
+- `ahm-diagrammo/styles.css` ships scoped AHM state classes
+
+### Stylesheet contract
+
+- Export path: `ahm-diagrammo/styles.css`
+- Root utility scope: `.ahm-root`
+- State utilities: `.state-healthy`, `.state-degraded`, `.state-unhealthy`, `.state-unknown`, `.state-standby`
+- Theme selection utilities: `.ahm-root[data-ahm-theme="portal"|"midnight"|"candy"|"slate"]`
+- Token ownership: stylesheet utilities and `getAhmPalette()` share one token source (`src/ahm-tokens.mjs`)
+- Static-color boundary: saved SVG embeds concrete colors. Theme/color changes for static outputs require a new `renderAhm()` call with `theme`/`colors`; stylesheet utilities are not a contract to repaint immutable embedded SVG fills.
+
+### Rendering guarantees
+
+- Static SVG output with finite dimensions and accessibility title/description IDs
+- Signal rows remain inside their owner entity card as in-card Signal/Value/State table rows
+- Signal row colors come from supplied row states and remain independent from entity state
+- Edge line and arrowhead color inherit from source entity state
+- Edge labels are pass-through authored content. No automatic or synthesized relationship labels.
+- Quoted connection labels preserve valid punctuation and escapes from authored source.
+- Legend footer is enabled by default and removable with `legend: false`
+- Table column headers are enabled by default and optional with `tableHeaders: false`
+- Direction preserved for `TB`, `TD`, `BT`, `LR`, `RL`
+- Optional lanes via `lanes: true` using ordinary flowchart compound regions (subgraph groups)
+- Optional nested projection via `nested` with model registration (`state`, optional `detailRef`) and `expanded`/`collapsed`/`detail` views
+- Nested trace keeps stable dependency index, authored endpoints/labels/dashes, original and displayed source states, and rendered/detail-only/outside-focus relationship kind
+- Nested model self-edge contract: authored model self-edge is supported in `collapsed` view; for `expanded` or `detail` it fails explicitly with named unsupported diagnostics (`unsupported-model-group-self-edge:<modelId>:<mode>`), with no success-shaped partial output fallback.
+- Nested model-group ancestor endpoint contract: authored ancestor model-group endpoint relationships fail explicitly in `expanded` and `detail` with named unsupported diagnostics (`unsupported-model-group-ancestor-edge:<from>:<to>:<mode>`), while preserving existing collapsed compatibility behavior.
+- With `tableHeaders: false`, only the column-header row and its reserved row height are removed. Entity titles, top-right badges, signal rows, row states, and edge labels remain.
+- Cell and status-pill text ink uses balanced top/bottom margins, and column headers share the same left margin alignment as table rows.
+
+### Validation behavior
+
+- Unknown options fail fast
+- `options` must be an object. `null` and scalar options fail fast.
+- Unsupported statements fail with actionable diagnostics
+- Unsupported signal states fail with actionable diagnostics
+- Dangling ownership/edges fail explicitly
+- `limit` applies to authored input shape, not post-render bytes.
+- `outputLimit` caps final serialized SVG bytes, including table and legend content.
+- `tableHeaders` must be boolean when supplied.
+- `nested` must be an object when supplied.
+- `nested.view.detailFocus` is valid only in `detail` mode and must reference a registered model.
+- Caller boundary: provide `fontFamily` as a non-empty string when supplied
+- Caller boundary: provide `fontSize` as a finite value greater than zero when supplied
+- Finite positive `fontSize` has no arbitrary silent upper cap. Geometry overflow remains actionable via diagnostics.
+
+### Runtime boundary
+
+- Node-only package behavior with no browser or Python runtime workflow
+- Tests verify import/render behavior when DOM and Canvas globals are absent
+- Native font proof is pinned to the bundled Unifont test fonts (`test/assets/fonts`, overridable with `AHM_TEST_FONT_FILES`); system fonts are never loaded. This is not a universal arbitrary-font fidelity promise.
+- Native Pele layout remains the placement authority. In shared-DAG cases, root centering can be visibly off-center and is documented behavior.
+- AHM semantics are display-only. Health-state calculation is caller-owned
+- Public root specimens use supplied demonstration readings/states for presentation. They are examples, not generated telemetry.
+- Nested public examples are split into:
+  - `examples/nested-source.mmd` supported canonical hierarchy-first BT source for expanded/collapsed/detail
+  - `examples/nested-source-ancestor-stress.mmd` historical TB stress source preserving ancestor endpoint diagnostics
+  - `examples/nested-source-stress.mmd` historical TB stress source that preserves authored model self-edge behavior

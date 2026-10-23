@@ -10,7 +10,8 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractBlocks } from "../src/extract.mjs";
-import { renderSwimlane, looksLikeHealthModel } from "../src/swimlane.mjs";
+import { renderSwimlane } from "../src/swimlane.mjs";
+import { resolveRenderer } from "../src/render.mjs";
 import { THEME_NAMES } from "../src/themes.mjs";
 
 const ROOT = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -20,7 +21,6 @@ const UPDATE = !!process.env.UPDATE_GOLDENS;
 const SOURCES = [
   "kitchen-sink.md",
   "pills-stress.md",
-  "examples/showcase.md",
   "test/fixtures/pr6-regressions.md",
   "test/fixtures/torture-deep.md",
   "test/fixtures/torture-pills.md",
@@ -32,7 +32,7 @@ const SOURCES = [
 for (const source of SOURCES) {
   const blocks = extractBlocks(readFileSync(join(ROOT, source), "utf8"), THEME_NAMES);
   for (const b of blocks) {
-    if (!looksLikeHealthModel(b.code)) continue; // mermaid-cli output isn't ours to pin
+    if (resolveRenderer(b.options.renderer, b.code) !== "swimlane") continue; // Pele layout isn't ours to pin
     test(`golden: ${source} → ${b.slug}.svg`, () => {
       const { svg } = renderSwimlane(b.code, {
         theme: b.options.theme || "portal",

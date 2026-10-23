@@ -1,0 +1,31 @@
+flowchart BT
+    %% ---- signals (blue), one row set per component ----
+    webSig["Web latency<br/>HTTP 5xx rate<br/>Request rate"] --> web["Web frontend<br/>healthy"]
+    appSig["CPU<br/>Memory<br/>Restart count"] --> app["App hosting<br/>healthy"]
+    dbSig["Connection<br/>DTU utilization<br/>Failed connections"] --> db["Database<br/>healthy"]
+    anaSig["Pipeline lag<br/>Ingestion errors<br/>Data freshness"] --> analytics["Analytics store<br/>healthy"]
+    queueSig["Queue depth<br/>Oldest message age<br/>Dead-letter count"] --> queue["Order queue<br/>degraded"]
+    shipSig["Carrier API availability<br/>Carrier API latency<br/>Error rate"] --> ship["Shipping service<br/>healthy"]
+
+    %% ---- components -> business flows ----
+    web --> shop["Shop and commerce<br/>healthy"]
+    app --> shop
+    db --> shop
+
+    db --> reporting["Reporting<br/>healthy"]
+    analytics --> reporting
+
+    queue --> logistics["Logistics<br/>degraded"]
+    ship --> logistics
+
+    %% ---- flows -> root ----
+    shop --> root["Workload root<br/>degraded"]
+    reporting --> root
+    logistics --> root
+
+    classDef blue fill:#eff6fc,stroke:#0078D4;
+    classDef green fill:#f2f8f2,stroke:#a0d8a0;
+    classDef amber fill:#fbf2e7,stroke:#db7500;
+    class webSig,appSig,dbSig,anaSig,queueSig,shipSig blue;
+    class web,app,db,analytics,ship,shop,reporting green;
+    class queue,logistics,root amber;

@@ -205,22 +205,6 @@ test("duplicate slugs across input files get distinct output names", async () =>
   assert.match(r.stdout, /kitchen-sink-health-model-2\.svg/);
 });
 
-test("legacy wrappers forward to the CLI with a deprecation note", async () => {
-  const out = tmp();
-  const sw = await pexec(process.execPath, [join(ROOT, "swimlane-auto.mjs"), join(ROOT, "kitchen-sink.md"), out]);
-  assert.match(sw.stderr, /deprecated — forwarding to: diagrammo/);
-  assert.match(sw.stdout, /Rendered 1\/1 diagrams/);
-  assert.ok(existsSync(join(out, "kitchen-sink-health-model.svg")));
-  assert.ok(!existsSync(join(out, "manifest.json")));
-  assert.ok(!existsSync(join(out, "gallery.html")));
-  // missing args still fail with usage
-  const bad = await run(); // reuse: no-arg CLI covered elsewhere; check the shim directly
-  assert.equal(bad.code, 1);
-  const shimBad = await pexec(process.execPath, [join(ROOT, "convert.mjs")]).catch((e) => e);
-  assert.equal(shimBad.code, 1);
-  assert.match(String(shimBad.stderr), /Usage: node convert\.mjs/);
-});
-
 // ---- --sync-markdown: real CLI end-to-end mutation/idempotency/path-resolution proof ----------
 
 const HEALTH_MERMAID = [

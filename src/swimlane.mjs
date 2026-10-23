@@ -26,44 +26,38 @@ const STATE_LABEL = { healthy: "Healthy", degraded: "Degraded", unhealthy: "Unhe
 const CLASS_STATE = { blue: "signal", green: "healthy", amber: "degraded", red: "unhealthy", purple: "alt" };
 const STATE_WORDS = new Set(["healthy", "degraded", "unhealthy", "standby", "unavailable", "unknown", "stuck"]);
 
-// ---------- icons (24x24, stroke) ----------
-function icon(name, stroke) {
-  const s = `fill="none" stroke="${stroke}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
-  const P = {
-    root: `<circle cx="12" cy="12" r="8.4" ${s}/><path d="M4.2 12h3l2-3.6 2.8 7.2 1.8-3.6h4" ${s}/>`,
-    flow: `<circle cx="5.5" cy="6" r="2" ${s}/><circle cx="5.5" cy="18" r="2" ${s}/><circle cx="18.5" cy="12" r="2" ${s}/><path d="M7.5 6h3a4 4 0 0 1 4 4M7.5 18h3a4 4 0 0 0 4-4" ${s}/>`,
-    web: `<circle cx="12" cy="12" r="8.4" ${s}/><path d="M3.6 12h16.8M12 3.6c3 3 3 13.8 0 16.8M12 3.6c-3 3-3 13.8 0 16.8" ${s}/>`,
-    app: `<rect x="4" y="4.5" width="16" height="6" rx="1.2" ${s}/><rect x="4" y="13.5" width="16" height="6" rx="1.2" ${s}/><path d="M7.2 7.5h.01M7.2 16.5h.01" ${s}/>`,
-    db: `<ellipse cx="12" cy="6" rx="7" ry="2.8" ${s}/><path d="M5 6v12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8V6" ${s}/><path d="M5 12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8" ${s}/>`,
-    queue: `<rect x="4" y="5" width="16" height="3" rx="1" ${s}/><rect x="4" y="10.5" width="16" height="3" rx="1" ${s}/><rect x="4" y="16" width="10" height="3" rx="1" ${s}/>`,
-    ship: `<path d="M12 3.2l7.6 4.4v8.8L12 20.8l-7.6-4.4V7.6z" ${s}/><path d="M4.6 7.8l7.4 4.3 7.4-4.3M12 12.1v8.6" ${s}/>`,
-    analytics: `<path d="M4 20h16" ${s}/><path d="M6.5 20v-6M12 20V6.5M17.5 20v-9" ${s}/>`,
-    bolt: `<path d="M13 2.5 5.5 13.5H11l-1 8 8.5-12H12z" ${s}/>`,
-    cache: `<rect x="3.5" y="4" width="17" height="16" rx="2" ${s}/><path d="M8 4v16M3.5 9.5h4M3.5 14.5h4" ${s}/>`,
-    shield: `<path d="M12 3l7 2.6v5.2c0 4.6-3 7.9-7 9.2-4-1.3-7-4.6-7-9.2V5.6z" ${s}/><path d="M8.8 12.2l2.2 2.2 4-4.6" ${s}/>`,
-    cube: `<path d="M12 3.2l7.6 4.4v8.8L12 20.8l-7.6-4.4V7.6z" ${s}/><path d="M4.6 7.8l7.4 4.3 7.4-4.3M12 12.1v8.6" ${s}/>`,
-  };
-  return P[name] || P.cube;
-}
-function pickIcon(label) {
-  const t = label.toLowerCase();
-  const has = (...w) => w.some((x) => t.includes(x));
-  if (has("root")) return "root";
-  if (has("front door", "frontend", "web ", "website", "cdn", "web app")) return "web";
-  if (has("api", "function", "serverless", "endpoint")) return "bolt";
-  if (has("event", "grid")) return "bolt";
-  if (has("cache", "redis")) return "cache";
-  if (has("database", "sql", "cosmos", "db", "store", "storage")) return "db";
-  if (has("queue", "message", "dead-letter", "service bus", "event hub", "hub")) return "queue";
-  if (has("ship", "carrier", "logistics", "delivery", "sink")) return "ship";
-  if (has("analytics", "report", "pipeline", "ingest", "index", "search", "batch", "scheduler")) return "analytics";
-  if (has("security", "defender", "firewall", "waf", "auth", "identity", "entra", "key vault", "secret", "safety")) return "shield";
-  if (has("kubernetes", "container", "aks", "pod", "cluster")) return "cube";
-  if (has("model", "nested")) return "cube";
-  if (has("app", "hosting", "compute", "vm", "worker", "processor", "agent", "tool")) return "app";
-  if (has("shop", "commerce", "checkout", "catalog", "order", "payment", "fraud", "flow", "gateway")) return "flow";
-  return "cube";
-}
+// ---------- icons (24x24, stroke; %S% stands for the stroke attributes) ----------
+const ICON_PATHS = {
+  root: `<circle cx="12" cy="12" r="8.4" %S%/><path d="M4.2 12h3l2-3.6 2.8 7.2 1.8-3.6h4" %S%/>`,
+  flow: `<circle cx="5.5" cy="6" r="2" %S%/><circle cx="5.5" cy="18" r="2" %S%/><circle cx="18.5" cy="12" r="2" %S%/><path d="M7.5 6h3a4 4 0 0 1 4 4M7.5 18h3a4 4 0 0 0 4-4" %S%/>`,
+  web: `<circle cx="12" cy="12" r="8.4" %S%/><path d="M3.6 12h16.8M12 3.6c3 3 3 13.8 0 16.8M12 3.6c-3 3-3 13.8 0 16.8" %S%/>`,
+  app: `<rect x="4" y="4.5" width="16" height="6" rx="1.2" %S%/><rect x="4" y="13.5" width="16" height="6" rx="1.2" %S%/><path d="M7.2 7.5h.01M7.2 16.5h.01" %S%/>`,
+  db: `<ellipse cx="12" cy="6" rx="7" ry="2.8" %S%/><path d="M5 6v12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8V6" %S%/><path d="M5 12c0 1.55 3.13 2.8 7 2.8s7-1.25 7-2.8" %S%/>`,
+  queue: `<rect x="4" y="5" width="16" height="3" rx="1" %S%/><rect x="4" y="10.5" width="16" height="3" rx="1" %S%/><rect x="4" y="16" width="10" height="3" rx="1" %S%/>`,
+  ship: `<path d="M12 3.2l7.6 4.4v8.8L12 20.8l-7.6-4.4V7.6z" %S%/><path d="M4.6 7.8l7.4 4.3 7.4-4.3M12 12.1v8.6" %S%/>`,
+  analytics: `<path d="M4 20h16" %S%/><path d="M6.5 20v-6M12 20V6.5M17.5 20v-9" %S%/>`,
+  bolt: `<path d="M13 2.5 5.5 13.5H11l-1 8 8.5-12H12z" %S%/>`,
+  cache: `<rect x="3.5" y="4" width="17" height="16" rx="2" %S%/><path d="M8 4v16M3.5 9.5h4M3.5 14.5h4" %S%/>`,
+  shield: `<path d="M12 3l7 2.6v5.2c0 4.6-3 7.9-7 9.2-4-1.3-7-4.6-7-9.2V5.6z" %S%/><path d="M8.8 12.2l2.2 2.2 4-4.6" %S%/>`,
+  cube: `<path d="M12 3.2l7.6 4.4v8.8L12 20.8l-7.6-4.4V7.6z" %S%/><path d="M4.6 7.8l7.4 4.3 7.4-4.3M12 12.1v8.6" %S%/>`,
+};
+// first matching keyword list (in this order) picks the header icon; no match → cube
+const ICON_KEYWORDS = [
+  ["root", ["root"]],
+  ["web", ["front door", "frontend", "web ", "website", "cdn", "web app"]],
+  ["bolt", ["api", "function", "serverless", "endpoint"]],
+  ["bolt", ["event", "grid"]],
+  ["cache", ["cache", "redis"]],
+  ["db", ["database", "sql", "cosmos", "db", "store", "storage"]],
+  ["queue", ["queue", "message", "dead-letter", "service bus", "event hub", "hub"]],
+  ["ship", ["ship", "carrier", "logistics", "delivery", "sink"]],
+  ["analytics", ["analytics", "report", "pipeline", "ingest", "index", "search", "batch", "scheduler"]],
+  ["shield", ["security", "defender", "firewall", "waf", "auth", "identity", "entra", "key vault", "secret", "safety"]],
+  ["cube", ["kubernetes", "container", "aks", "pod", "cluster"]],
+  ["cube", ["model", "nested"]],
+  ["app", ["app", "hosting", "compute", "vm", "worker", "processor", "agent", "tool"]],
+  ["flow", ["shop", "commerce", "checkout", "catalog", "order", "payment", "fraud", "flow", "gateway"]],
+];
 
 const esc = (t) => String(t).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
@@ -194,18 +188,16 @@ export function foldSignals(g, diag = new Diagnostics()) {
     if (!n.signals || !n.signals.length) continue;
     const anyMarked = n.signals.some((r) => r.state !== "healthy");
     if (!anyMarked && (n.state === "degraded" || n.state === "unhealthy")) n.signals[0].state = n.state;
-    for (const row of n.signals) if (row.result == null) row.result = synthResult(row.name, row.state);
+    for (const row of n.signals) {
+      if (row.result != null) continue;
+      // deterministic placeholder result derived from the row name, scaled by its state
+      let h = 0;
+      for (let i = 0; i < row.name.length; i++) h = (h * 31 + row.name.charCodeAt(i)) & 0xffff;
+      row.result = row.state === "healthy" ? String(h % 3) : row.state === "degraded" ? String(5 + (h % 15)) : String(30 + (h % 90));
+    }
   }
   return g;
 }
-function synthResult(name, state) {
-  let h = 0;
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
-  if (state === "healthy") return String(h % 3);
-  if (state === "degraded") return String(5 + (h % 15));
-  return String(30 + (h % 90));
-}
-
 // ---------- layer + order ----------
 export function layout(g, diag = new Diagnostics()) {
   const ids = [...g.nodes.keys()];
@@ -278,55 +270,13 @@ export const CENTER_TIE_EPS = 1e-6;
 const SUBTITLE_MAX_W = 160;
 const HEADER_SAFETY = 1.12;
 
-function measureNode(n, diag) {
-  const rawLines = n.lines.filter((l) => !STATE_WORDS.has(l.toLowerCase()));
-  const name = rawLines[0] || n.lines[0] || n.id;
-  const qualifierRaw = rawLines.slice(1).map((l) => l.replace(/[()]/g, "")).join(" · ") || null;
-  const statePillW = 20 + textWidth(STATE_LABEL[n.state] || "Unknown", PILL_FS) + 8;
-  const sigs = n.signals || [];
-
-  // natural (unwrapped) width demands. The subtitle's width demand is capped at SUBTITLE_MAX_W so
-  // a long subtitle wraps (and the card grows taller) instead of widening the card to fit one line.
-  const headerFixed = 34 + 8 + statePillW + 8;
-  const subCol = qualifierRaw ? Math.min(textWidth(qualifierRaw, QUAL_FS), SUBTITLE_MAX_W) : 0;
-  const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), subCol * HEADER_SAFETY);
-  const rowFixed = 52 + 16 + 12;
-  let rowsNat = 0;
-  for (const r of sigs) rowsNat = Math.max(rowsNat, rowFixed + textWidth(r.name, ROW_FS) + textWidth(r.result ?? "", ROW_FS, 600));
-  const w = Math.min(CARD_MAX_W, Math.max(CARD_MIN_W, Math.ceil(Math.max(headerNat, rowsNat))));
-
-  // wrap into the final width
-  const nameAvail = w - headerFixed;
-  // Entity titles are never truncated. Past the width cap they add header lines, preserving the
-  // complete title while keeping the diagram horizontally compact.
-  const nameWrap = wrapText(name, nameAvail, NAME_FS, { weight: 600, maxLines: Infinity });
-  // Subtitles are never truncated: wrap at word boundaries into the bounded column with no line
-  // limit, growing the card taller. Over-long unbroken tokens hard-break inside the column.
-  let qualWrap = null;
-  if (qualifierRaw) qualWrap = wrapText(qualifierRaw, Math.min(nameAvail, SUBTITLE_MAX_W), QUAL_FS, { maxLines: Infinity });
-  const rows = sigs.map((r) => {
-    const resultW = textWidth(r.result ?? "", ROW_FS, 600);
-    const avail = w - rowFixed - resultW;
-    const wrap = wrapText(r.name, avail, ROW_FS, { maxLines: 2 });
-    if (wrap.clipped) diag.warn(`signal row "${r.name.slice(0, 40)}…" on "${n.id}" clipped (full text kept as tooltip)`);
-    return { ...r, lines: wrap.lines, clipped: wrap.clipped, rowH: 18 + 13 * (wrap.lines.length - 1), resultW };
-  });
-
-  const headerContentH = nameWrap.lines.length * 14 + (qualWrap ? qualWrap.lines.length * 11 : 0);
-  const headerH = Math.max(34, headerContentH + 14);
-  const h = rows.length
-    ? headerH + 3 + 6 + rows.reduce((a, r) => a + r.rowH, 0) + 6
-    : Math.max(58, headerContentH + 26);
-  return { w, h, headerH, name, nameWrap, qualWrap, statePillW, rows };
-}
-
 // ---------- geometry / routing ----------
 // A single-channel tracked edge whose two risers (exitLo, entryU) land this close together carries
-// only the anti-collinearity bump makeSlots adds (one pitch = 6px, below) — a redundant jog around
+// only the anti-collinearity bump the slot registry adds (one pitch = 6px) — a redundant jog around
 // the label row, not real horizontal travel — so it is drawn as one straight vertical. 8 = one
 // pitch + rounding headroom, and stays strictly below two pitches (12px): 12 is the smallest gap
 // that can hide an intervening vertical, so a delta ≥ 12 signals a genuine obstacle/offset and is
-// left orthogonal. Coupled to makeSlots' pitch — revisit both together if that changes.
+// left orthogonal. Coupled to the slot registry's pitch — revisit both together if that changes.
 const STRAIGHT_SNAP_DX = 8;
 
 // True when a single-channel tracked edge's risers are near-aligned enough to collapse to one
@@ -335,24 +285,6 @@ const STRAIGHT_SNAP_DX = 8;
 // snap boundary can be exercised directly without contorting a diagram layout.
 export function straightenTrackedX(exitLo, entryU, uLo, uHi) {
   return Math.abs(exitLo - entryU) <= STRAIGHT_SNAP_DX && exitLo >= uLo && exitLo <= uHi;
-}
-
-// One vertical-x registry per channel: every riser/trunk/stub in a channel draws from the same
-// pool, so two verticals of different edges can never be collinear. Each caller stays inside its
-// own card footprint via [lo, hi].
-function makeSlots() {
-  const used = new Map(); // channel -> xs[]
-  return (chan, want, lo, hi, pitch = 6) => {
-    if (!used.has(chan)) used.set(chan, []);
-    const xs = used.get(chan);
-    let x = Math.min(hi, Math.max(lo, want));
-    for (let k = 0; k < 120; k++) {
-      const step = Math.ceil(k / 2) * pitch * (k % 2 ? 1 : -1);
-      const cand = Math.min(hi, Math.max(lo, x + step));
-      if (xs.every((u) => Math.abs(u - cand) >= pitch - 0.5)) { xs.push(cand); return cand; }
-    }
-    xs.push(x); return x; // saturated: accept (cards are wide enough in practice)
-  };
 }
 
 function roundedOrtho(pts, r = 8) {
@@ -379,21 +311,6 @@ const segsOf = (pts, edge) => {
   return out;
 };
 
-function laneLabels(L, custom) {
-  if (Array.isArray(custom) && custom.length) {
-    const out = custom.slice(0, L).map(String);
-    while (out.length < L) out.push(`Layer ${out.length}`);
-    return out;
-  }
-  if (L === 1) return ["Workload root"];
-  if (L === 2) return ["Workload root", "Application components"];
-  if (L === 3) return ["Workload root", "Business & user flows", "Application components"];
-  const middle = ["Business & user flows", "Application components", "Dependencies", "Subsystems"];
-  const out = ["Workload root"];
-  for (let i = 0; i < L - 1; i++) out.push(middle[i] || `Layer ${i + 1}`);
-  return out.slice(0, L);
-}
-
 // Heuristic used by the CLI's auto renderer selection.
 export function looksLikeHealthModel(code) {
   const { body } = splitFrontmatter(code);
@@ -419,7 +336,47 @@ export function renderSwimlane(code, opts = {}) {
 
   // ----- measure cards -----
   const size = new Map();
-  for (const [id, n] of g.nodes) size.set(id, measureNode(n, diag));
+  for (const [id, n] of g.nodes) {
+    const rawLines = n.lines.filter((l) => !STATE_WORDS.has(l.toLowerCase()));
+    const name = rawLines[0] || n.lines[0] || n.id;
+    const qualifierRaw = rawLines.slice(1).map((l) => l.replace(/[()]/g, "")).join(" · ") || null;
+    const statePillW = 20 + textWidth(STATE_LABEL[n.state] || "Unknown", PILL_FS) + 8;
+    const sigs = n.signals || [];
+
+    // natural (unwrapped) width demands. The subtitle's width demand is capped at SUBTITLE_MAX_W so
+    // a long subtitle wraps (and the card grows taller) instead of widening the card to fit one line.
+    const headerFixed = 34 + 8 + statePillW + 8;
+    const subCol = qualifierRaw ? Math.min(textWidth(qualifierRaw, QUAL_FS), SUBTITLE_MAX_W) : 0;
+    const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), subCol * HEADER_SAFETY);
+    const rowFixed = 52 + 16 + 12;
+    let rowsNat = 0;
+    for (const r of sigs) rowsNat = Math.max(rowsNat, rowFixed + textWidth(r.name, ROW_FS) + textWidth(r.result ?? "", ROW_FS, 600));
+    const w = Math.min(CARD_MAX_W, Math.max(CARD_MIN_W, Math.ceil(Math.max(headerNat, rowsNat))));
+
+    // wrap into the final width
+    const nameAvail = w - headerFixed;
+    // Entity titles are never truncated. Past the width cap they add header lines, preserving the
+    // complete title while keeping the diagram horizontally compact.
+    const nameWrap = wrapText(name, nameAvail, NAME_FS, { weight: 600, maxLines: Infinity });
+    // Subtitles are never truncated: wrap at word boundaries into the bounded column with no line
+    // limit, growing the card taller. Over-long unbroken tokens hard-break inside the column.
+    let qualWrap = null;
+    if (qualifierRaw) qualWrap = wrapText(qualifierRaw, Math.min(nameAvail, SUBTITLE_MAX_W), QUAL_FS, { maxLines: Infinity });
+    const rows = sigs.map((r) => {
+      const resultW = textWidth(r.result ?? "", ROW_FS, 600);
+      const avail = w - rowFixed - resultW;
+      const wrap = wrapText(r.name, avail, ROW_FS, { maxLines: 2 });
+      if (wrap.clipped) diag.warn(`signal row "${r.name.slice(0, 40)}…" on "${n.id}" clipped (full text kept as tooltip)`);
+      return { ...r, lines: wrap.lines, clipped: wrap.clipped, rowH: 18 + 13 * (wrap.lines.length - 1), resultW };
+    });
+
+    const headerContentH = nameWrap.lines.length * 14 + (qualWrap ? qualWrap.lines.length * 11 : 0);
+    const headerH = Math.max(34, headerContentH + 14);
+    const h = rows.length
+      ? headerH + 3 + 6 + rows.reduce((a, r) => a + r.rowH, 0) + 6
+      : Math.max(58, headerContentH + 26);
+    size.set(id, { w, h, headerH, name, nameWrap, qualWrap, statePillW, rows });
+  }
   diag.info(`graph: ${g.nodes.size} nodes, ${g.edges.length} edges, ${L} lanes`);
 
   // ----- x coordinates (variable widths, no overlap by construction) -----
@@ -454,18 +411,23 @@ export function renderSwimlane(code, opts = {}) {
   }
 
   // ----- corridor + slot planning (x only; ys come after channel heights are known) -----
-  const cardsInLane = (j) => laneNodes[j].map((id) => ({ id, x: X.get(id) - size.get(id).w / 2, w: size.get(id).w }));
-  const corridorCache = new Map();
+  const corridorCache = new Map(); // lane -> corridors (gaps between that lane's cards)
   const corridorTaken = new Map(); // lane -> xs
-  const corr = (j, want) => {
-    if (!corridorCache.has(j)) corridorCache.set(j, corridorsOf(cardsInLane(j)));
-    if (!corridorTaken.has(j)) corridorTaken.set(j, []);
-    const x = pickCorridorX(corridorCache.get(j), want, corridorTaken.get(j));
-    if (x == null) return want; // no corridor: fall back (verifier will flag if it matters)
-    corridorTaken.get(j).push(x);
-    return x;
+  // One vertical-x registry per channel: every riser/trunk/stub in a channel draws from the same
+  // pool, so two verticals of different edges can never be collinear. Each caller stays inside its
+  // own card footprint via [lo, hi].
+  const usedSlotXs = new Map(); // channel -> xs[]
+  const slots = (chan, want, lo, hi, pitch = 6) => {
+    if (!usedSlotXs.has(chan)) usedSlotXs.set(chan, []);
+    const xs = usedSlotXs.get(chan);
+    let x = Math.min(hi, Math.max(lo, want));
+    for (let k = 0; k < 120; k++) {
+      const step = Math.ceil(k / 2) * pitch * (k % 2 ? 1 : -1);
+      const cand = Math.min(hi, Math.max(lo, x + step));
+      if (xs.every((u) => Math.abs(u - cand) >= pitch - 0.5)) { xs.push(cand); return cand; }
+    }
+    xs.push(x); return x; // saturated: accept (cards are wide enough in practice)
   };
-  const slots = makeSlots();
   const nodeRange = (id) => { const s = size.get(id); return [X.get(id) - s.w / 2 + 12, X.get(id) + s.w / 2 - 12]; };
   const topSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
   const botSlot = (chan, id, want) => { const [lo, hi] = nodeRange(id); return slots(chan, want, lo, hi); };
@@ -538,23 +500,26 @@ export function renderSwimlane(code, opts = {}) {
       for (let j = t.l - 1; j > t.u; j--) {
         const frac = (t.l - j) / (t.l - t.u);
         const want = locx + (ucx - locx) * frac;
-        t.corr[j] = corr(j, want);
+        if (!corridorCache.has(j)) corridorCache.set(j, corridorsOf(laneNodes[j].map((id) => ({ id, x: X.get(id) - size.get(id).w / 2, w: size.get(id).w }))));
+        if (!corridorTaken.has(j)) corridorTaken.set(j, []);
+        const x = pickCorridorX(corridorCache.get(j), want, corridorTaken.get(j));
+        if (x != null) corridorTaken.get(j).push(x);
+        t.corr[j] = x ?? want; // no corridor: fall back (verifier will flag if it matters)
       }
       t.entryU = botSlot(t.u, uNode, t.corr[t.u + 1] ?? locx);
       // Exit at the child's own center when it has a single tracked edge (keeps risers spread out
       // across children); when the child has several, pull each exit toward its parent so sibling
       // risers separate. Lane-skippers aim at their first corridor.
       const loW = size.get(loNode).w;
-      const spread = (() => {
-        if (trackedPerChild.get(loNode) <= 1) return locx;
+      let spread = locx;
+      const placement = trackedSiblingPlacement.get(t.e);
+      if (!(trackedPerChild.get(loNode) <= 1) && placement) {
         const span = Math.max(0, loW / 2 - 14);
-        const placement = trackedSiblingPlacement.get(t.e);
-        if (!placement) return locx;
         const step = placement.count > 1 ? Math.min(44, span / (placement.count - 1)) : 0;
         const offset = placement.side < 0 ? placement.index * step : -placement.index * step;
         const edgeX = locx + placement.side * span + offset;
-        return Math.max(locx - span, Math.min(locx + span, edgeX));
-      })();
+        spread = Math.max(locx - span, Math.min(locx + span, edgeX));
+      }
       t.exitLo = topSlot(t.l - 1, loNode, t.corr[t.l - 1] ?? spread);
       t.channels = [];
       for (let gph = t.u; gph <= t.l - 1; gph++) {
@@ -827,7 +792,20 @@ export function renderSwimlane(code, opts = {}) {
   // routing, edge colors, node order, or height — false merely trims the reclaimed gutter off the
   // right edge (W shrinks by exactly gutterW) and skips the label <text>. Bands/hairlines remain.
   const showLabels = opts.laneLabels !== false;
-  const labels = laneLabels(L, opts.lanes);
+  // lane names top to bottom: custom `lanes` (padded with "Layer n"), else defaults by depth
+  let labels;
+  if (Array.isArray(opts.lanes) && opts.lanes.length) {
+    labels = opts.lanes.slice(0, L).map(String);
+    while (labels.length < L) labels.push(`Layer ${labels.length}`);
+  } else if (L === 1) labels = ["Workload root"];
+  else if (L === 2) labels = ["Workload root", "Application components"];
+  else if (L === 3) labels = ["Workload root", "Business & user flows", "Application components"];
+  else {
+    const middle = ["Business & user flows", "Application components", "Dependencies", "Subsystems"];
+    labels = ["Workload root"];
+    for (let i = 0; i < L - 1; i++) labels.push(middle[i] || `Layer ${i + 1}`);
+    labels = labels.slice(0, L);
+  }
   const labelWraps = labels.map((l) => wrapText(l, 150, 13, { weight: 600, maxLines: 3 }).lines);
   const gutterW = showLabels
     ? Math.max(120, ...labelWraps.map((ls) => Math.max(...ls.map((s) => textWidth(s, 13, 600))))) + 48
@@ -938,9 +916,72 @@ export function renderSwimlane(code, opts = {}) {
     }
   }
   for (const [id, n] of g.nodes) {
-    const b = box.get(id), s = size.get(id);
-    out.push(entityCard(T, n, { ...b, x: b.x - tx, cx: b.cx - tx }, s, debug, b));
-    debug.cards.push({ id, x: b.x, y: b.y, w: b.w, h: b.h, headerH: s.headerH, qualLines: s.qualWrap ? s.qualWrap.lines.length : 0, lane: lane.get(id) });
+    // card in the translated group's local coords (b); absB stays in final coords for debug boxes
+    const absB = box.get(id), s = size.get(id);
+    const b = { ...absB, x: absB.x - tx, cx: absB.cx - tx };
+    const st = T.state[n.state] || T.state.unknown;
+    const dash = st.dash ? ` stroke-dasharray="${st.dash}"` : "";
+    const p = [];
+    const dbgText = (localX, topY, w, h, text) =>
+      debug.texts.push({ x: localX + (absB.x - b.x), y: topY, w, h, text, container: { x: absB.x, y: absB.y, w: absB.w, h: absB.h } });
+
+    p.push(`<g filter="url(#cs)"><rect x="${b.x.toFixed(1)}" y="${b.y.toFixed(1)}" width="${b.w}" height="${b.h}" rx="10" fill="${st.fill}" stroke="${st.border}" stroke-width="2"${dash}/></g>`);
+
+    const headerH = s.rows.length ? s.headerH : b.h;
+    const headerMid = b.y + headerH / 2;
+    const iconScale = 0.82;
+    const lowerName = s.name.toLowerCase();
+    const iconName = ICON_KEYWORDS.find(([, words]) => words.some((w) => lowerName.includes(w)))?.[0] ?? "cube";
+    const iconStroke = `fill="none" stroke="${T.muted}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"`;
+    p.push(`<g transform="translate(${(b.x + 6).toFixed(1)},${(headerMid - 12 * iconScale).toFixed(2)}) scale(${iconScale})">${ICON_PATHS[iconName].replaceAll("%S%", iconStroke)}</g>`);
+
+    const px = b.x + b.w - s.statePillW - 8;
+    const nameX = b.x + 34;
+    const blockH = s.nameWrap.lines.length * 14 + (s.qualWrap ? s.qualWrap.lines.length * 11 : 0);
+    let ty = headerMid - blockH / 2 + 10.5;
+    const nameTitle = s.nameWrap.clipped ? `<title>${esc(s.name)}</title>` : "";
+    s.nameWrap.lines.forEach((line) => {
+      p.push(`<text x="${nameX.toFixed(1)}" y="${ty.toFixed(1)}" font-size="${NAME_FS}" font-weight="600" fill="${T.ink}">${esc(line)}${nameTitle && line === s.nameWrap.lines[0] ? nameTitle : ""}</text>`);
+      dbgText(nameX, ty - 10.5, textWidth(line, NAME_FS, 600), 14, line);
+      ty += 14;
+    });
+    if (s.qualWrap) {
+      s.qualWrap.lines.forEach((line) => {
+        p.push(`<text x="${nameX.toFixed(1)}" y="${(ty - 2).toFixed(1)}" font-size="${QUAL_FS}" fill="${T.muted}">${esc(line)}</text>`);
+        dbgText(nameX, ty - 2 - 8, textWidth(line, QUAL_FS), 10, line);
+        ty += 11;
+      });
+    }
+    p.push(`<rect x="${px.toFixed(1)}" y="${(headerMid - 9).toFixed(2)}" width="${s.statePillW.toFixed(1)}" height="18" rx="9" fill="${T.pillFill}" stroke="${st.border}" stroke-width="1"/>`);
+    debug.statusPills.push({ x: px + (absB.x - b.x), y: headerMid - 9, w: s.statePillW, h: 18, id: n.id, container: { x: absB.x, y: absB.y, w: absB.w, h: absB.h } });
+    p.push(statusDot(T, n.state, px + 11, headerMid));
+    const stLabel = STATE_LABEL[n.state] || "Unknown";
+    p.push(`<text x="${(px + 20).toFixed(1)}" y="${(headerMid + PILL_FS * 0.34).toFixed(2)}" font-size="${PILL_FS}" fill="${T.laneLabel}">${stLabel}</text>`);
+    dbgText(px + 20, headerMid - 6, textWidth(stLabel, PILL_FS), 12, stLabel);
+
+    if (s.rows.length) {
+      const tY = b.y + s.headerH + 3;
+      p.push(`<line x1="${(b.x + 1).toFixed(1)}" y1="${tY.toFixed(1)}" x2="${(b.x + b.w - 1).toFixed(1)}" y2="${tY.toFixed(1)}" stroke="${T.hair}"/>`);
+      const iconX = b.x + 32, nameX2 = b.x + 52, resX = b.x + b.w - 12;
+      let top = tY + 6;
+      s.rows.forEach((r, i) => {
+        const ry = top + 9; // first-line center
+        if (i > 0) p.push(`<line x1="${(b.x + 10).toFixed(1)}" y1="${(top - 0).toFixed(1)}" x2="${(b.x + b.w - 10).toFixed(1)}" y2="${top.toFixed(1)}" stroke="${T.hair}" stroke-opacity="0.7"/>`);
+        p.push(statusDot(T, r.state, b.x + 16, ry));
+        p.push(metricIcon(T, iconX, ry - 7, 14));
+        const rowTitle = r.clipped ? `<title>${esc(r.name)}</title>` : "";
+        r.lines.forEach((line, k) => {
+          p.push(`<text x="${nameX2.toFixed(1)}" y="${(ry + 3.5 + k * 13).toFixed(1)}" font-size="${ROW_FS}" fill="${T.ink}">${esc(line)}${k === 0 ? rowTitle : ""}</text>`);
+          dbgText(nameX2, ry + 3.5 + k * 13 - 9, textWidth(line, ROW_FS), 11, line);
+        });
+        const rs = T.state[r.state] || T.state.healthy;
+        p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.dot}" text-anchor="end">${esc(r.result ?? "")}</text>`);
+        dbgText(resX - r.resultW, ry - 5.5, r.resultW, 11, r.result ?? "");
+        top += r.rowH;
+      });
+    }
+    out.push(p.join(""));
+    debug.cards.push({ id, x: absB.x, y: absB.y, w: absB.w, h: absB.h, headerH: s.headerH, qualLines: s.qualWrap ? s.qualWrap.lines.length : 0, lane: lane.get(id) });
   }
   out.push(`</g></svg>`);
   const svg = out.join("\n");
@@ -960,67 +1001,4 @@ function statusDot(T, state, cx, cy) {
     return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="6" fill="${st.dot}"/><path d="M${(cx - 2.7).toFixed(1)} ${cy.toFixed(1)} l1.9 1.9 l3.4 -3.9" fill="none" stroke="${T.bg}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>`;
   }
   return `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="6" fill="${st.dot}"/>`;
-}
-
-// b is in local (translated-group) coords; absB in final coords for debug text boxes
-function entityCard(T, n, b, s, debug, absB) {
-  const st = T.state[n.state] || T.state.unknown;
-  const dash = st.dash ? ` stroke-dasharray="${st.dash}"` : "";
-  const p = [];
-  const dbgText = (localX, topY, w, h, text) =>
-    debug.texts.push({ x: localX + (absB.x - b.x), y: topY, w, h, text, container: { x: absB.x, y: absB.y, w: absB.w, h: absB.h } });
-
-  p.push(`<g filter="url(#cs)"><rect x="${b.x.toFixed(1)}" y="${b.y.toFixed(1)}" width="${b.w}" height="${b.h}" rx="10" fill="${st.fill}" stroke="${st.border}" stroke-width="2"${dash}/></g>`);
-
-  const headerH = s.rows.length ? s.headerH : b.h;
-  const headerMid = b.y + headerH / 2;
-  const iconScale = 0.82;
-  p.push(`<g transform="translate(${(b.x + 6).toFixed(1)},${(headerMid - 12 * iconScale).toFixed(2)}) scale(${iconScale})">${icon(pickIcon(s.name), T.muted)}</g>`);
-
-  const px = b.x + b.w - s.statePillW - 8;
-  const nameX = b.x + 34;
-  const blockH = s.nameWrap.lines.length * 14 + (s.qualWrap ? s.qualWrap.lines.length * 11 : 0);
-  let ty = headerMid - blockH / 2 + 10.5;
-  const nameTitle = s.nameWrap.clipped ? `<title>${esc(s.name)}</title>` : "";
-  s.nameWrap.lines.forEach((line) => {
-    p.push(`<text x="${nameX.toFixed(1)}" y="${ty.toFixed(1)}" font-size="${NAME_FS}" font-weight="600" fill="${T.ink}">${esc(line)}${nameTitle && line === s.nameWrap.lines[0] ? nameTitle : ""}</text>`);
-    dbgText(nameX, ty - 10.5, textWidth(line, NAME_FS, 600), 14, line);
-    ty += 14;
-  });
-  if (s.qualWrap) {
-    s.qualWrap.lines.forEach((line) => {
-      p.push(`<text x="${nameX.toFixed(1)}" y="${(ty - 2).toFixed(1)}" font-size="${QUAL_FS}" fill="${T.muted}">${esc(line)}</text>`);
-      dbgText(nameX, ty - 2 - 8, textWidth(line, QUAL_FS), 10, line);
-      ty += 11;
-    });
-  }
-  p.push(`<rect x="${px.toFixed(1)}" y="${(headerMid - 9).toFixed(2)}" width="${s.statePillW.toFixed(1)}" height="18" rx="9" fill="${T.pillFill}" stroke="${st.border}" stroke-width="1"/>`);
-  debug.statusPills.push({ x: px + (absB.x - b.x), y: headerMid - 9, w: s.statePillW, h: 18, id: n.id, container: { x: absB.x, y: absB.y, w: absB.w, h: absB.h } });
-  p.push(statusDot(T, n.state, px + 11, headerMid));
-  const stLabel = STATE_LABEL[n.state] || "Unknown";
-  p.push(`<text x="${(px + 20).toFixed(1)}" y="${(headerMid + PILL_FS * 0.34).toFixed(2)}" font-size="${PILL_FS}" fill="${T.laneLabel}">${stLabel}</text>`);
-  dbgText(px + 20, headerMid - 6, textWidth(stLabel, PILL_FS), 12, stLabel);
-
-  if (s.rows.length) {
-    const tY = b.y + s.headerH + 3;
-    p.push(`<line x1="${(b.x + 1).toFixed(1)}" y1="${tY.toFixed(1)}" x2="${(b.x + b.w - 1).toFixed(1)}" y2="${tY.toFixed(1)}" stroke="${T.hair}"/>`);
-    const iconX = b.x + 32, nameX2 = b.x + 52, resX = b.x + b.w - 12;
-    let top = tY + 6;
-    s.rows.forEach((r, i) => {
-      const ry = top + 9; // first-line center
-      if (i > 0) p.push(`<line x1="${(b.x + 10).toFixed(1)}" y1="${(top - 0).toFixed(1)}" x2="${(b.x + b.w - 10).toFixed(1)}" y2="${top.toFixed(1)}" stroke="${T.hair}" stroke-opacity="0.7"/>`);
-      p.push(statusDot(T, r.state, b.x + 16, ry));
-      p.push(metricIcon(T, iconX, ry - 7, 14));
-      const rowTitle = r.clipped ? `<title>${esc(r.name)}</title>` : "";
-      r.lines.forEach((line, k) => {
-        p.push(`<text x="${nameX2.toFixed(1)}" y="${(ry + 3.5 + k * 13).toFixed(1)}" font-size="${ROW_FS}" fill="${T.ink}">${esc(line)}${k === 0 ? rowTitle : ""}</text>`);
-        dbgText(nameX2, ry + 3.5 + k * 13 - 9, textWidth(line, ROW_FS), 11, line);
-      });
-      const rs = T.state[r.state] || T.state.healthy;
-      p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.dot}" text-anchor="end">${esc(r.result ?? "")}</text>`);
-      dbgText(resX - r.resultW, ry - 5.5, r.resultW, 11, r.result ?? "");
-      top += r.rowH;
-    });
-  }
-  return p.join("");
 }
