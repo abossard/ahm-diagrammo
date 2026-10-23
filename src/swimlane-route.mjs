@@ -133,9 +133,28 @@ function assignRows(nets) {
   return rows.length;
 }
 
-// ctx: { g, lane, laneNodes, X, size, diag }. Returns { chanH(g), realize({ chanTop, box }) }.
+// SVG path through orthogonal points with every corner rounded to radius r (smaller where a leg is short)
+export function roundedOrtho(pts, r = 8) {
+  if (pts.length < 2) return "";
+  let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i = 1; i < pts.length - 1; i++) {
+    const p = pts[i], a = pts[i - 1], b = pts[i + 1];
+    const d1 = Math.hypot(p.x - a.x, p.y - a.y), d2 = Math.hypot(b.x - p.x, b.y - p.y);
+    const rr = Math.min(r, d1 / 2, d2 / 2);
+    const u1x = (p.x - a.x) / (d1 || 1), u1y = (p.y - a.y) / (d1 || 1);
+    const u2x = (b.x - p.x) / (d2 || 1), u2y = (b.y - p.y) / (d2 || 1);
+    d += ` L${(p.x - u1x * rr).toFixed(1)} ${(p.y - u1y * rr).toFixed(1)} Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${(p.x + u2x * rr).toFixed(1)} ${(p.y + u2y * rr).toFixed(1)}`;
+  }
+  const last = pts[pts.length - 1];
+  d += ` L${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
+  return d;
+}
+
+// ctx: { g, lane, laneNodes, X, size, diag, pillSize? }. pillSize(e) → { w, h } replaces the
+// swimlane pill measurement for callers that draw their own labels.
+// Returns { chanH(g), realize({ chanTop, box }) }.
 // realize returns { routes: [{ e, pts }] in draw order, pills: [{ e, x, y, w, h, lines, clipped }] }.
-export function planRoutes({ g, lane, laneNodes, X, size, diag }) {
+export function planRoutes({ g, lane, laneNodes, X, size, diag, pillSize = null }) {
   const span = (id) => [X.get(id) - size.get(id).w / 2 + PORT_INSET, X.get(id) + size.get(id).w / 2 - PORT_INSET];
 
   // ----- classify: every drawable edge becomes a route from a lower card `lo` to an upper `up` -----
@@ -155,6 +174,12 @@ export function planRoutes({ g, lane, laneNodes, X, size, diag }) {
   // ----- label pills (measured here: their size shapes the channel) -----
   for (const r of routes) {
     if (!r.e.label) continue;
+    if (pillSize) {
+      ({ w: r.pillW, h: r.pillH } = pillSize(r.e));
+      r.pillLines = [r.e.label];
+      r.pillClipped = false;
+      continue;
+    }
     // long labels wrap to two lines: a 300px pill can never dodge risers ~200px apart,
     // a 160px one can — and the full text stays visible
     let wrap = wrapText(r.e.label, 170, PILL_FS, { weight: 600, maxLines: 2 });
@@ -225,7 +250,7 @@ export function planRoutes({ g, lane, laneNodes, X, size, diag }) {
     for (const [k, list] of sides) {
       const [id, side] = k.split("|");
       if (side !== "top") continue;
-      placeSide(id, list, (p, slot, lo, hi) => (p.far >= lo && p.far <= hi ? { x: p.far, w: STRAIGHT_WEIGHT } : { x: slot, w: 1 }));
+      placeSide(id, list, (p, slot, lo, hi) => (p.far >= lo - 0.5 && p.far <= hi + 0.5 ? { x: p.far, w: STRAIGHT_WEIGHT } : { x: slot, w: 1 }));
     }
   };
   placePorts();

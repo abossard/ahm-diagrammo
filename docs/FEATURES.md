@@ -499,7 +499,9 @@ in-card Signal/Value/State tables, laid out by Pele, with the AHM legend footer.
 
 - `renderAhm(source, options?)` returns `{ svg, width, height, diagnostics }`, and includes `trace` when `options.nested` is provided.
 - `parseAhmSource(source, options?)` validates and normalizes AHM semantics
-- `buildPeleAhmSource(model, options?)` emits Pele-compatible source
+- `buildPeleAhmSource(model, options?)` emits Pele-compatible source; `laneBands: true` (with
+  `lanes: true`) emits inferred lanes as flat rows plus `bands`, and `lanePins` adds invisible
+  links that pin cards to their level's row
 - `getAhmPalette(themeName, colors?)` returns semantic color tokens
 - `ahm-diagrammo/styles.css` ships scoped AHM state classes
 
@@ -523,7 +525,13 @@ in-card Signal/Value/State tables, laid out by Pele, with the AHM legend footer.
 - Legend footer is enabled by default and removable with `legend: false`
 - Table column headers are enabled by default and optional with `tableHeaders: false`
 - Direction preserved for `TB`, `TD`, `BT`, `LR`, `RL`
-- Optional lanes via `lanes: true` using ordinary flowchart compound regions (subgraph groups)
+- Optional lanes via `lanes: true`. Authored top-level `subgraph`s are the lanes and stay Pele
+  subgraph groups. Without them, lanes are roll-up levels (`Level n`, the longest path to a
+  root): each is one row of Pele's layout, drawn as a band with its label in a gutter after the
+  content, and the connectors between bands are routed by the swimlane channel router (own port per
+  edge, no two connectors running along each other, labels never crossed, rounded corners). Rows
+  that do not line up, or a cycle without a root, fall back to subgraph groups with an `info`
+  diagnostic. Why: [ROUTING.md](ROUTING.md#the-pele-looks-lanes).
 - Optional nested projection via `nested` with model registration (`state`, optional `detailRef`) and `expanded`/`collapsed`/`detail` views
 - Nested trace keeps stable dependency index, authored endpoints/labels/dashes, original and displayed source states, and rendered/detail-only/outside-focus relationship kind
 - Nested model self-edge contract: authored model self-edge is supported in `collapsed` view; for `expanded` or `detail` it fails explicitly with named unsupported diagnostics (`unsupported-model-group-self-edge:<modelId>:<mode>`), with no success-shaped partial output fallback.

@@ -422,6 +422,12 @@ export function parseAhmSource(source, options = {}) {
 export function buildPeleAhmSource(model, options = {}) {
   const theme = options.theme ?? "portal";
   const lanes = options.lanes ?? false;
+  // laneBands: inferred lanes become flat rows that renderAhm draws itself (Pele's subgraph
+  // layout bends every edge that crosses a lane border); authored lanes stay subgraphs
+  const bandsWanted = lanes && options.laneBands === true &&
+    (model.explicitLanes?.length ?? 0) === 0 && model.topLaneByEntity.size === 0;
+  let bands = null;
+  const levelByEntity = new Map();
   const direction = normalizeDirection(options.direction ?? model.direction ?? "BT");
   const palette = getAhmPalette(theme, options.colors);
   const laneDiagnostics = [];
@@ -451,9 +457,34 @@ export function buildPeleAhmSource(model, options = {}) {
         inBy.get(dep.to)?.push(dep.from);
       }
       const roots = model.entities.filter((e) => (outBy.get(e.id) ?? []).length === 0);
-      if (roots.length === 0) {
+      if (bandsWanted && roots.length > 0) {
+        // a card always sits below all of its parents, so a lane that is one row needs the
+        // longest roll-up path to a root; a cycle has no consistent level and keeps subgraphs
+        const visiting = new Set();
+        const longest = (id) => {
+          if (levelByEntity.has(id)) return levelByEntity.get(id);
+          if (visiting.has(id)) return null;
+          visiting.add(id);
+          let level = 0;
+          for (const parent of outBy.get(id) ?? []) {
+            const up = longest(parent);
+            if (up == null) { visiting.delete(id); return null; }
+            level = Math.max(level, up + 1);
+          }
+          visiting.delete(id);
+          levelByEntity.set(id, level);
+          return level;
+        };
+        if (model.entities.every((entity) => longest(entity.id) != null)) {
+          for (const entity of model.entities) laneByEntity.set(entity.id, `Level ${levelByEntity.get(entity.id)}`);
+          bands = [];
+        } else {
+          levelByEntity.clear();
+        }
+      }
+      if (!bands && roots.length === 0) {
         laneDiagnostics.push({ level: "warn", message: "lane inference fallback: cycle has no roll-up root, using unnamed lane" });
-      } else {
+      } else if (!bands) {
         const dist = new Map();
         const queue = roots.map((e) => ({ id: e.id, d: 0 }));
         for (const root of roots) dist.set(root.id, 0);
@@ -519,7 +550,8 @@ export function buildPeleAhmSource(model, options = {}) {
     for (const [laneName, entities] of lanesByName.entries()) {
       const laneId = `lane_${i}`;
       const label = laneName === "__ahm_ungrouped" ? "Ungrouped" : (model.topLaneLabels.get(laneName) ?? laneName);
-      lines.push(`subgraph ${laneId}["${escapeClassContent(label)}"]`);
+      if (bands) bands.push({ id: laneId, label, level: levelByEntity.get(entities[0].id), entityIds: entities.map((entity) => entity.id) });
+      else lines.push(`subgraph ${laneId}["${escapeClassContent(label)}"]`);
       for (const entity of entities) {
         const customLabel = options.reservation?.entityLabels?.get(entity.id);
         const labelParts = customLabel ? [customLabel] : buildEntityReservationLines(entity);
@@ -527,7 +559,7 @@ export function buildPeleAhmSource(model, options = {}) {
         lines.push(`class ${entity.id} ahm_${entity.state};`);
         if (options.reservation?.classDef) lines.push(`class ${entity.id} ahm_card;`);
       }
-      lines.push("end");
+      if (!bands) lines.push("end");
       i += 1;
     }
   } else {
@@ -549,8 +581,15 @@ export function buildPeleAhmSource(model, options = {}) {
     lines.push(`linkStyle ${index} stroke:${color},stroke-width:2px;`);
   });
 
+  if (bands) {
+    // invisible links that lift a card onto its own level's row, chosen by the caller from a
+    // measured layout; emitted after every real edge, so the linkStyle indices above stay valid
+    for (const [anchor, id] of options.lanePins ?? []) lines.push(`${anchor} ~~~ ${id}`);
+  }
+
   return {
     source: lines.join("\n"),
     diagnostics: [...model.diagnostics, ...laneDiagnostics],
+    ...(bands ? { bands } : {}),
   };
 }

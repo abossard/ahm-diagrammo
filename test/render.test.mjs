@@ -340,6 +340,41 @@ function bitmapPixelToUserSpace(x, y, image) {
   };
 }
 
+// Inferred lanes are drawn as bands and their connectors routed between them: no two connectors
+// run along each other (within 3px for 10px, away from the cards) and none crosses another's label.
+function assertLaneRoutesApart(svg, nodes, context) {
+  const densify = (points) => points.flatMap((p, i) => {
+    if (i === 0) return [p];
+    const a = points[i - 1], steps = Math.max(1, Math.ceil(Math.hypot(p.x - a.x, p.y - a.y) / 3));
+    return Array.from({ length: steps }, (_, k) => ({ x: a.x + ((p.x - a.x) * (k + 1)) / steps, y: a.y + ((p.y - a.y) * (k + 1)) / steps }));
+  });
+  const nearCard = (p) => nodes.some((n) => p.x > n.x - 14 && p.x < n.x + n.w + 14 && p.y > n.y - 14 && p.y < n.y + n.h + 14);
+  const edges = parseEdgeGroups(svg).map((edge) => ({
+    id: edge.attrs.match(/\bdata-id="([^"]+)"/)?.[1],
+    pathD: edge.pathD,
+    points: pathToPolyline(edge.pathD, 24),
+  }));
+  for (const a of edges) {
+    const own = densify(a.points);
+    for (const b of edges) {
+      if (a === b) continue;
+      // length of a's path within 3px of b: a crossing contributes about 6px, running along 10px+
+      let run = 0;
+      own.forEach((p, k) => {
+        const along = !nearCard(p) && b.points.some((q, i) => i > 0 && distancePointToSegment(p, b.points[i - 1], q) < 3);
+        run = along && k > 0 ? run + Math.hypot(p.x - own[k - 1].x, p.y - own[k - 1].y) : 0;
+        assert.ok(run < 10, `${context}: ${a.id} runs along ${b.id} near (${p.x.toFixed(0)},${p.y.toFixed(0)})`);
+      });
+    }
+  }
+  for (const target of parseEdgeLabelTargets(svg)) {
+    for (const edge of edges) {
+      if (edge.id === target.id) continue;
+      assert.equal(pathIntersectsRect(edge.pathD, target.rect, -1), false, `${context}: ${edge.id} crosses the label of ${target.id}`);
+    }
+  }
+}
+
 function collectGeometrySignature(svg) {
   const nodes = parseNodeRects(svg).map((node) => [node.id, node.x, node.y, node.w, node.h].join(":")).sort();
   const edges = parseEdgeGroups(svg).map((edge) => edge.pathD).sort();
@@ -385,6 +420,7 @@ for (const fixture of POSITIVE_FIXTURES) {
           assert.match(result.svg, /class="pele pele-flowchart ahm-root"/, `${label}: expected flowchart root class`);
           assert.match(result.svg, /<g class="pele-cluster" data-id="lane_0">/, `${label}: expected lane cluster`);
           assert.match(result.svg, /pele-cluster-label/, `${label}: expected lane labels`);
+          if (/<g transform="translate\([^)]*\)"><g class="pele-clusters">/.test(result.svg)) assertLaneRoutesApart(result.svg, nodes, label);
           assert.doesNotMatch(result.svg, /class="pele pele-swimlane/, `${label}: swimlane renderer should not be used`);
         } else {
           assert.doesNotMatch(result.svg, /data-id="lane_0"/, `${label}: lane clusters should be absent`);
@@ -397,16 +433,12 @@ for (const fixture of POSITIVE_FIXTURES) {
   }
 }
 
-test("route presentation falls back only on unsafe lanes-on edge and keeps lanes-off primary smooth path", () => {
+test("route presentation: lane-routed edges never need the card fallback, lanes-off primary keeps its smooth path", () => {
   const source = readAhmFixture("pills-stress-main.mmd");
   for (const direction of AHM_DIRECTIONS) {
     const lanesOn = renderAhm(source, { direction, lanes: true, idPrefix: `guard-on-${direction}` });
-    const unsafeNote = lanesOn.diagnostics.find((line) => typeof line === "string" && line.includes("[L_f_mid_0]") && line.includes("crosses-nonincident-card:"));
-    if (direction === "LR" || direction === "RL") {
-      assert.ok(unsafeNote, `expected explicit unsafe fallback note for L_f_mid_0 in direction=${direction}`);
-    } else {
-      assert.equal(unsafeNote, undefined, `expected compact spacing to keep L_f_mid_0 safe in direction=${direction}`);
-    }
+    const unsafeNote = lanesOn.diagnostics.find((line) => typeof line === "string" && line.includes("crosses-nonincident-card:"));
+    assert.equal(unsafeNote, undefined, `expected lane-routed edges to stay clear of other cards in direction=${direction}`);
   }
 
   const lanesOff = renderAhm(source, { direction: "BT", lanes: false, idPrefix: "guard-off" });

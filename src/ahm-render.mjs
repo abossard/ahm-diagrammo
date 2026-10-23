@@ -6,6 +6,7 @@ import { BASELINE_METRICS, alignPlanToReservationGrid, createAhmTextMeasurer, pl
 import { getAhmPalette, stateLabel } from "./ahm-tokens.mjs";
 import { getTheme } from "./themes.mjs";
 import { projectLabelCenterToRelaxedPath, relaxOrthogonalPath } from "./route-presentation.mjs";
+import { planRoutes, roundedOrtho } from "./swimlane-route.mjs";
 
 const ALLOWED_OPTION_KEYS = new Set([
   "theme",
@@ -29,6 +30,163 @@ const AHM_LAYOUT_CONFIG = Object.freeze({
   }),
 });
 const DEFAULT_FONT_FAMILY = "Segoe UI, Arial Unicode MS, Arial, sans-serif";
+// Inferred lanes are drawn as bands behind Pele's rows instead of Pele subgraphs (docs/ROUTING.md).
+const LANE_BAND_ROUNDS = 4;       // measure-and-pin rounds before falling back to lane subgraphs
+const LANE_BAND_PAD = 18;         // band padding around its cards along the layered axis
+const LANE_PORT_PITCH = 10, LANE_PORT_INSET = 12; // the channel router's port spacing and corner inset
+const LANE_CORNER_RADIUS = 20;    // corners of lane-routed edges; nested turns 10px apart stay ~10px apart
+
+// card boxes of a raw Pele SVG, by node id
+function peleNodeBoxes(svg) {
+  const boxes = new Map();
+  const pattern = /<g class="pele-node[^"]*" data-id="([^"]+)" transform="translate\(([-\d.]+),([-\d.]+)\)"><rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g;
+  for (const m of svg.matchAll(pattern)) {
+    const [cx, cy, rx, ry, w, h] = m.slice(2).map(Number);
+    boxes.set(m[1], { x: cx + rx, y: cy + ry, w, h });
+  }
+  return boxes;
+}
+
+// Every card that is not in its level's row. Pele can only push a card further out than its level,
+// never closer to the root, so level k belongs in the k-th row counted from the root's side.
+function laneBandMisfits(bands, boxes, vertical, rootAtStart) {
+  // cards of one row overlap along the axis; rows are a rank spacing apart
+  const lo = (b) => (vertical ? b.y : b.x), hi = (b) => (vertical ? b.y + b.h : b.x + b.w);
+  const ids = bands.flatMap((band) => band.entityIds).filter((id) => boxes.has(id));
+  const sorted = [...ids].sort((a, b) => lo(boxes.get(a)) - lo(boxes.get(b)));
+  const rowOf = new Map();
+  let row = 0, rowEnd = -Infinity;
+  for (const id of sorted) {
+    const b = boxes.get(id);
+    if (lo(b) >= rowEnd && rowEnd !== -Infinity) row += 1;
+    rowEnd = rowOf.size === 0 || lo(b) >= rowEnd ? hi(b) : Math.max(rowEnd, hi(b));
+    rowOf.set(id, row);
+  }
+  const expected = (level) => (rootAtStart ? level : row - level);
+  const misfits = [];
+  for (const band of bands) {
+    for (const id of band.entityIds) if (rowOf.has(id) && rowOf.get(id) !== expected(band.level)) misfits.push({ id, band });
+  }
+  return { misfits, rowOf, expected };
+}
+
+// Route the edges between lane bands with the swimlane channel router instead of Pele: the bands
+// are its lanes and Pele's card boxes stay, so every edge gets its own ports, nested rows apart
+// from its neighbours and a label spot no other edge crosses. Replaces each edge's path (corners
+// rounded, LANE_CORNER_RADIUS) and arrowhead and moves its label; returns { svg, routedIds },
+// { shortfall } when a channel needs that much more room between two rows, or null (Pele's routes
+// stay) when an edge is missing.
+function routeLaneBands(svg, bands, boxes, model, direction, notes) {
+  // router frame: lanes stack downward from the root's row, x runs across them
+  const toFrame = { BT: ([x, y]) => [x, y], TB: ([x, y]) => [x, -y], RL: ([x, y]) => [y, x], LR: ([x, y]) => [y, -x] }[direction];
+  const fromFrame = { BT: ([x, y]) => [x, y], TB: ([x, y]) => [x, -y], RL: ([x, y]) => [y, x], LR: ([x, y]) => [-y, x] }[direction];
+  const frameBox = (b) => {
+    const [x1, y1] = toFrame([b.x, b.y]), [x2, y2] = toFrame([b.x + b.w, b.y + b.h]);
+    const x = Math.min(x1, x2), y = Math.min(y1, y2), w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+    return { x, y, w, h, cx: x + w / 2, top: y, bottom: y + h };
+  };
+  const box = new Map([...boxes].map(([id, b]) => [id, frameBox(b)]));
+  const lane = new Map(), laneNodes = [];
+  for (const band of bands) {
+    laneNodes[band.level] = band.entityIds.filter((id) => box.has(id)).sort((a, b) => box.get(a).cx - box.get(b).cx);
+    for (const id of laneNodes[band.level]) lane.set(id, band.level);
+  }
+  const labelRects = new Map([...svg.matchAll(/<g class="pele-edge-label" data-id="([^"]+)"><rect x="([-\d.]+)" y="([-\d.]+)" width="([\d.]+)" height="([\d.]+)"/g)]
+    .map((m) => [m[1], frameBox({ x: +m[2], y: +m[3], w: +m[4], h: +m[5] })]));
+  // Pele names an edge L_<from>_<to>_<n>, n counting repeats of the same pair
+  const repeats = new Map();
+  const edges = [];
+  for (const dep of model.dependencies) {
+    const pair = `${dep.from}->${dep.to}`;
+    const n = repeats.get(pair) ?? 0;
+    repeats.set(pair, n + 1);
+    if (dep.from !== dep.to) edges.push({ from: dep.from, to: dep.to, label: dep.label || null, dashed: dep.dashed, peleId: `L_${dep.from}_${dep.to}_${n}` });
+  }
+  const plan = planRoutes({
+    g: { nodes: new Map(model.entities.map((entity) => [entity.id, { state: entity.state }])), edges },
+    lane,
+    laneNodes,
+    X: new Map([...box].map(([id, b]) => [id, b.cx])),
+    size: new Map([...box].map(([id, b]) => [id, { w: b.w, h: b.h }])),
+    diag: { warn: (message) => notes.push(`route presentation note: ${message}`), info() {} },
+    pillSize: (e) => labelRects.get(e.peleId) ?? { w: 40, h: 21 },
+  });
+  // each channel sits centered in the gap between its two rows
+  const rowEdge = (level, pick, side) => pick(...(laneNodes[level] ?? []).map((id) => box.get(id)[side]));
+  const tops = new Map();
+  let shortfall = 0;
+  for (let level = -1; level < laneNodes.length; level += 1) {
+    const need = plan.chanH(level);
+    if (!need) continue;
+    if (level < 0 || level + 1 >= laneNodes.length) return null;
+    const lo = rowEdge(level, Math.max, "bottom"), hi = rowEdge(level + 1, Math.min, "top");
+    shortfall = Math.max(shortfall, need - (hi - lo - 16));
+    tops.set(level, lo + (hi - lo - need) / 2);
+  }
+  if (shortfall > 0) return { shortfall };
+  const { routes, pills } = plan.realize({ chanTop: (level) => tops.get(level), box });
+
+  const point = ([x, y]) => `${formatNumber(x)},${formatNumber(y)}`;
+  let out = svg;
+  for (const { e, pts } of routes) {
+    const p = pts.map((pt) => fromFrame([pt.x, pt.y]));
+    // the arrowhead's tip touches the parent card; the line stops inside the arrowhead
+    const tip = p[p.length - 1], prev = p[p.length - 2];
+    const len = Math.hypot(tip[0] - prev[0], tip[1] - prev[1]) || 1;
+    const u = [(tip[0] - prev[0]) / len, (tip[1] - prev[1]) / len];
+    const base = [tip[0] - u[0] * 8, tip[1] - u[1] * 8], side = [-u[1] * 3.36, u[0] * 3.36];
+    const d = roundedOrtho([...p.slice(0, -1), [tip[0] - u[0] * 7, tip[1] - u[1] * 7]].map(([x, y]) => ({ x, y })), LANE_CORNER_RADIUS);
+    const marker = `M${point(tip)}L${point([base[0] + side[0], base[1] + side[1]])}L${point([base[0] - side[0], base[1] - side[1]])}Z`;
+    const group = new RegExp(`(<g class="pele-edge" data-id="${e.peleId}"[^>]*><path d=")[^"]*("[^>]*/><path class="pele-marker" d=")[^"]*"`);
+    if (!group.test(out)) return null;
+    out = out.replace(group, `$1${d}$2${marker}"`);
+  }
+  for (const pill of pills) {
+    const rect = labelRects.get(pill.e.peleId);
+    if (!rect) continue;
+    const [fx, fy] = fromFrame([pill.x, pill.y]), [rx, ry] = fromFrame([rect.cx, rect.y + rect.h / 2]);
+    const [dx, dy] = [fx - rx, fy - ry];
+    out = out.replace(new RegExp(`<g class="pele-edge-label" data-id="${pill.e.peleId}">[\\s\\S]*?</g>`), (labelGroup) =>
+      labelGroup.replace(/\b([xy])="([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)"/g, (_full, axis, raw) => `${axis}="${formatNumber(Number(raw) + (axis === "x" ? dx : dy))}"`));
+  }
+  return { svg: out, routedIds: new Set(routes.map(({ e }) => e.peleId)) };
+}
+
+// Draw each band as a lane box spanning the diagram across its row, its label in a gutter after
+// the content. Pele leaves only a small margin, so the drawing moves inward until every band has
+// its padding; returns the SVG, its new size and that shift.
+function drawLaneBands(svg, width, height, bands, boxes, vertical, measure, fontSize) {
+  const margin = 8, gutterGap = 16;
+  const along = (box) => (vertical ? [box.y, box.y + box.h] : [box.x, box.x + box.w]);
+  const across = (box) => (vertical ? [box.x, box.x + box.w] : [box.y, box.y + box.h]);
+  const spans = bands.map((band) => {
+    const ends = band.entityIds.filter((id) => boxes.has(id)).map((id) => along(boxes.get(id)));
+    return { band, lo: Math.min(...ends.map((e) => e[0])) - LANE_BAND_PAD, hi: Math.max(...ends.map((e) => e[1])) + LANE_BAND_PAD };
+  });
+  const [alongExtent, acrossExtent] = vertical ? [height, width] : [width, height];
+  const shiftAlong = Math.max(0, margin - Math.min(...spans.map((sp) => sp.lo)));
+  const shiftAcross = Math.max(0, margin + LANE_BAND_PAD - Math.min(...[...boxes.values()].map((box) => across(box)[0])));
+  const alongSize = Math.max(alongExtent, Math.max(...spans.map((sp) => sp.hi)) + margin) + shiftAlong;
+  const labelSize = vertical ? Math.max(...bands.map((band) => measure(band.label, fontSize))) : fontSize;
+  const acrossSize = acrossExtent + shiftAcross + gutterGap + labelSize + margin * 2;
+  // inside the shifted group: a band spans the canvas across, its label sits after the content
+  const groups = spans.map(({ band, lo, hi }) => {
+    const a0 = margin - shiftAcross, a1 = acrossSize - margin - shiftAcross;
+    const rect = vertical ? { x: a0, y: lo, w: a1 - a0, h: hi - lo } : { x: lo, y: a0, w: hi - lo, h: a1 - a0 };
+    const label = vertical
+      ? { x: acrossExtent + gutterGap, y: (lo + hi) / 2 + fontSize * 0.35, anchor: "start" }
+      : { x: (lo + hi) / 2, y: acrossExtent + gutterGap + fontSize * 0.8, anchor: "middle" };
+    return `<g class="pele-cluster" data-id="${band.id}"><rect x="${formatNumber(rect.x)}" y="${formatNumber(rect.y)}" width="${formatNumber(rect.w)}" height="${formatNumber(rect.h)}" fill="var(--_a)" fill-opacity="0.5" stroke="var(--_b)" style="rx:var(--_r)"/>` +
+      `<text class="pele-cluster-label" fill="var(--_m)" x="${formatNumber(label.x)}" y="${formatNumber(label.y)}" text-anchor="${label.anchor}">${escapeXml(band.label)}</text></g>`;
+  });
+  const [dx, dy] = vertical ? [shiftAcross, shiftAlong] : [shiftAlong, shiftAcross];
+  const [nextWidth, nextHeight] = vertical ? [acrossSize, alongSize] : [alongSize, acrossSize];
+  // the bands go behind Pele's first group (edges, or the cards when there are none)
+  const withBands = svg
+    .replace(/<g class="pele-(?:edges|edge-labels|nodes)"/, (first) => `<g transform="translate(${formatNumber(dx)},${formatNumber(dy)})"><g class="pele-clusters">${groups.join("")}</g>${first}`)
+    .replace(/<\/svg>\s*$/, "</g></svg>");
+  return { svg: setSvgDimensions(withBands, nextWidth, nextHeight), width: nextWidth, height: nextHeight, shift: { x: dx, y: dy } };
+}
 function normalizePositiveInteger(value, key) {
   if (value == null) return undefined;
   if (!Number.isInteger(value) || value <= 0) {
@@ -778,6 +936,22 @@ export function renderAhm(source, options = {}) {
     });
     return [entity.id, alignPlanToReservationGrid(rawPlan, calibration)];
   }));
+  // Left-to-right lane bands enter and leave a card through its height: a card gets tall enough
+  // for one port per edge on each side (LANE_PORT_PITCH apart), its content centered in the slack.
+  const laneDirection = String(options.direction ?? model.direction ?? "BT").toUpperCase();
+  if (options.lanes === true && !options.nested && ["LR", "RL"].includes(laneDirection) &&
+      (model.explicitLanes?.length ?? 0) === 0 && model.topLaneByEntity.size === 0) {
+    for (const [id, plan] of planByEntity) {
+      const ports = Math.max(
+        model.dependencies.filter((dep) => dep.to === id && dep.from !== id).length,
+        model.dependencies.filter((dep) => dep.from === id && dep.to !== id).length,
+      );
+      const need = (ports - 1) * LANE_PORT_PITCH + 2 * LANE_PORT_INSET;
+      if (ports < 2 || plan.cardHeight >= need) continue;
+      const grown = alignPlanToReservationGrid({ ...plan, cardHeight: need }, calibration);
+      planByEntity.set(id, { ...grown, portSlack: grown.cardHeight - plan.cardHeight });
+    }
+  }
   // reservation labels: placeholder lines that make Pele reserve each card's planned height
   const reservationLabels = new Map();
   const reservationPrefix = String(idPrefix).replace(/[^\w-]/g, "_");
@@ -806,53 +980,106 @@ export function renderAhm(source, options = {}) {
     });
     nestedTrace = generated.trace;
     edgeSourceStates = generated.edgeSourceStates;
-  } else if (!generated) {
-    generated = buildPeleAhmSource(model, {
-      ...options,
-      reservation: {
-        classDef: `classDef ahm_card font-size:${formatNumber(reservationFontSize)}px;`,
-        entityLabels: reservationLabels,
-      },
-    });
   }
-  diagnostics.push(...generated.diagnostics);
+  const buildFlat = (extra) => buildPeleAhmSource(model, {
+    ...options,
+    ...extra,
+    reservation: {
+      classDef: `classDef ahm_card font-size:${formatNumber(reservationFontSize)}px;`,
+      entityLabels: reservationLabels,
+    },
+  });
+  if (!generated) generated = buildFlat({ laneBands: true });
   // size budget for the generated source: the largest of the authored, generated and limit budgets
   const authoredLength = String(source ?? "").length;
-  const generatedLength = String(generated.source ?? "").length;
-  const generatedLimit = Math.max(
-    authoredLength + Math.max(1024, Math.ceil(authoredLength * 0.5)),
-    generatedLength + Math.max(1024, Math.ceil(generatedLength * 0.25)),
-    Number.isInteger(options.limit) && options.limit > 0
-      ? options.limit + Math.max(1024, Math.ceil(options.limit * 0.5))
-      : 0,
-  );
-
-  try {
-    peleParse(generated.source, { limit: generatedLimit, maxEdges: options.maxEdges });
-  } catch (error) {
-    throw new Error(`generated source parse failed: ${error.message}`);
-  }
-
-  let rendered;
-  try {
-    rendered = peleRender(generated.source, withStaticRenderDefaults({
-      fontFamily: typography.fontFamily,
-      fontSize: typography.requested,
-      idPrefix,
-      limit: generatedLimit,
-      maxEdges: options.maxEdges,
-      outputLimit: options.outputLimit,
-      config: AHM_LAYOUT_CONFIG,
-      measurer: {
-        width(text, size, style) {
-          if (typeof text === "string" && reservationWidths.has(text)) return reservationWidths.get(text);
-          return textMeasurer.width(text, size, style);
+  const renderGenerated = (gen, rankSpacing = AHM_LAYOUT_CONFIG.flowchart.rankSpacing) => {
+    const generatedLength = String(gen.source ?? "").length;
+    const generatedLimit = Math.max(
+      authoredLength + Math.max(1024, Math.ceil(authoredLength * 0.5)),
+      generatedLength + Math.max(1024, Math.ceil(generatedLength * 0.25)),
+      Number.isInteger(options.limit) && options.limit > 0
+        ? options.limit + Math.max(1024, Math.ceil(options.limit * 0.5))
+        : 0,
+    );
+    try {
+      peleParse(gen.source, { limit: generatedLimit, maxEdges: options.maxEdges });
+    } catch (error) {
+      throw new Error(`generated source parse failed: ${error.message}`);
+    }
+    try {
+      return peleRender(gen.source, withStaticRenderDefaults({
+        fontFamily: typography.fontFamily,
+        fontSize: typography.requested,
+        idPrefix,
+        limit: generatedLimit,
+        maxEdges: options.maxEdges,
+        outputLimit: options.outputLimit,
+        config: { flowchart: { ...AHM_LAYOUT_CONFIG.flowchart, rankSpacing } },
+        measurer: {
+          width(text, size, style) {
+            if (typeof text === "string" && reservationWidths.has(text)) return reservationWidths.get(text);
+            return textMeasurer.width(text, size, style);
+          },
         },
-      },
-    }));
-  } catch (error) {
-    throw new Error(`render failed: ${error.message}`);
+      }));
+    } catch (error) {
+      throw new Error(`render failed: ${error.message}`);
+    }
+  };
+
+  let rendered = renderGenerated(generated);
+  let contentShift = { x: 0, y: 0 }; // lane bands move Pele's drawing inside the canvas
+  let laneRoutedIds = new Set();      // edges routed between lane bands keep their rounded corners
+  if (generated.bands) {
+    // Each band must be one row of Pele's layout. Cards Pele placed further out than their level
+    // get an invisible link from the nearest card one level further out, then Pele lays out again.
+    const direction = String(options.direction ?? model.direction ?? "BT").toUpperCase().replace(/^TD$/, "TB");
+    const vertical = ["BT", "TB"].includes(direction);
+    const rootAtStart = ["BT", "RL"].includes(direction); // the root's row has the smallest coordinate
+    const pins = [];
+    let check = laneBandMisfits(generated.bands, peleNodeBoxes(rendered.svg), vertical, rootAtStart);
+    for (let round = 0; round < LANE_BAND_ROUNDS && check.misfits.length > 0; round += 1) {
+      // anchor on a card one level further out that already sits in its own row
+      const boxes = peleNodeBoxes(rendered.svg);
+      const cross = (id) => { const b = boxes.get(id); return vertical ? b.x + b.w / 2 : b.y + b.h / 2; };
+      for (const { id, band } of check.misfits) {
+        const outer = generated.bands.find((other) => other.level === band.level + 1);
+        const anchor = (outer?.entityIds ?? [])
+          .filter((other) => boxes.has(other) && check.rowOf.get(other) === check.expected(outer.level))
+          .reduce((best, other) => (best == null || Math.abs(cross(other) - cross(id)) < Math.abs(cross(best) - cross(id)) ? other : best), null);
+        if (anchor) pins.push([anchor, id]);
+      }
+      generated = buildFlat({ laneBands: true, lanePins: pins });
+      rendered = renderGenerated(generated);
+      check = laneBandMisfits(generated.bands, peleNodeBoxes(rendered.svg), vertical, rootAtStart);
+    }
+    if (check.misfits.length > 0) {
+      diagnostics.push({ level: "info", message: "lane bands: Pele's rows did not line up with the lanes, drew lane groups instead" });
+      generated = buildFlat({});
+      rendered = renderGenerated(generated);
+    } else {
+      // a channel that needs more room than Pele's rank spacing gets it: Pele lays out again
+      let rankSpacing = AHM_LAYOUT_CONFIG.flowchart.rankSpacing;
+      let routed = routeLaneBands(rendered.svg, generated.bands, peleNodeBoxes(rendered.svg), model, direction, diagnostics);
+      for (let round = 0; routed?.shortfall && round < LANE_BAND_ROUNDS; round += 1) {
+        rankSpacing += Math.ceil(routed.shortfall);
+        rendered = renderGenerated(generated, rankSpacing);
+        routed = laneBandMisfits(generated.bands, peleNodeBoxes(rendered.svg), vertical, rootAtStart).misfits.length > 0
+          ? null
+          : routeLaneBands(rendered.svg, generated.bands, peleNodeBoxes(rendered.svg), model, direction, diagnostics);
+      }
+      if (routed?.svg) {
+        rendered = { ...rendered, svg: routed.svg };
+        laneRoutedIds = routed.routedIds;
+      } else {
+        diagnostics.push("route presentation note: lane channels did not fit between the rows, kept Pele's routes");
+      }
+      const drawn = drawLaneBands(rendered.svg, rendered.width, rendered.height, generated.bands, peleNodeBoxes(rendered.svg), vertical,
+        (text, size) => textMeasurer.width(text, size, { fontWeight: 400 }), typography.requested);
+      ({ shift: contentShift, ...rendered } = { ...rendered, ...drawn });
+    }
   }
+  diagnostics.push(...generated.diagnostics);
 
   const palette = getAhmPalette(options.theme ?? "portal", options.colors);
 
@@ -913,6 +1140,7 @@ export function renderAhm(source, options = {}) {
         h: Number(rectMatch[4]),
       };
       const padX = plan.constants.sidePad;
+      const top = rect.y + (plan.portSlack ?? 0) / 2; // content stays centered in a card grown for ports
       const headerTextColor = palette.canvas.muted;
       const valueColor = palette.canvas.ink;
       const borderColor = palette.entity[entity.state].border;
@@ -920,7 +1148,7 @@ export function renderAhm(source, options = {}) {
       const tableW = plan.contentWidth;
       const entityKey = `${String(idPrefix ?? "ahm").replace(/[^\w-]/g, "_")}_${entity.id.replace(/[^\w-]/g, "_")}`;
       const entityState = entity.state;
-      let cursorY = rect.y + plan.tableY;
+      let cursorY = top + plan.tableY;
 
       const header = [];
       const clipDefs = [];
@@ -929,7 +1157,7 @@ export function renderAhm(source, options = {}) {
         className: "ahm-entity-title",
         lines: plan.titleLines,
         x: contentX,
-        y: rect.y + plan.titleY,
+        y: top + plan.titleY,
         fontSize: plan.constants.titleSize,
         fontWeight: 700,
         lineHeight: plan.constants.titleLineHeight,
@@ -941,7 +1169,7 @@ export function renderAhm(source, options = {}) {
           className: "ahm-entity-qualifier",
           lines: plan.qualifierLines,
           x: contentX,
-          y: rect.y + plan.qualifierY,
+          y: top + plan.qualifierY,
           fontSize: plan.constants.qualifierSize,
           fontWeight: 500,
           lineHeight: plan.constants.bodyLineHeight,
@@ -949,9 +1177,9 @@ export function renderAhm(source, options = {}) {
         });
         header.push(qualifier.markup);
       }
-      header.push(`<rect class="ahm-entity-status-badge entity-state-${entityState}" x="${formatNumber(contentX + plan.badgeX)}" y="${formatNumber(rect.y + plan.badgeY)}" width="${formatNumber(plan.badgeWidth)}" height="${formatNumber(plan.constants.badgeHeight)}" rx="${formatNumber(plan.constants.badgeRadius)}" ry="${formatNumber(plan.constants.badgeRadius)}" fill="${palette.entity[entityState].fill}" stroke="${palette.entity[entityState].border}" stroke-width="1.2"/>`);
+      header.push(`<rect class="ahm-entity-status-badge entity-state-${entityState}" x="${formatNumber(contentX + plan.badgeX)}" y="${formatNumber(top + plan.badgeY)}" width="${formatNumber(plan.badgeWidth)}" height="${formatNumber(plan.constants.badgeHeight)}" rx="${formatNumber(plan.constants.badgeRadius)}" ry="${formatNumber(plan.constants.badgeRadius)}" fill="${palette.entity[entityState].fill}" stroke="${palette.entity[entityState].border}" stroke-width="1.2"/>`);
       const badgeTextBaseline = centeredFirstBaseline({
-        top: rect.y + plan.badgeY,
+        top: top + plan.badgeY,
         height: plan.constants.badgeHeight,
         fontSize: plan.constants.badgeSize,
         lineCount: 1,
@@ -973,7 +1201,7 @@ export function renderAhm(source, options = {}) {
       const stateX = valueX + valueW;
 
       const rows = [];
-      const tableHeaderY = rect.y + plan.tableY;
+      const tableHeaderY = top + plan.tableY;
       rows.push(`<g class="ahm-signal-table">`);
       if (plan.tableHeaders) {
         rows.push(`<g class="ahm-signal-table-header">`);
@@ -1207,8 +1435,9 @@ export function renderAhm(source, options = {}) {
     nodeCardRectsById.set(id, { x, y, w, h });
   }
   const viewBoxMatch = out.match(/\bviewBox="([0-9.+-]+)\s+([0-9.+-]+)\s+([0-9.+-]+)\s+([0-9.+-]+)"/);
+  // in the coordinates of Pele's drawing, which lane bands may have shifted inside the canvas
   const rootViewBox = viewBoxMatch
-    ? { minX: Number(viewBoxMatch[1]), minY: Number(viewBoxMatch[2]), width: Number(viewBoxMatch[3]), height: Number(viewBoxMatch[4]) }
+    ? { minX: Number(viewBoxMatch[1]) - contentShift.x, minY: Number(viewBoxMatch[2]) - contentShift.y, width: Number(viewBoxMatch[3]), height: Number(viewBoxMatch[4]) }
     : null;
   const edgeLabelRectsById = extractEdgeLabelRects(out);
   const projectedLabelCandidates = [];
@@ -1232,7 +1461,7 @@ export function renderAhm(source, options = {}) {
     }
     let nextBody = body;
     const pathMatch = nextBody.match(/<path(?![^>]*class="pele-marker")[^>]*\bd="([^"]+)"/);
-    if (pathMatch) {
+    if (pathMatch && !laneRoutedIds.has(edgeId)) {
       try {
         const relaxed = relaxOrthogonalPath(pathMatch[1], {
           minCornerRadius: 26,

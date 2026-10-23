@@ -421,12 +421,17 @@ test("renderAhm can be rasterized natively with explicit pinned fonts", () => {
     idPrefix: "ahm-raster",
   });
 
-  test("renderAhm relaxes right-angle connector corners without changing route endpoints", () => {
+  test("renderAhm relaxes Pele's right-angle connector corners; lane-routed connectors keep rounded corners", () => {
     const source = readFixture("hero-main.mmd");
-    const result = renderAhm(source, { direction: "BT", lanes: true, legend: false, idPrefix: "relaxed-corners" });
+    // authored lanes stay Pele subgraphs, so Pele routes them and the relaxation rounds its corners
+    const authoredLanes = [source, 'subgraph services["Services"]', "web", "app", "db", "analytics", "queue", "ship", "end",
+      'subgraph flows["Flows"]', "shop", "reporting", "logistics", "end", 'subgraph top["Root"]', "root", "end"].join("\n");
+    const result = renderAhm(authoredLanes, { direction: "BT", lanes: true, legend: false, idPrefix: "relaxed-corners" });
     const radii = extractRoundedCornerRadii(result.svg);
     assert.ok(radii.length > 0, "expected rounded corners in edge paths");
     assert.ok(Math.max(...radii) >= 18, `expected at least one relaxed corner radius >= 18, got max=${Math.max(...radii).toFixed(2)}`);
+    const laned = renderAhm(source, { direction: "BT", lanes: true, legend: false, idPrefix: "lane-corners" });
+    assert.match(laned.svg, /<g class="pele-edge"[^>]*><path d="M[^"]*Q/, "expected rounded corners on lane-routed edges");
   });
   const resvg = new Resvg(result.svg, {
     font: {

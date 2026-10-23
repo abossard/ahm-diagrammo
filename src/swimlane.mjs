@@ -21,7 +21,7 @@ import { getTheme } from "./themes.mjs";
 import { textWidth, wrapText } from "./text.mjs";
 import { Diagnostics } from "./diag.mjs";
 import { relaxCoordinates } from "./layout.mjs";
-import { planRoutes } from "./swimlane-route.mjs";
+import { planRoutes, roundedOrtho } from "./swimlane-route.mjs";
 
 const STATE_LABEL = { healthy: "Healthy", degraded: "Degraded", unhealthy: "Unhealthy", unknown: "Unknown", alt: "Standby" };
 const CLASS_STATE = { blue: "signal", green: "healthy", amber: "degraded", red: "unhealthy", purple: "alt" };
@@ -272,21 +272,6 @@ const SUBTITLE_MAX_W = 160;
 const HEADER_SAFETY = 1.12;
 
 
-function roundedOrtho(pts, r = 8) {
-  if (pts.length < 2) return "";
-  let d = `M${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-  for (let i = 1; i < pts.length - 1; i++) {
-    const p = pts[i], a = pts[i - 1], b = pts[i + 1];
-    const d1 = Math.hypot(p.x - a.x, p.y - a.y), d2 = Math.hypot(b.x - p.x, b.y - p.y);
-    const rr = Math.min(r, d1 / 2, d2 / 2);
-    const u1x = (p.x - a.x) / (d1 || 1), u1y = (p.y - a.y) / (d1 || 1);
-    const u2x = (b.x - p.x) / (d2 || 1), u2y = (b.y - p.y) / (d2 || 1);
-    d += ` L${(p.x - u1x * rr).toFixed(1)} ${(p.y - u1y * rr).toFixed(1)} Q${p.x.toFixed(1)} ${p.y.toFixed(1)} ${(p.x + u2x * rr).toFixed(1)} ${(p.y + u2y * rr).toFixed(1)}`;
-  }
-  const last = pts[pts.length - 1];
-  d += ` L${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
-  return d;
-}
 const segsOf = (pts, edge) => {
   const out = [];
   for (let i = 1; i < pts.length; i++) {

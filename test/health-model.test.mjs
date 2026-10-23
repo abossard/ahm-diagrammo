@@ -360,6 +360,44 @@ test("buildPeleAhmSource supports explicit and inferred lanes", () => {
   assert.match(inferredSource.source, /subgraph lane_2\["Level 0"\]/);
 });
 
+// laneBands: inferred lanes become flat rows (renderAhm draws the bands), levels follow the
+// longest roll-up path, and caller-chosen pins come after every real edge; authored lanes and
+// rootless cycles keep their subgraphs.
+const LANE_BAND_CASES = [
+  {
+    name: "inferred lanes are flat rows by longest roll-up path",
+    source: ["flowchart BT", 'r["R"]', 'a["A"]', 'b["B"]', 'c["C"]', "a --> r", "b --> a", "b --> r", "c --> r"],
+    bands: [["Level 0", ["r"]], ["Level 1", ["a", "c"]], ["Level 2", ["b"]]],
+  },
+  {
+    name: "authored lanes stay subgraphs",
+    source: ["flowchart BT", 'subgraph top["Top"]', 'r["R"]', "end", 'subgraph low["Low"]', 'a["A"]', "end", "a --> r"],
+    bands: null,
+  },
+  {
+    name: "a cycle without a root keeps its subgraph",
+    source: ["flowchart BT", 'a["A"]', 'b["B"]', "a --> b", "b --> a"],
+    bands: null,
+  },
+];
+for (const { name, source, bands } of LANE_BAND_CASES) {
+  test(`buildPeleAhmSource laneBands: ${name}`, () => {
+    const built = buildPeleAhmSource(parseAhmSource(source.join("\n")), { lanes: true, laneBands: true, lanePins: [["b", "c"]] });
+    if (!bands) {
+      assert.equal(built.bands, undefined);
+      assert.match(built.source, /^subgraph lane_0/m);
+      assert.doesNotMatch(built.source, /~~~/);
+      return;
+    }
+    assert.doesNotMatch(built.source, /^subgraph/m);
+    assert.deepEqual([...built.bands].sort((x, y) => x.level - y.level).map((band) => [band.label, band.entityIds]), bands);
+    const lines = built.source.split("\n");
+    const lastLink = Math.max(...lines.map((line, i) => (/-->|-\.->|linkStyle/.test(line) ? i : -1)));
+    assert.equal(lines.indexOf("b ~~~ c"), lastLink + 1, "pins follow every real edge and its linkStyle");
+    assert.doesNotThrow(() => peleParse(built.source));
+  });
+}
+
 test("buildPeleAhmSource emits parseable quoted labels and preserves edge association", () => {
   const source = [
     "flowchart BT",

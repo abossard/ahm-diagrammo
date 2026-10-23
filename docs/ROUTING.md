@@ -1,7 +1,8 @@
 # Edge routing in the swimlane look
 
 How `src/swimlane-route.mjs` draws connectors, which alternatives were measured, and why the
-layered channel router won over a generic orthogonal router.
+layered channel router won over a generic orthogonal router. The Pele look reuses the same router
+for its lanes ([below](#the-pele-looks-lanes)).
 
 ## The problem
 
@@ -62,6 +63,7 @@ scored every result with the repo's own verifier (`test/helpers/geo.mjs`).
 | a vertical through a pill's spot costs 4 crossings in the row order | 0 | 0 | 195 | 1236 | 96 |
 | gap search per lane-skipping edge (dynamic programming over lanes, 2 negotiation rounds) | 0 | 0 | 191 | 1218 | 96 |
 | rip-up and reroute: each lane-skipping edge tries its 6 best gap chains, exact re-scoring | 0 | 0 | 179 | 1228 | 96 |
+| a port landing a hair past its card's span (float error) still counts as a straight drop | 0 | 0 | 177 | 1200 | 96 |
 
 Weight sweeps (gap crossing cost 3–30, pill cost 4–8, straight-port weight 5–50, 0–4 negotiation
 rounds) moved crossings by at most 4.
@@ -70,19 +72,19 @@ rounds) moved crossings by at most 4.
 
 | Bend penalty | Crossing penalty | Pill pass | Overlap | <10px | Crossings | Bends | Clean |
 |---|---|---|---|---|---|---|---|
-| 50 | off | yes | 14 | 2 | 256 | 1528 | 84 |
-| 200 | 1000 | yes | 20 | 4 | 141 | 1628 | 82 |
-| 50 | off | no | 51 | 2 | 211 | 1188 | 75 |
-| 200 | 1000 | no | 53 | 9 | 132 | 1290 | 75 |
-| 200 | 1000, given the channel router's channel heights | yes | 30 | 5 | 151 | 1628 | 80 |
+| 50 | off | yes | 14 | 6 | 251 | 1526 | 82 |
+| 200 | 1000 | yes | 20 | 6 | 137 | 1624 | 81 |
+| 50 | off | no | 51 | 4 | 210 | 1182 | 74 |
+| 200 | 1000 | no | 55 | 11 | 134 | 1286 | 74 |
+| 200 | 1000, given the channel router's channel heights | yes | 33 | 7 | 147 | 1624 | 79 |
 
 ### Result
 
 | | Overlap | <10px | Crossings | Bends | Length | Height | Clean | Time (96 diagrams) |
 |---|---|---|---|---|---|---|---|---|
-| baseline | 1 | 335 | 462 | 1226 | 253k | 49.7k | 41 | 68 ms |
-| **channel** | **0** | **0** | 179 | **1228** | 279k | **49.6k** | **96** | 106 ms |
-| libavoid (best) | 20 | 4 | **141** | 1628 | 359k | 58.9k | 82 | 808 ms |
+| baseline | 1 | 335 | 462 | 1226 | 253k | 49.7k | 41 | 58 ms |
+| **channel** | **0** | **0** | 177 | **1200** | 276k | **49.5k** | **96** | 76 ms |
+| libavoid (best) | 20 | 6 | **137** | 1624 | 357k | 58.9k | 81 | 694 ms |
 
 Per diagram, the channel router beats libavoid on 81, ties on 1 and loses on 14. It beats the
 old router on 65, ties on 17 and loses on 14. Those 14 losses are length only: spread ports cost
@@ -93,15 +95,15 @@ about 10% more wire, as chosen.
 - **Hard rules hold by construction.** It is the only contender with zero overlaps and zero
   sub-10px pairs on all 96 diagrams. libavoid crosses pills and lets nudged lines come closer than
   10px, because its spacing is a target.
-- **Its row order is optimal.** On all 189 channels with up to 8 nets, the
-  feedback-arc-set order costs exactly as much as the best of all permutations (173 = 173).
+- **Its row order is optimal.** On all 191 channels with up to 8 nets, the
+  feedback-arc-set order costs exactly as much as the best of all permutations (170 = 170).
 - **Its crossings are at the lower bound.** In the 73 diagrams with only adjacent-lane edges,
-  card order alone forces 88 crossings. The channel router draws 92, and sits exactly at the
-  bound in 72 of them.
+  card order alone forces 88 crossings. The channel router draws 91, and sits exactly at the
+  bound in 71 of them.
 - **libavoid's fewer crossings are detours.** It drops below that bound only by routing around
-  the ends of lanes, sometimes around the whole diagram. That costs 33% more bends and 29% more
-  length. On the real repo diagrams it saves 14 crossings (37 vs 51) at the price of 13 hard
-  violations and 58% more bends.
+  the ends of lanes, sometimes around the whole diagram. That costs 35% more bends and 29% more
+  length. On the real repo diagrams it saves 18 crossings (33 vs 51) at the price of 13 hard
+  violations, 3 sub-10px pairs and 59% more bends.
 - **It fits the renderer.** It is synchronous and dependency-free. libavoid needs an async WASM
   load, which the synchronous `renderSwimlane` cannot do. It is also LGPL, and it needs its
   channel space reserved before routing (+19% height here).
@@ -140,3 +142,66 @@ flowchart LR
 5. **Realize.** Once the lanes are stacked, each pill slides along its horizontal to the spot
    crossed by the fewest other verticals. Polylines are emitted with more severe sources drawn
    last.
+
+## The Pele look's lanes
+
+The Pele look (`-r pele`) used to hand each inferred lane ("Level n") to Pele as a Mermaid
+`subgraph`. Pele lays a subgraph out as a box of its own: the cards of a lane bunch up inside it,
+and every edge that crosses a box border takes a sideways jog between the card and the border,
+which the curve smoothing turned into hooks and loops.
+
+Now renderAhm draws those lanes itself:
+
+1. **Flat layout.** Pele gets the graph without lane subgraphs. A lane is a roll-up level by the
+   longest path to a root (a card always sits below all of its parents), and must be one row.
+2. **Pins.** Pele lines leaf cards up on the outermost row, so some cards land further out than
+   their level. renderAhm measures the rows; Pele can only push a card outward, so level *k*
+   belongs in the *k*-th row from the root's side. Each card in a wrong row gets an invisible link
+   (`a ~~~ b`) from the nearest correctly placed card one level further out, and Pele lays out
+   again. One round settled every corpus diagram; after 4, renderAhm falls back to subgraphs.
+3. **Routing.** The swimlane channel router routes the edges between Pele's rows, in a rotated
+   frame for TB, LR and RL: its own port per edge, nested rows 10px apart, labels on rows no other
+   edge crosses, corners rounded at 20px. When a channel needs more room than Pele's rank
+   spacing, Pele lays out again with the spacing grown by the shortfall. In LR and RL a card
+   enters and leaves through its height, so a card too short for its ports is reserved taller,
+   its content centered.
+4. **Bands.** Each lane is a band across the diagram with its label in a gutter after the content.
+
+Authored lanes (top-level `subgraph`s) are real groups and stay Pele subgraphs.
+
+### Experiment
+
+132 diagrams: the 96 of the swimlane experiment plus every `test/fixtures/ahm` model in all four
+directions, scored from the final SVG. Hard: a card outside its lane, an edge through a card, two
+edges running within 3px of each other for 10px or more, an edge through another edge's label.
+
+| Variant | Hard | Crossings | Hooked edges |
+|---|---|---|---|
+| lane subgraphs (before) | 999 | 1355 | 295 |
+| no lanes at all | 425 | 518 | 29 |
+| bands, Pele's own routes | 303 | 382 | 21 |
+| **bands + channel router** | **0** | **289** | 22 |
+
+122 of the 132 render; renderAhm's input validation rejects the other 10 (unsupported statements,
+conflicting state hints) in every variant. Per diagram, bands with the
+channel router beat the old lane subgraphs on 112 and tie on 10. Against bands with Pele's own
+routes they never lose on overlaps or crossings; Pele's routes win 57 diagrams on wire length
+(spread ports) and 3 on an edge that doubles back.
+
+Findings:
+
+- **Measured pins beat predicted ones.** During development (first 90 diagrams, Pele's routes,
+  crossings only) predicting rows from the graph gave 181 crossings and 1 fallback, measuring
+  gave 166 and none: Pele breaks layering ties case by case, so prediction over-pins.
+- **Aiming a pin at the card itself beats aiming at its parent** (same setup): 166 vs 171
+  crossings.
+- **Pele's own routes overlap.** Without subgraphs the hooks are gone, but Pele lets curves of
+  neighbouring edges converge long before their card. On the first 90 diagrams,
+  `linkStyle default interpolate step` made it worse (147 overlapping pairs against 56) by
+  putting sibling horizontals on one height.
+- **The corner radius changes nothing measurable** (first 90 diagrams: 8, 10, 14 and 20px all
+  give the same crossings and no overlaps), so the corners stay soft.
+
+Known limit: crossings forced by the card order Pele chooses stay. Lanes cost some width (the
+label gutter) and, where channels are dense, some height.
+
