@@ -1737,13 +1737,16 @@ export function renderAhm(source, options = {}) {
     let x = 20;
     let itemsSvg = '<text x="20" y="' + formatNumber(yCenter + (4 * typography.scale)) + '" font-size="' + formatNumber(titleFontSize) + '" fill="' + palette.canvas.ink + '">Legend</text>';
     x += Math.max(56 * typography.scale, textMeasurer.width("Legend", titleFontSize, { fontWeight: 400 }) + (20 * typography.scale));
-    const sections = [
-      { title: "Entity/Model", entries: entityEntries },
-      { title: "Signal", entries: signalEntries },
-    ];
+    // entities and signals share one list of states unless `colors` sets them apart
+    const sharedColors = signalEntries.every((entry, i) => entry.color === entityEntries[i].color);
+    const sections = sharedColors
+      ? [{ title: null, entries: entityEntries }]
+      : [{ title: "Entity/Model", entries: entityEntries }, { title: "Signal", entries: signalEntries }];
     for (const section of sections) {
-      itemsSvg += `<text x="${formatNumber(x)}" y="${formatNumber(yCenter + (4 * typography.scale))}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.muted}">${escapeXml(section.title)}:</text>`;
-      x += textMeasurer.width(`${section.title}:`, labelFontSize, { fontWeight: 500 }) + (10 * typography.scale);
+      if (section.title) {
+        itemsSvg += `<text x="${formatNumber(x)}" y="${formatNumber(yCenter + (4 * typography.scale))}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.muted}">${escapeXml(section.title)}:</text>`;
+        x += textMeasurer.width(`${section.title}:`, labelFontSize, { fontWeight: 500 }) + (10 * typography.scale);
+      }
       for (const entry of section.entries) {
         const labelText = `[${entry.cue}] ${entry.label}`;
         itemsSvg += `<g transform="translate(${formatNumber(x)},${formatNumber(yCenter)})"><circle cx="0" cy="0" r="${formatNumber(markerRadius)}" fill="${entry.color}" /><text x="${formatNumber(labelX)}" y="${formatNumber(4 * typography.scale)}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.ink}">${escapeXml(labelText)}</text></g>`;
@@ -1751,11 +1754,11 @@ export function renderAhm(source, options = {}) {
       }
       x += 18 * typography.scale;
     }
-    const styleAnchorX = x;
-    itemsSvg += `<g transform="translate(${formatNumber(styleAnchorX)},${formatNumber(yCenter)})"><line x1="0" y1="0" x2="${formatNumber(28 * typography.scale)}" y2="0" stroke="${palette.entity.healthy.accent}" stroke-width="2"/><text x="${formatNumber(36 * typography.scale)}" y="${formatNumber(4 * typography.scale)}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.ink}">Authored solid</text></g>`;
-    const dashedY = yCenter + (11 * typography.scale);
-    itemsSvg += `<g transform="translate(${formatNumber(styleAnchorX)},${formatNumber(dashedY)})"><line x1="0" y1="0" x2="${formatNumber(28 * typography.scale)}" y2="0" stroke="${palette.entity.degraded.accent}" stroke-width="2" stroke-dasharray="5 4"/><text x="${formatNumber(36 * typography.scale)}" y="${formatNumber(4 * typography.scale)}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.ink}">Authored dashed</text></g>`;
-    x += (220 * typography.scale);
+    // the two line styles side by side on the same row
+    for (const [label, color, dash] of [["Authored solid", palette.entity.healthy.accent, ""], ["Authored dashed", palette.entity.degraded.accent, ' stroke-dasharray="5 4"']]) {
+      itemsSvg += `<g transform="translate(${formatNumber(x)},${formatNumber(yCenter)})"><line x1="0" y1="0" x2="${formatNumber(28 * typography.scale)}" y2="0" stroke="${color}" stroke-width="2"${dash}/><text x="${formatNumber(36 * typography.scale)}" y="${formatNumber(4 * typography.scale)}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.ink}">${label}</text></g>`;
+      x += (36 * typography.scale) + textMeasurer.width(label, labelFontSize, { fontWeight: 400 }) + entryGap;
+    }
     const minWidth = x + 24;
     const nextWidth = Math.max(width, minWidth);
     const nextHeight = height + footerPadTop + rowHeight + footerPadBottom;

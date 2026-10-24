@@ -413,6 +413,24 @@ test("renderAhm updates primary-rollup cubic route in pills stress variants", ()
   }
 });
 
+// The legend lists each state once while entities and signals share colors; overriding signal
+// colors brings back separate Entity/Model and Signal sections. Line styles share one row.
+for (const { name, colors, sections } of [
+  { name: "shared colors", colors: undefined, sections: false },
+  { name: "signal colors overridden", colors: { signal: { healthy: { accent: "#123456" } } }, sections: true },
+]) {
+  test(`renderAhm legend: ${name}`, () => {
+    const result = renderAhm(SIMPLE, { idPrefix: `legend-${sections ? "split" : "shared"}`, ...(colors ? { colors } : {}) });
+    const legend = result.svg.match(/<g class="ahm-legend"[\s\S]*?<\/g><\/svg>/)?.[0] ?? "";
+    assert.equal((legend.match(/\[H\] Healthy/g) ?? []).length, sections ? 2 : 1);
+    assert.equal(/Entity\/Model:/.test(legend), sections);
+    assert.equal(/>Signal:</.test(legend), sections);
+    const lineRows = [...legend.matchAll(/<g transform="translate\([^,]+,([^)]+)\)"><line /g)].map((m) => m[1]);
+    assert.equal(lineRows.length, 2);
+    assert.equal(lineRows[0], lineRows[1], "solid and dashed samples share one row");
+  });
+}
+
 test("renderAhm can be rasterized natively with explicit pinned fonts", () => {
   const fontConfig = resolveNativeFontConfig();
   const result = renderAhm(readFixture("text-extremes.mmd"), {
