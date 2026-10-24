@@ -1728,32 +1728,16 @@ export function renderAhm(source, options = {}) {
       { label: "Unknown", cue: "?", color: palette.entity.unknown.accent },
       ...(model.entities.some((entity) => entity.state === "standby") ? [{ label: "Standby", cue: "S", color: palette.entity.standby.accent }] : []),
     ];
-    const signalEntries = [
-      { label: "Healthy", cue: "H", color: palette.signal.healthy.accent },
-      { label: "Degraded", cue: "D", color: palette.signal.degraded.accent },
-      { label: "Unhealthy", cue: "U", color: palette.signal.unhealthy.accent },
-      { label: "Unknown", cue: "?", color: palette.signal.unknown.accent },
-    ];
     let x = 20;
     let itemsSvg = '<text x="20" y="' + formatNumber(yCenter + (4 * typography.scale)) + '" font-size="' + formatNumber(titleFontSize) + '" fill="' + palette.canvas.ink + '">Legend</text>';
     x += Math.max(56 * typography.scale, textMeasurer.width("Legend", titleFontSize, { fontWeight: 400 }) + (20 * typography.scale));
-    // entities and signals share one list of states unless `colors` sets them apart
-    const sharedColors = signalEntries.every((entry, i) => entry.color === entityEntries[i].color);
-    const sections = sharedColors
-      ? [{ title: null, entries: entityEntries }]
-      : [{ title: "Entity/Model", entries: entityEntries }, { title: "Signal", entries: signalEntries }];
-    for (const section of sections) {
-      if (section.title) {
-        itemsSvg += `<text x="${formatNumber(x)}" y="${formatNumber(yCenter + (4 * typography.scale))}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.muted}">${escapeXml(section.title)}:</text>`;
-        x += textMeasurer.width(`${section.title}:`, labelFontSize, { fontWeight: 500 }) + (10 * typography.scale);
-      }
-      for (const entry of section.entries) {
-        const labelText = `[${entry.cue}] ${entry.label}`;
-        itemsSvg += `<g transform="translate(${formatNumber(x)},${formatNumber(yCenter)})"><circle cx="0" cy="0" r="${formatNumber(markerRadius)}" fill="${entry.color}" /><text x="${formatNumber(labelX)}" y="${formatNumber(4 * typography.scale)}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.ink}">${escapeXml(labelText)}</text></g>`;
-        x += entryGap + labelX + textMeasurer.width(labelText, labelFontSize, { fontWeight: 400 });
-      }
-      x += 18 * typography.scale;
+    // one list of states in the entity colors; signal rows name their state next to their own dot
+    for (const entry of entityEntries) {
+      const labelText = `[${entry.cue}] ${entry.label}`;
+      itemsSvg += `<g transform="translate(${formatNumber(x)},${formatNumber(yCenter)})"><circle cx="0" cy="0" r="${formatNumber(markerRadius)}" fill="${entry.color}" /><text x="${formatNumber(labelX)}" y="${formatNumber(4 * typography.scale)}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.ink}">${escapeXml(labelText)}</text></g>`;
+      x += entryGap + labelX + textMeasurer.width(labelText, labelFontSize, { fontWeight: 400 });
     }
+    x += 18 * typography.scale;
     // the two line styles side by side on the same row
     for (const [label, color, dash] of [["Authored solid", palette.entity.healthy.accent, ""], ["Authored dashed", palette.entity.degraded.accent, ' stroke-dasharray="5 4"']]) {
       itemsSvg += `<g transform="translate(${formatNumber(x)},${formatNumber(yCenter)})"><line x1="0" y1="0" x2="${formatNumber(28 * typography.scale)}" y2="0" stroke="${color}" stroke-width="2"${dash}/><text x="${formatNumber(36 * typography.scale)}" y="${formatNumber(4 * typography.scale)}" font-size="${formatNumber(labelFontSize)}" fill="${palette.canvas.ink}">${label}</text></g>`;

@@ -413,18 +413,22 @@ test("renderAhm updates primary-rollup cubic route in pills stress variants", ()
   }
 });
 
-// The legend lists each state once while entities and signals share colors; overriding signal
-// colors brings back separate Entity/Model and Signal sections. Line styles share one row.
-for (const { name, colors, sections } of [
-  { name: "shared colors", colors: undefined, sections: false },
-  { name: "signal colors overridden", colors: { signal: { healthy: { accent: "#123456" } } }, sections: true },
+// The legend lists each state once, in the entity colors, whatever `colors` overrides; the line
+// styles share its row.
+for (const { name, colors } of [
+  { name: "theme colors", colors: undefined },
+  { name: "entity colors overridden", colors: { entity: { healthy: { accent: "#2f855a" } } } },
+  { name: "signal colors overridden", colors: { signal: { healthy: { accent: "#123456" } } } },
 ]) {
-  test(`renderAhm legend: ${name}`, () => {
-    const result = renderAhm(SIMPLE, { idPrefix: `legend-${sections ? "split" : "shared"}`, ...(colors ? { colors } : {}) });
+  test(`renderAhm legend lists each state once: ${name}`, () => {
+    const result = renderAhm(SIMPLE, { idPrefix: `legend-${name.replace(/\W/g, "-")}`, ...(colors ? { colors } : {}) });
     const legend = result.svg.match(/<g class="ahm-legend"[\s\S]*?<\/g><\/svg>/)?.[0] ?? "";
-    assert.equal((legend.match(/\[H\] Healthy/g) ?? []).length, sections ? 2 : 1);
-    assert.equal(/Entity\/Model:/.test(legend), sections);
-    assert.equal(/>Signal:</.test(legend), sections);
+    for (const state of ["Healthy", "Degraded", "Unhealthy", "Unknown"]) {
+      assert.equal((legend.match(new RegExp(`\\] ${state}<`, "g")) ?? []).length, 1, `${state} listed once`);
+    }
+    assert.doesNotMatch(legend, /Entity\/Model:|>Signal:</);
+    const healthyDot = legend.match(/fill="(#[0-9a-fA-F]+)" \/><text[^>]*>\[H\] Healthy</)?.[1];
+    assert.equal(healthyDot, colors?.entity?.healthy?.accent ?? getAhmPalette("portal").entity.healthy.accent);
     const lineRows = [...legend.matchAll(/<g transform="translate\([^,]+,([^)]+)\)"><line /g)].map((m) => m[1]);
     assert.equal(lineRows.length, 2);
     assert.equal(lineRows[0], lineRows[1], "solid and dashed samples share one row");
