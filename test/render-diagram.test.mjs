@@ -62,7 +62,7 @@ test("renderDiagram pele accepts CLI block source and keeps preview-only colors 
 });
 
 // values: false drops every row value (authored or placeholder) in both looks, narrows the card,
-// and draws a degraded/unhealthy row name bold in its state color; a healthy name stays plain.
+// and draws a degraded/unhealthy row name bold in its state text color; a healthy name stays plain.
 const valuesModel = (state) => [
   "flowchart BT",
   `    sig["Checkout request latency p95 = 1234 ms (${state})<br/>Queue depth"] --> api["API"]`,
@@ -94,7 +94,7 @@ for (const renderer of ["swimlane", "pele"])
         assert.match(attrs, new RegExp(`fill="${T.ink}"`));
       } else {
         assert.match(attrs, /font-weight="600"/);
-        assert.match(attrs, new RegExp(`fill="${T.state[state].dot}"`));
+        assert.match(attrs, new RegExp(`fill="${T.state[state].text}"`));
       }
       assert.match(off.svg, />Queue depth</, "a row without a value keeps its name");
     });

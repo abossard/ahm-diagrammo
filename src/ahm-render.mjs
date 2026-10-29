@@ -1120,10 +1120,10 @@ export function renderAhm(source, options = {}) {
   out = out.replace(/<svg\b([^>]*)>/, `<svg$1><rect class="ahm-bg" x="0" y="0" width="100%" height="100%" fill="${palette.canvas.bg}"/>`);
 
   const signalColorByState = new Map([
-    ["Healthy", palette.signal.healthy.accent],
-    ["Degraded", palette.signal.degraded.accent],
-    ["Unhealthy", palette.signal.unhealthy.accent],
-    ["Unknown", palette.signal.unknown.accent],
+    ["Healthy", palette.signal.healthy.text],
+    ["Degraded", palette.signal.degraded.text],
+    ["Unhealthy", palette.signal.unhealthy.text],
+    ["Unknown", palette.signal.unknown.text],
   ]);
   for (const [stateLabel, color] of signalColorByState.entries()) {
     const linePattern = new RegExp(`<tspan([^>]*)>([^<]*\\(${stateLabel}\\)[^<]*)<\\/tspan>`, "g");
@@ -1247,7 +1247,7 @@ export function renderAhm(source, options = {}) {
           fontSize: plan.constants.bodySize,
           fontWeight: rowPlan.nameWeight,
           lineHeight: plan.constants.bodyLineHeight,
-          fill: rowPlan.nameWeight === 600 ? stateToken.accent : valueColor,
+          fill: rowPlan.nameWeight === 600 ? stateToken.text : valueColor,
           clipId: nameClipId,
         });
         const valueCell = renderCellText({
@@ -1283,7 +1283,7 @@ export function renderAhm(source, options = {}) {
           fontSize: plan.constants.stateSize,
           lineCount: 1,
           lineHeight: plan.constants.bodyLineHeight,
-        }))}" font-size="${plan.constants.stateSize}" font-weight="600" fill="${stateToken.accent}" text-anchor="start" clip-path="url(#${stateClipId})">${escapeXml(rowPlan.stateLabel)}</text>`);
+        }))}" font-size="${plan.constants.stateSize}" font-weight="600" fill="${stateToken.text}" text-anchor="start" clip-path="url(#${stateClipId})">${escapeXml(rowPlan.stateLabel)}</text>`);
         rows.push(`</g>`);
         cursorY += rowPlan.rowHeight;
       }

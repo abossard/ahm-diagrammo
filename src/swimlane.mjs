@@ -585,13 +585,13 @@ export function renderSwimlane(code, opts = {}) {
         p.push(metricIcon(T, iconX, ry - 7, 14));
         const rowTitle = r.clipped ? `<title>${esc(r.name)}</title>` : "";
         const rs = T.state[r.state] || T.state.healthy;
-        const nameStyle = r.nameWeight === 600 ? `font-weight="600" fill="${rs.dot}"` : `fill="${T.ink}"`;
+        const nameStyle = r.nameWeight === 600 ? `font-weight="600" fill="${rs.text}"` : `fill="${T.ink}"`;
         r.lines.forEach((line, k) => {
           p.push(`<text x="${nameX2.toFixed(1)}" y="${(ry + 3.5 + k * 13).toFixed(1)}" font-size="${ROW_FS}" ${nameStyle}>${esc(line)}${k === 0 ? rowTitle : ""}</text>`);
           dbgText(nameX2, ry + 3.5 + k * 13 - 9, textWidth(line, ROW_FS, r.nameWeight), 11, line);
         });
         if (valuesOn) {
-          p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.dot}" text-anchor="end">${esc(r.result ?? "")}</text>`);
+          p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.text ?? rs.dot}" text-anchor="end">${esc(r.result ?? "")}</text>`);
           dbgText(resX - r.resultW, ry - 5.5, r.resultW, 11, r.result ?? "");
         }
         top += r.rowH;

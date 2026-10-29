@@ -59,6 +59,7 @@ export function getAhmPalette(themeName = "portal", colors) {
       border: token.border,
       fill: token.fill,
       accent: token.dot,
+      text: token.text ?? token.dot,
       dash: token.dash ?? null,
     };
   }
@@ -116,8 +117,10 @@ export function getAhmPalette(themeName = "portal", colors) {
   for (const state of Object.keys(entity)) {
     result.entity[state] = { ...entity[state], ...(overrides.entity?.[state] ?? {}), dash: entity[state].dash ?? null };
   }
+  // an accent override also colors the signal text, as it did before themes carried `text`
   for (const state of Object.keys(signal)) {
-    result.signal[state] = { ...signal[state], ...(overrides.signal?.[state] ?? {}), dash: signal[state].dash ?? null };
+    const override = overrides.signal?.[state] ?? {};
+    result.signal[state] = { ...signal[state], ...override, text: override.accent ?? signal[state].text, dash: signal[state].dash ?? null };
   }
   return result;
 }

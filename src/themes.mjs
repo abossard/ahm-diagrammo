@@ -1,3 +1,5 @@
+// state.degraded/unhealthy.text colors state-colored text (signal values and highlighted signal
+// names): the dot's hue, darker (lighter on dark themes) until it reaches 4.5:1 on every state fill.
 const portal = {
   name: "portal",
   bg: "#ffffff", band: "#faf9f8", ink: "#242424", muted: "#605e5c",
@@ -5,8 +7,8 @@ const portal = {
   shadowOpacity: 0.10,
   state: {
     healthy:   { border: "#a0d8a0", fill: "#f2f8f2", dot: "#4c9a2a" },
-    degraded:  { border: "#db7500", fill: "#fbf2e7", dot: "#c26a00" },
-    unhealthy: { border: "#ba0d16", fill: "#faeceb", dot: "#c50f18" },
+    degraded:  { border: "#db7500", fill: "#fbf2e7", dot: "#c26a00", text: "#a15800" },
+    unhealthy: { border: "#ba0d16", fill: "#faeceb", dot: "#c50f18", text: "#c50f18" },
     unknown:   { border: "#c8c6c4", fill: "#f6f6f5", dot: "#8a8886", dash: "4 3" },
     alt:       { border: "#8661c5", fill: "#f4f0fb", dot: "#8661c5" },
     signal:    { border: "#0078D4", fill: "#eff6fc", dot: "#0078D4" },
@@ -21,8 +23,8 @@ const midnight = {
   shadowOpacity: 0.35,
   state: {
     healthy:   { border: "#6ccb5f", fill: "#1e2d1c", dot: "#6ccb5f" },
-    degraded:  { border: "#f7a350", fill: "#33261a", dot: "#f7a350" },
-    unhealthy: { border: "#f1707b", fill: "#331d1f", dot: "#f1707b" },
+    degraded:  { border: "#f7a350", fill: "#33261a", dot: "#f7a350", text: "#f7a350" },
+    unhealthy: { border: "#f1707b", fill: "#331d1f", dot: "#f1707b", text: "#f1707b" },
     unknown:   { border: "#7a7874", fill: "#262524", dot: "#979593", dash: "4 3" },
     alt:       { border: "#a58fd8", fill: "#262033", dot: "#a58fd8" },
     signal:    { border: "#4ba3e3", fill: "#1c2733", dot: "#4ba3e3" },
@@ -37,8 +39,8 @@ const candy = {
   shadowOpacity: 0.10,
   state: {
     healthy:   { border: "#7fd1ae", fill: "#eefaf4", dot: "#2eb884" },
-    degraded:  { border: "#ffb454", fill: "#fff4e4", dot: "#f39114" },
-    unhealthy: { border: "#ff7d9c", fill: "#ffeef3", dot: "#ef476f" },
+    degraded:  { border: "#ffb454", fill: "#fff4e4", dot: "#f39114", text: "#9e5c08" },
+    unhealthy: { border: "#ff7d9c", fill: "#ffeef3", dot: "#ef476f", text: "#d41241" },
     unknown:   { border: "#cfc7cf", fill: "#f7f4f7", dot: "#9a8f9a", dash: "4 3" },
     alt:       { border: "#a78bfa", fill: "#f3eefe", dot: "#8b5cf6" },
     signal:    { border: "#5eb0ef", fill: "#e9f4fd", dot: "#3d95e0" },
@@ -53,8 +55,8 @@ const slate = {
   shadowOpacity: 0.10,
   state: {
     healthy:   { border: "#34d399", fill: "#ecfdf5", dot: "#10b981" },
-    degraded:  { border: "#fbbf24", fill: "#fffbeb", dot: "#d97706" },
-    unhealthy: { border: "#f87171", fill: "#fef2f2", dot: "#dc2626" },
+    degraded:  { border: "#fbbf24", fill: "#fffbeb", dot: "#d97706", text: "#a55a05" },
+    unhealthy: { border: "#f87171", fill: "#fef2f2", dot: "#dc2626", text: "#d52222" },
     unknown:   { border: "#cbd5e1", fill: "#f1f5f9", dot: "#94a3b8", dash: "4 3" },
     alt:       { border: "#a78bfa", fill: "#f5f3ff", dot: "#7c3aed" },
     signal:    { border: "#60a5fa", fill: "#eff6ff", dot: "#2563eb" },

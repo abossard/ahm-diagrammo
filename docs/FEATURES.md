@@ -303,11 +303,14 @@ Four built-in themes, shared by both renderers so a whole document matches:
 **`portal`** (Azure portal light, default), **`midnight`** (dark), **`candy`** (warm pastel),
 **`slate`** (cool gray-blue). A theme defines background/band/ink/muted colors, the five state
 palettes (healthy, degraded, unhealthy, unknown-dashed, standby), pill colors, metric-bar colors,
-and the Pele theme variables used for non-health blocks. The Pele AHM renderer maps the same four
+and the Pele theme variables used for non-health blocks. Degraded and unhealthy also carry a text
+color for signal values, highlighted signal names and Pele State cells: the dot's hue, adjusted to
+reach WCAG 4.5:1 on every state fill; dots, borders, edges and pills keep the dot color. The Pele AHM renderer maps the same four
 names onto its semantic tokens (`getAhmPalette()`).
 
 *Verified by:* `swimlane.test.mjs` — "pill flood stays clean in every theme" renders the hardest
-fixture in all four; `mermaid.test.mjs` — themed diagrams in every theme; `themes.test.mjs`.
+fixture in all four; `mermaid.test.mjs` — themed diagrams in every theme; `themes.test.mjs`,
+including "text reaches 4.5:1 on every state fill" per theme and state.
 
 ## Health-model swimlanes
 

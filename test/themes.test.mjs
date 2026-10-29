@@ -70,6 +70,29 @@ test("getAhmPalette rejects invalid themes and malformed overrides", () => {
   );
 });
 
+// WCAG 2 contrast: state-colored text (signal values, highlighted names, Pele State cells) sits on
+// a card or row fill of any state and must reach 4.5:1 there.
+const luminance = (hex) => {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+};
+const contrast = (a, b) => {
+  const [hi, lo] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+for (const [name, theme] of Object.entries(THEMES))
+  for (const state of ["degraded", "unhealthy"]) {
+    test(`${name} ${state} text reaches 4.5:1 on every state fill`, () => {
+      const text = theme.state[state].text;
+      for (const [fillState, { fill }] of Object.entries(theme.state)) {
+        const ratio = contrast(text, fill);
+        assert.ok(ratio >= 4.5, `${text} on ${fillState} fill ${fill}: ${ratio.toFixed(2)}:1`);
+      }
+      assert.equal(getAhmPalette(name).signal[state].text, text, "the Pele look uses the same text color");
+    });
+  }
+
 test("ahm.css stays scoped and matches generated token CSS", () => {
   const css = readFileSync(CSS_PATH, "utf8").trim();
   assert.doesNotMatch(css, /(^|[\s,{])\.pele\b/);
