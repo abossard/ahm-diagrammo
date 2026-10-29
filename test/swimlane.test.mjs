@@ -89,9 +89,9 @@ assert.ok(fixtureFiles.length >= 5, "expected torture fixtures");
 for (const file of fixtureFiles) {
   const blocks = extractBlocks(read(file), THEME_NAMES);
   blocks.forEach((b, bi) => {
-    test(`geometry: ${file} block ${bi + 1} (${b.slug})`, () => {
+    for (const values of [true, false]) test(`geometry: ${file} block ${bi + 1} (${b.slug})${values ? "" : " values=false"}`, () => {
       const diag = new Diagnostics({ file });
-      const r = renderSwimlane(b.code, { theme: "portal", title: b.heading, diag, baseLine: b.codeLine - 1 });
+      const r = renderSwimlane(b.code, { theme: "portal", title: b.heading, values, diag, baseLine: b.codeLine - 1 });
       const geo = verifyGeometry(r, { minRouteTrack: 10 });
       assert.deepEqual(geo, [], `geometry violations:\n  ${geo.join("\n  ")}`);
       const sv = verifySvgString(r.svg);

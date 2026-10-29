@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { forgetTextWidths } from "pele";
 import { renderDiagram, resolveRenderer } from "../src/render.mjs";
 import { Diagnostics } from "../src/diag.mjs";
+import { getTheme } from "../src/themes.mjs";
 
 const HEALTH = [
   "flowchart BT",
@@ -59,6 +60,45 @@ test("renderDiagram pele accepts CLI block source and keeps preview-only colors 
   assert.deepEqual(diag.warnings, []);
   assert.deepEqual(diag.errors, []);
 });
+
+// values: false drops every row value (authored or placeholder) in both looks, narrows the card,
+// and draws a degraded/unhealthy row name bold in its state color; a healthy name stays plain.
+const valuesModel = (state) => [
+  "flowchart BT",
+  `    sig["Checkout request latency p95 = 1234 ms (${state})<br/>Queue depth"] --> api["API"]`,
+  "    api --> root[Root]",
+  "    class sig blue;",
+  "    class api,root green;",
+].join("\n");
+const NAME_ATTRS = /<text\b([^>]*)>(?:<tspan[^>]*>)?Checkout request latency p95</;
+const VALUE_TEXT = { swimlane: /text-anchor="end"/, pele: /ahm-signal-value|>Value<|∅/ };
+for (const renderer of ["swimlane", "pele"])
+  for (const state of ["healthy", "degraded", "unhealthy"]) {
+    test(`renderDiagram renderer=${renderer} values=false hides values and ${state === "healthy" ? "keeps a healthy name plain" : `bolds the ${state} name`}`, () => {
+      const code = valuesModel(state);
+      const opts = { renderer, theme: "portal", subtitle: "", legend: false };
+      const unset = renderDiagram(code, opts);
+      const on = renderDiagram(code, { ...opts, values: true });
+      const off = renderDiagram(code, { ...opts, values: false });
+      assert.equal(unset.svg, on.svg, "unset values must render byte-identically to an explicit true");
+      assert.match(on.svg, /1234 ms/);
+      assert.match(on.svg, VALUE_TEXT[renderer]);
+      assert.doesNotMatch(off.svg, /1234 ms/);
+      assert.doesNotMatch(off.svg, VALUE_TEXT[renderer], "no value column and no placeholder");
+      assert.ok(off.width < on.width, `values off must narrow the figure (${off.width} vs ${on.width})`);
+      const T = getTheme("portal");
+      const attrs = off.svg.match(NAME_ATTRS)?.[1];
+      assert.ok(attrs, "missing row name text");
+      if (state === "healthy") {
+        assert.doesNotMatch(attrs, /font-weight="600"/);
+        assert.match(attrs, new RegExp(`fill="${T.ink}"`));
+      } else {
+        assert.match(attrs, /font-weight="600"/);
+        assert.match(attrs, new RegExp(`fill="${T.state[state].dot}"`));
+      }
+      assert.match(off.svg, />Queue depth</, "a row without a value keeps its name");
+    });
+  }
 
 test("renderDiagram rejects an unknown renderer with the valid choices", () => {
   assert.throws(() => renderDiagram(HEALTH, { renderer: "pixels" }), /unknown renderer "pixels" \(use auto, swimlane, pele, mermaid\)/);

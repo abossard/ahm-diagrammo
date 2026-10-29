@@ -825,3 +825,27 @@ test("laneLabels=false: a fence-info override threads through unchanged (C22) an
   assert.doesNotMatch(svg, />Business &amp; user flows</, "laneLabels=false must remove the lane-label text from the CLI's emitted SVG");
   assert.doesNotMatch(svg, />Application</, "laneLabels=false must remove the lane-label text from the CLI's emitted SVG");
 });
+
+const VALUES_MERMAID = [
+  "flowchart BT",
+  '    sig["Latency = 1234 ms (degraded)<br/>Errors = 0.1% (healthy)"] --> api["API"]',
+  "    class sig blue;",
+  "    class api amber;",
+].join("\n");
+for (const [form, block, flags] of [
+  ["a %%| values: false directive", `%%| values: false\n${VALUES_MERMAID}`, []],
+  ["frontmatter values: false", `---\ndiagrammo:\n  values: false\n---\n${VALUES_MERMAID}`, []],
+  ["--no-values", VALUES_MERMAID, ["--no-values"]],
+])
+  for (const renderer of ["swimlane", "pele"]) {
+    test(`${form} hides every signal value in the ${renderer} look`, async () => {
+      const dir = tmp(), path = join(dir, "doc.md");
+      writeFileSync(path, ["## Checkout", "", "```mermaid", block, "```", ""].join("\n"), "utf8");
+      const r = await run(path, "-o", dir, "-r", renderer, ...flags);
+      assert.equal(r.code, 0, r.stderr);
+      assert.doesNotMatch(r.stderr, /unknown option/);
+      const svg = readFileSync(join(dir, "checkout.svg"), "utf8");
+      assert.match(svg, /Latency/);
+      assert.doesNotMatch(svg, /1234 ms|0\.1%/);
+    });
+  }

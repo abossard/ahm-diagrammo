@@ -14,6 +14,7 @@ const ALLOWED_OPTION_KEYS = new Set([
   "lanes",
   "direction",
   "legend",
+  "values",
   "idPrefix",
   "fontFamily",
   "fontSize",
@@ -803,6 +804,9 @@ export function renderAhm(source, options = {}) {
   if (options.legend != null && typeof options.legend !== "boolean") {
     throw new Error('invalid option "legend": expected boolean');
   }
+  if (options.values != null && typeof options.values !== "boolean") {
+    throw new Error('invalid option "values": expected boolean');
+  }
   if (options.idPrefix != null && (typeof options.idPrefix !== "string" || !/^[A-Za-z][\w:-]*$/.test(options.idPrefix))) {
     throw new Error('invalid option "idPrefix": expected identifier pattern [A-Za-z][\\w:-]*');
   }
@@ -933,6 +937,7 @@ export function renderAhm(source, options = {}) {
     const rawPlan = planEntityCard(entity, textMeasurer, {
       fontSize: options.fontSize,
       tableHeaders: options.tableHeaders,
+      values: options.values,
     });
     return [entity.id, alignPlanToReservationGrid(rawPlan, calibration)];
   }));
@@ -1206,7 +1211,7 @@ export function renderAhm(source, options = {}) {
       if (plan.tableHeaders) {
         rows.push(`<g class="ahm-signal-table-header">`);
         rows.push(`<rect x="${formatNumber(tableX)}" y="${formatNumber(tableHeaderY)}" width="${formatNumber(tableW)}" height="${formatNumber(plan.constants.tableHeaderHeight)}" fill="${palette.canvas.bg}" stroke="${borderColor}" stroke-width="1"/>`);
-        rows.push(`<line class="ahm-signal-col-sep" x1="${formatNumber(valueX)}" y1="${formatNumber(tableHeaderY)}" x2="${formatNumber(valueX)}" y2="${formatNumber(tableHeaderY + plan.constants.tableHeaderHeight)}" stroke="${borderColor}" stroke-width="1"/>`);
+        if (plan.values) rows.push(`<line class="ahm-signal-col-sep" x1="${formatNumber(valueX)}" y1="${formatNumber(tableHeaderY)}" x2="${formatNumber(valueX)}" y2="${formatNumber(tableHeaderY + plan.constants.tableHeaderHeight)}" stroke="${borderColor}" stroke-width="1"/>`);
         rows.push(`<line class="ahm-signal-col-sep" x1="${formatNumber(stateX)}" y1="${formatNumber(tableHeaderY)}" x2="${formatNumber(stateX)}" y2="${formatNumber(tableHeaderY + plan.constants.tableHeaderHeight)}" stroke="${borderColor}" stroke-width="1"/>`);
         const headerBaseline = centeredFirstBaseline({
           top: tableHeaderY,
@@ -1216,7 +1221,7 @@ export function renderAhm(source, options = {}) {
           lineHeight: plan.constants.bodyLineHeight,
         });
         rows.push(`<text x="${formatNumber(tableX + plan.constants.cellPadX)}" y="${formatNumber(headerBaseline)}" font-size="${plan.constants.headerSize}" font-weight="600" fill="${headerTextColor}" text-anchor="start">Signal</text>`);
-        rows.push(`<text x="${formatNumber(valueX + plan.constants.cellPadX)}" y="${formatNumber(headerBaseline)}" font-size="${plan.constants.headerSize}" font-weight="600" fill="${headerTextColor}" text-anchor="start">Value</text>`);
+        if (plan.values) rows.push(`<text x="${formatNumber(valueX + plan.constants.cellPadX)}" y="${formatNumber(headerBaseline)}" font-size="${plan.constants.headerSize}" font-weight="600" fill="${headerTextColor}" text-anchor="start">Value</text>`);
         rows.push(`<text x="${formatNumber(stateX + plan.constants.cellPadX)}" y="${formatNumber(headerBaseline)}" font-size="${plan.constants.headerSize}" font-weight="600" fill="${headerTextColor}" text-anchor="start">State</text>`);
         rows.push(`</g>`);
         cursorY += plan.constants.tableHeaderHeight;
@@ -1240,9 +1245,9 @@ export function renderAhm(source, options = {}) {
             lineHeight: plan.constants.bodyLineHeight,
           }),
           fontSize: plan.constants.bodySize,
-          fontWeight: 500,
+          fontWeight: rowPlan.nameWeight,
           lineHeight: plan.constants.bodyLineHeight,
-          fill: valueColor,
+          fill: rowPlan.nameWeight === 600 ? stateToken.accent : valueColor,
           clipId: nameClipId,
         });
         const valueCell = renderCellText({
@@ -1263,14 +1268,14 @@ export function renderAhm(source, options = {}) {
           clipId: valueClipId,
         });
         clipDefs.push(`<clipPath id="${nameClipId}"><rect x="${formatNumber(tableX + plan.constants.clipPadX)}" y="${formatNumber(cursorY + plan.constants.clipPadY)}" width="${formatNumber(Math.max(plan.constants.minClipSpan, nameW - (plan.constants.clipPadX * 2)))}" height="${formatNumber(Math.max(plan.constants.minClipSpan, rowPlan.rowHeight - (plan.constants.clipPadY * 2)))}"/></clipPath>`);
-        clipDefs.push(`<clipPath id="${valueClipId}"><rect x="${formatNumber(valueX + plan.constants.clipPadX)}" y="${formatNumber(cursorY + plan.constants.clipPadY)}" width="${formatNumber(Math.max(plan.constants.minClipSpan, valueW - (plan.constants.clipPadX * 2)))}" height="${formatNumber(Math.max(plan.constants.minClipSpan, rowPlan.rowHeight - (plan.constants.clipPadY * 2)))}"/></clipPath>`);
+        if (plan.values) clipDefs.push(`<clipPath id="${valueClipId}"><rect x="${formatNumber(valueX + plan.constants.clipPadX)}" y="${formatNumber(cursorY + plan.constants.clipPadY)}" width="${formatNumber(Math.max(plan.constants.minClipSpan, valueW - (plan.constants.clipPadX * 2)))}" height="${formatNumber(Math.max(plan.constants.minClipSpan, rowPlan.rowHeight - (plan.constants.clipPadY * 2)))}"/></clipPath>`);
         clipDefs.push(`<clipPath id="${stateClipId}"><rect x="${formatNumber(stateX + plan.constants.clipPadX)}" y="${formatNumber(cursorY + plan.constants.clipPadY)}" width="${formatNumber(Math.max(plan.constants.minClipSpan, stateW - (plan.constants.clipPadX * 2)))}" height="${formatNumber(Math.max(plan.constants.minClipSpan, rowPlan.rowHeight - (plan.constants.clipPadY * 2)))}"/></clipPath>`);
         rows.push(`<g class="ahm-signal-row row-state-${rowPlan.row.state}" data-signal-id="${escapeXml(rowPlan.row.signalId ?? `row-${rowPlan.i}`)}" data-row-index="${rowPlan.i}" data-state="${rowPlan.row.state}">`);
         rows.push(`<rect x="${formatNumber(tableX)}" y="${formatNumber(cursorY)}" width="${formatNumber(tableW)}" height="${formatNumber(rowPlan.rowHeight)}" fill="${stateToken.fill}" stroke="${stateToken.border}" stroke-width="1"/>`);
-        rows.push(`<line class="ahm-signal-col-sep" x1="${formatNumber(valueX)}" y1="${formatNumber(cursorY)}" x2="${formatNumber(valueX)}" y2="${formatNumber(cursorY + rowPlan.rowHeight)}" stroke="${stateToken.border}" stroke-width="1"/>`);
+        if (plan.values) rows.push(`<line class="ahm-signal-col-sep" x1="${formatNumber(valueX)}" y1="${formatNumber(cursorY)}" x2="${formatNumber(valueX)}" y2="${formatNumber(cursorY + rowPlan.rowHeight)}" stroke="${stateToken.border}" stroke-width="1"/>`);
         rows.push(`<line class="ahm-signal-col-sep" x1="${formatNumber(stateX)}" y1="${formatNumber(cursorY)}" x2="${formatNumber(stateX)}" y2="${formatNumber(cursorY + rowPlan.rowHeight)}" stroke="${stateToken.border}" stroke-width="1"/>`);
         rows.push(nameCell.markup);
-        rows.push(valueCell.markup);
+        if (plan.values) rows.push(valueCell.markup);
         rows.push(`<circle class="ahm-signal-state-dot" cx="${formatNumber(stateX + plan.constants.stateDotXOffset)}" cy="${formatNumber(cursorY + (rowPlan.rowHeight / 2))}" r="${formatNumber(plan.constants.stateDotRadius)}" fill="${stateToken.accent}"/>`);
         rows.push(`<text class="ahm-signal-state state-${rowPlan.row.state}" x="${formatNumber(stateX + plan.constants.stateTextXOffset)}" y="${formatNumber(centeredFirstBaseline({
           top: cursorY,

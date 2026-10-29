@@ -99,7 +99,7 @@ export function slugify(s) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "diagram";
 }
 
-export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "background", "alt", "laneLabels"];
+export const KNOWN_OPTIONS = ["renderer", "theme", "title", "subtitle", "name", "lanes", "legend", "values", "background", "alt", "laneLabels"];
 
 // Reserves a slug in the shared `used` map before any new block's slug is derived, so a
 // managed block's stable identity (its first-generated marker slug) can never be re-derived or

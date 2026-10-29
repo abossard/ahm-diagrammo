@@ -289,7 +289,7 @@ export function looksLikeHealthModel(code) {
 }
 
 // ---------- main render ----------
-// opts: { theme, title, subtitle, lanes, legend, laneLabels, diag, baseLine, debug }
+// opts: { theme, title, subtitle, lanes, legend, values, laneLabels, diag, baseLine, debug }
 export function renderSwimlane(code, opts = {}) {
   const diag = opts.diag || new Diagnostics();
   const T = typeof opts.theme === "object" && opts.theme !== null ? opts.theme : getTheme(opts.theme);
@@ -305,22 +305,26 @@ export function renderSwimlane(code, opts = {}) {
   const { laneNodes, lane, L } = lay;
 
   // ----- measure cards -----
+  // `values: false` drops every row's result and its column gap; degraded/unhealthy row names
+  // are drawn bold in their state color instead, so the rows that drive the state stay visible.
+  const valuesOn = opts.values !== false;
   const size = new Map();
   for (const [id, n] of g.nodes) {
     const rawLines = n.lines.filter((l) => !STATE_WORDS.has(l.toLowerCase()));
     const name = rawLines[0] || n.lines[0] || n.id;
     const qualifierRaw = rawLines.slice(1).map((l) => l.replace(/[()]/g, "")).join(" · ") || null;
     const statePillW = 20 + textWidth(STATE_LABEL[n.state] || "Unknown", PILL_FS) + 8;
-    const sigs = n.signals || [];
+    const sigs = (n.signals || []).map((r) => valuesOn ? r
+      : { ...r, result: null, nameWeight: r.state === "degraded" || r.state === "unhealthy" ? 600 : 400 });
 
     // natural (unwrapped) width demands. The subtitle's width demand is capped at SUBTITLE_MAX_W so
     // a long subtitle wraps (and the card grows taller) instead of widening the card to fit one line.
     const headerFixed = 34 + 8 + statePillW + 8;
     const subCol = qualifierRaw ? Math.min(textWidth(qualifierRaw, QUAL_FS), SUBTITLE_MAX_W) : 0;
     const headerNat = headerFixed + Math.max(textWidth(name, NAME_FS, 600), subCol * HEADER_SAFETY);
-    const rowFixed = 52 + 16 + 12;
+    const rowFixed = valuesOn ? 52 + 16 + 12 : 52 + 12;
     let rowsNat = 0;
-    for (const r of sigs) rowsNat = Math.max(rowsNat, rowFixed + textWidth(r.name, ROW_FS) + textWidth(r.result ?? "", ROW_FS, 600));
+    for (const r of sigs) rowsNat = Math.max(rowsNat, rowFixed + textWidth(r.name, ROW_FS, r.nameWeight) + textWidth(r.result ?? "", ROW_FS, 600));
     const w = Math.min(CARD_MAX_W, Math.max(CARD_MIN_W, Math.ceil(Math.max(headerNat, rowsNat))));
 
     // wrap into the final width
@@ -335,7 +339,7 @@ export function renderSwimlane(code, opts = {}) {
     const rows = sigs.map((r) => {
       const resultW = textWidth(r.result ?? "", ROW_FS, 600);
       const avail = w - rowFixed - resultW;
-      const wrap = wrapText(r.name, avail, ROW_FS, { maxLines: 2 });
+      const wrap = wrapText(r.name, avail, ROW_FS, { weight: r.nameWeight, maxLines: 2 });
       if (wrap.clipped) diag.warn(`signal row "${r.name.slice(0, 40)}…" on "${n.id}" clipped (full text kept as tooltip)`);
       return { ...r, lines: wrap.lines, clipped: wrap.clipped, rowH: 18 + 13 * (wrap.lines.length - 1), resultW };
     });
@@ -580,13 +584,16 @@ export function renderSwimlane(code, opts = {}) {
         p.push(statusDot(T, r.state, b.x + 16, ry));
         p.push(metricIcon(T, iconX, ry - 7, 14));
         const rowTitle = r.clipped ? `<title>${esc(r.name)}</title>` : "";
-        r.lines.forEach((line, k) => {
-          p.push(`<text x="${nameX2.toFixed(1)}" y="${(ry + 3.5 + k * 13).toFixed(1)}" font-size="${ROW_FS}" fill="${T.ink}">${esc(line)}${k === 0 ? rowTitle : ""}</text>`);
-          dbgText(nameX2, ry + 3.5 + k * 13 - 9, textWidth(line, ROW_FS), 11, line);
-        });
         const rs = T.state[r.state] || T.state.healthy;
-        p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.dot}" text-anchor="end">${esc(r.result ?? "")}</text>`);
-        dbgText(resX - r.resultW, ry - 5.5, r.resultW, 11, r.result ?? "");
+        const nameStyle = r.nameWeight === 600 ? `font-weight="600" fill="${rs.dot}"` : `fill="${T.ink}"`;
+        r.lines.forEach((line, k) => {
+          p.push(`<text x="${nameX2.toFixed(1)}" y="${(ry + 3.5 + k * 13).toFixed(1)}" font-size="${ROW_FS}" ${nameStyle}>${esc(line)}${k === 0 ? rowTitle : ""}</text>`);
+          dbgText(nameX2, ry + 3.5 + k * 13 - 9, textWidth(line, ROW_FS, r.nameWeight), 11, line);
+        });
+        if (valuesOn) {
+          p.push(`<text x="${resX.toFixed(1)}" y="${(ry + 3.5).toFixed(1)}" font-size="${ROW_FS}" font-weight="${r.state === "healthy" ? 400 : 600}" fill="${r.state === "healthy" ? T.muted : rs.dot}" text-anchor="end">${esc(r.result ?? "")}</text>`);
+          dbgText(resX - r.resultW, ry - 5.5, r.resultW, 11, r.result ?? "");
+        }
         top += r.rowH;
       });
     }

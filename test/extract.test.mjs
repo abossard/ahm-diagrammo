@@ -84,6 +84,17 @@ test("extractBlocks: laneLabels is accepted via each option channel independentl
   assert.equal(overridden.options.laneLabels, false);
 });
 
+for (const [channel, block] of [
+  ["directive", "%%| values: false\nflowchart BT\na --> b"],
+  ["frontmatter", "---\ndiagrammo:\n  values: false\n---\nflowchart BT\na --> b"],
+]) {
+  test(`extractBlocks: values: false is a known option in the ${channel}`, () => {
+    const [b] = extractBlocks("```mermaid\n" + block + "\n```", THEME_NAMES);
+    assert.equal(b.options.values, false);
+    assert.deepEqual(b.issues, []);
+  });
+}
+
 test("extractBlocks: quoted fence values may contain spaces", () => {
   const doc = [
     '```mermaid title="Checkout flow" subtitle=\'Live status\'',

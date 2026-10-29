@@ -103,6 +103,7 @@ flowchart BT
 | `title` / `subtitle` | header text of the swimlane look (title defaults to the nearest heading) |
 | `lanes` | swimlane row names, top to bottom |
 | `legend` | `false` hides the legend (both looks) |
+| `values` | `false` hides every signal value and draws degraded and unhealthy signal names bold in their state color (both looks); `--no-values` sets it for a whole run |
 | `laneLabels` | `false` hides the swimlane lane names and reclaims their gutter |
 | `name` | output file name (defaults to a slug of the title or heading) |
 | `background` | canvas color for non-health diagrams |
@@ -171,6 +172,7 @@ node bin/diagrammo.mjs <file.md> [more.md ...] [options]
   -l, --list               show what each block becomes, write nothing
   -v, --verbose            log every parsed node, edge and signal fold
       --strict             warnings fail the run
+      --no-values          hide signal values in every block (values: false)
       --sync-markdown      write images plus hidden source back into the Markdown
       --image-format <f>   commonmark | learn (with --sync-markdown)
 ```

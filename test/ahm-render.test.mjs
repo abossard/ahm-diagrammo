@@ -1037,6 +1037,10 @@ test("renderAhm rejects non-object top-level options and invalid numeric guards"
     () => renderAhm(SIMPLE, { tableHeaders: "nope" }),
     /invalid option "tableHeaders": expected boolean/
   );
+  assert.throws(
+    () => renderAhm(SIMPLE, { values: "false" }),
+    /invalid option "values": expected boolean/
+  );
 });
 
 test("renderAhm preserves literal authored dollar tokens in no-signal and signal-table cards", () => {

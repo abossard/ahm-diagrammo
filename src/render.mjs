@@ -17,7 +17,7 @@ export function resolveRenderer(requested, code) {
   return r;
 }
 
-// opts: { renderer, theme, title, subtitle, lanes, legend, laneLabels, background, diag, baseLine }
+// opts: { renderer, theme, title, subtitle, lanes, legend, values, laneLabels, background, diag, baseLine }
 //   →  { renderer, svg, width, height, nodes?, lanes? }
 export function renderDiagram(code, opts = {}) {
   const renderer = resolveRenderer(opts.renderer, code);
@@ -26,7 +26,7 @@ export function renderDiagram(code, opts = {}) {
   if (renderer === "swimlane") {
     const r = renderSwimlane(code, {
       theme, title: opts.title, subtitle: opts.subtitle,
-      lanes: opts.lanes, legend: opts.legend, laneLabels: opts.laneLabels,
+      lanes: opts.lanes, legend: opts.legend, values: opts.values, laneLabels: opts.laneLabels,
       diag, baseLine: opts.baseLine,
     });
     return { renderer, svg: r.svg, width: r.W, height: r.H, nodes: r.nodes, lanes: r.lanes };
@@ -38,7 +38,7 @@ export function renderDiagram(code, opts = {}) {
       .split("\n")
       .filter((l) => !/^\s*(%%\||classDef\s)/.test(l))
       .join("\n");
-    const r = renderAhm(source, { theme: theme.name, lanes: true, legend: opts.legend !== false });
+    const r = renderAhm(source, { theme: theme.name, lanes: true, legend: opts.legend !== false, values: opts.values !== false });
     for (const d of r.diagnostics) {
       if (typeof d === "string") diag.info(d);
       else diag.add(d.level, d.message);

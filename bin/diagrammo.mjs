@@ -33,6 +33,7 @@ Options:
   -l, --list             list detected blocks and options, render nothing
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
+      --no-values        hide every signal row's value; degraded/unhealthy names turn bold in their color
       --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden, still-editable
                          Mermaid source; leaves the file untouched if any of its blocks fails
       --image-format <fmt>  visible embed for --sync-markdown: commonmark | learn   (default: commonmark)
@@ -51,12 +52,12 @@ Per-block options (all optional, all invisible to GitHub's mermaid preview):
                     legend: false
                   ---
 
-Keys: renderer, theme, title, subtitle, name (file name), lanes, legend,
+Keys: renderer, theme, title, subtitle, name (file name), lanes, legend, values,
       laneLabels (default true — set false to hide lane label text and reclaim its gutter width).
 Signal rows may carry their own value and state:  P95 latency = 230 ms (degraded)
 `;
 
-const args = { files: [], out: "diagrams", theme: "portal", renderer: "auto", list: false, verbose: false, strict: false, syncMarkdown: false, imageFormat: "commonmark" };
+const args = { files: [], out: "diagrams", theme: "portal", renderer: "auto", values: true, list: false, verbose: false, strict: false, syncMarkdown: false, imageFormat: "commonmark" };
 const argv = process.argv.slice(2);
 for (let i = 0; i < argv.length; i++) {
   const v = argv[i];
@@ -78,6 +79,7 @@ for (let i = 0; i < argv.length; i++) {
   else if (v === "-l" || v === "--list") args.list = true;
   else if (v === "-v" || v === "--verbose") args.verbose = true;
   else if (v === "--strict") args.strict = true;
+  else if (v === "--no-values") args.values = false;
   else if (v === "--sync-markdown") args.syncMarkdown = true;
   else if (v.startsWith("-")) { console.error(`unknown option ${v}\n`); args.help = true; args.bad = true; }
   else args.files.push(v);
@@ -105,7 +107,7 @@ for (const file of args.files) {
   try { inputs.push({ name: file, source: readFileSync(file, "utf8") }); }
   catch (e) { console.error(`error: cannot read ${file}: ${e.message}`); process.exitCode = 1; }
 }
-const documents = prepareDocuments(inputs, { theme: args.theme, renderer: args.renderer }, { sync: args.syncMarkdown && !args.list });
+const documents = prepareDocuments(inputs, { theme: args.theme, renderer: args.renderer, values: args.values }, { sync: args.syncMarkdown && !args.list });
 for (const doc of documents) {
   for (const issue of doc.diagnostics) {
     console.error(`error: cannot ${args.syncMarkdown ? "sync" : "read"} ${doc.name}: ${issue.message}`);

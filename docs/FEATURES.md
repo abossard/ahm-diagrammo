@@ -29,6 +29,7 @@ node bin/diagrammo.mjs <file.md> [more.md ...] [options]
   -l, --list             list detected blocks and options, render nothing
   -v, --verbose          log every parsed node/edge/fold decision
       --strict           any warning fails the run (exit 1)
+      --no-values        hide signal values in every block (values: false for the whole run)
       --sync-markdown    rewrite each file's fences into a visible <img> + fully hidden source
       --image-format <fmt>  visible embed for --sync-markdown: commonmark | learn (default: commonmark)
   -h, --help             this help
@@ -281,6 +282,7 @@ flowchart BT
 | `subtitle` | string | line under the title (swimlane only; set `""` to hide) |
 | `lanes` | list | custom swimlane labels, top to bottom |
 | `legend` | boolean | `false` hides the legend (swimlane only) |
+| `values` | boolean | `false` hides every signal row's value and draws degraded/unhealthy row names bold in their state color, in both looks (see [Signal rows](#signal-rows)). `--no-values` sets it for every block of a run; a block's own `values` wins. **Default shown** |
 | `laneLabels` | boolean | `false` hides the lane label text and reclaims its gutter width for row content (swimlane only); band fills/hairlines stay visible. **Default shown** |
 | `name` | string | output file name (default: slug of title/heading; duplicates get `-2`, `-3`, …) |
 | `background` | color | canvas background (mermaid renderer only) |
@@ -363,8 +365,17 @@ apiSig["P95 latency = 230 ms (degraded)<br/>Error rate = 0.4%<br/>Requests = 1.2
 - If no row is marked and the entity is degraded/unhealthy, the first row inherits that state.
 - A signal pointing at several entities folds into each of them.
 
+`values: false` (or `--no-values`) draws the rows without any value: authored values and
+placeholders are both dropped, and the value column with them, so cards get narrower (the Pele
+look drops its Value column). Degraded and unhealthy row names turn bold (600) in their state
+color, the color the value text uses, so the rows that drive the state stay visible; healthy and
+unknown names stay as they are. Unset and `true` render byte-identically.
+
 *Verified by:* `swimlane.test.mjs` — "foldSignals: explicit results and states survive";
-`docs.test.mjs` — "gallery signal-row syntax lands in both looks".
+`docs.test.mjs` — "gallery signal-row syntax lands in both looks". `values: false` is verified by
+`render-diagram.test.mjs` ("values=false hides values", per look and row state), `swimlane.test.mjs`
+(the `geometry:` fixture sweep with `values=false`), `extract.test.mjs` ("values: false is a known
+option") and `cli.test.mjs` (the directive, frontmatter and `--no-values` forms, per look).
 
 ## Layout guarantees
 
@@ -493,7 +504,7 @@ what moved.
 
 `renderer: pele` (or `-r pele`) renders a health model through `renderAhm()`: signals become
 in-card Signal/Value/State tables, laid out by Pele, with the AHM legend footer. The CLI passes
-`theme`, `legend` and `lanes: true`; library callers can use every option below directly.
+`theme`, `legend`, `values` and `lanes: true`; library callers can use every option below directly.
 
 ### Public interface
 
@@ -524,6 +535,8 @@ in-card Signal/Value/State tables, laid out by Pele, with the AHM legend footer.
 - Quoted connection labels preserve valid punctuation and escapes from authored source.
 - Legend footer is enabled by default and removable with `legend: false`
 - Table column headers are enabled by default and optional with `tableHeaders: false`
+- The Value column is shown by default and removed with `values: false`; degraded/unhealthy signal
+  names then turn bold in their state accent color
 - Direction preserved for `TB`, `TD`, `BT`, `LR`, `RL`
 - Optional lanes via `lanes: true`. Authored top-level `subgraph`s are the lanes and stay Pele
   subgraph groups. Without them, lanes are roll-up levels (`Level n`, the longest path to a
@@ -549,6 +562,7 @@ in-card Signal/Value/State tables, laid out by Pele, with the AHM legend footer.
 - `limit` applies to authored input shape, not post-render bytes.
 - `outputLimit` caps final serialized SVG bytes, including table and legend content.
 - `tableHeaders` must be boolean when supplied.
+- `values` must be boolean when supplied.
 - `nested` must be an object when supplied.
 - `nested.view.detailFocus` is valid only in `detail` mode and must reference a registered model.
 - Caller boundary: provide `fontFamily` as a non-empty string when supplied

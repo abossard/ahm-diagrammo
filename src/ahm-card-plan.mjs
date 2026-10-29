@@ -197,15 +197,18 @@ export function planEntityCard(entity, measurer, options = {}) {
     minHeaderTextWidth: scaled(96, geometryScale, "minHeaderTextWidth"),
   };
   const tableHeaders = options.tableHeaders !== false;
+  // values: false drops the Value column; degraded/unhealthy names are drawn bold in their place
+  const values = options.values !== false;
+  const nameWeight = (row) => (!values && (row.state === "degraded" || row.state === "unhealthy") ? 600 : 500);
   const title = entity.presentation?.title ?? entity.label ?? "";
   const qualifier = entity.presentation?.qualifier ?? "";
   const badgeText = `${entity.state.slice(0, 1).toUpperCase()}${entity.state.slice(1)}`;
   const stateLabels = entity.signals.map((row) => `${row.state.slice(0, 1).toUpperCase()}${row.state.slice(1)}`);
 
   const measuredName = entity.signals.length
-    ? Math.max(...entity.signals.map((row) => measurer.width(row.name, constants.bodySize, { fontWeight: 500 })))
+    ? Math.max(...entity.signals.map((row) => measurer.width(row.name, constants.bodySize, { fontWeight: nameWeight(row) })))
     : 0;
-  const measuredValue = entity.signals.length
+  const measuredValue = entity.signals.length && values
     ? Math.max(...entity.signals.map((row) => measurer.width(signalValue(row), constants.bodySize, { fontWeight: 500 })))
     : 0;
   const measuredState = stateLabels.length
@@ -213,11 +216,11 @@ export function planEntityCard(entity, measurer, options = {}) {
     : 0;
 
   const headerNameDemand = tableHeaders ? Math.ceil(measurer.width("Signal", constants.headerSize, { fontWeight: 600 }) + (constants.cellPadX * 2)) : 0;
-  const headerValueDemand = tableHeaders ? Math.ceil(measurer.width("Value", constants.headerSize, { fontWeight: 600 }) + (constants.cellPadX * 2)) : 0;
+  const headerValueDemand = tableHeaders && values ? Math.ceil(measurer.width("Value", constants.headerSize, { fontWeight: 600 }) + (constants.cellPadX * 2)) : 0;
   const headerStateDemand = tableHeaders ? Math.ceil(measurer.width("State", constants.headerSize, { fontWeight: 600 }) + (constants.cellPadX * 2)) : 0;
   const signalScale = Math.max(1, constants.bodySize / CARD_BASE.bodySize);
   const targetName = Math.ceil(Math.max(measuredName + (12 * signalScale), headerNameDemand));
-  const targetValue = Math.ceil(Math.max(measuredValue + (12 * signalScale), headerValueDemand));
+  const targetValue = values ? Math.ceil(Math.max(measuredValue + (12 * signalScale), headerValueDemand)) : 0;
   const targetState = Math.ceil(Math.max(measuredState + (24 * signalScale), headerStateDemand));
   const tableWidth = clamp(targetName + targetValue + targetState, 1, constants.maxTableWidth);
   // fit the columns to the table width: grow name, then state, then value; shrink name, then
@@ -290,10 +293,10 @@ export function planEntityCard(entity, measurer, options = {}) {
   if (entity.signals.length > 0) {
     for (let i = 0; i < entity.signals.length; i += 1) {
       const row = entity.signals[i];
-      const value = signalValue(row);
+      const value = values ? signalValue(row) : "";
       const stateLabel = `${row.state.slice(0, 1).toUpperCase()}${row.state.slice(1)}`;
-      const nameLines = wrapTextToWidth(row.name, columns.name - 10, constants.bodySize, { fontWeight: 500 }, measurer);
-      const valueLines = wrapTextToWidth(value, columns.value - 10, constants.bodySize, { fontWeight: 500 }, measurer);
+      const nameLines = wrapTextToWidth(row.name, columns.name - 10, constants.bodySize, { fontWeight: nameWeight(row) }, measurer);
+      const valueLines = values ? wrapTextToWidth(value, columns.value - 10, constants.bodySize, { fontWeight: 500 }, measurer) : [];
       const lineCount = Math.max(nameLines.length, valueLines.length, 1);
       const textBlockHeight = constants.bodySize + Math.max(0, lineCount - 1) * constants.bodyLineHeight;
       const rowHeight = Math.max(23 * (constants.bodySize / CARD_BASE.bodySize), textBlockHeight + constants.rowPadY);
@@ -302,6 +305,7 @@ export function planEntityCard(entity, measurer, options = {}) {
         row,
         value,
         stateLabel,
+        nameWeight: nameWeight(row),
         nameLines,
         valueLines,
         lineCount,
@@ -343,6 +347,7 @@ export function planEntityCard(entity, measurer, options = {}) {
     tableY,
     tableHeight,
     tableHeaders,
+    values,
     columns,
     rows,
     semanticLineCount,
