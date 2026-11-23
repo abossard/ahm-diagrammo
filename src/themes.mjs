@@ -73,7 +73,7 @@ const openDiagram = {
     healthy:   { border: "#27323F", fill: "#FFFFFF", dot: "#27323F" },
     degraded:  { border: "#B26B00", fill: "#FFF5E5", dot: "#B26B00", text: "#8F5500", dash: "5 3.5" },
     unhealthy: { border: "#B42318", fill: "#FEF0EE", dot: "#B42318", text: "#B42318" },
-    unknown:   { border: "#5C636B", fill: "#F1F2F4", dot: "#5C636B", dash: "1.5 3.5" },
+    unknown:   { border: "#5C636B", fill: "#F1F2F4", dot: "#5C636B", dash: "0.1 3.4" },
     alt:       { border: "#6B4FD8", fill: "#F4F1FE", dot: "#6B4FD8", dash: "5 3.5" },
     signal:    { border: "#B26B00", fill: "#FFF8EC", dot: "#FFC83D" },
   },

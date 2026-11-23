@@ -37,7 +37,7 @@ test("getAhmPalette preserves canonical theme token data", () => {
   assert.equal(openDiagram.entity.healthy.border, "#27323F");
   assert.equal(openDiagram.entity.degraded.dash, "5 3.5");
   assert.equal(openDiagram.entity.unhealthy.fill, "#FEF0EE");
-  assert.equal(openDiagram.entity.unknown.dash, "1.5 3.5");
+  assert.equal(openDiagram.entity.unknown.dash, "0.1 3.4");
   assert.equal(openDiagram.entity.standby.accent, "#6B4FD8");
 });
 
