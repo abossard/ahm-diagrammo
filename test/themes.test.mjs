@@ -31,6 +31,14 @@ test("getAhmPalette preserves canonical theme token data", () => {
   const slate = getAhmPalette("slate");
   assert.equal(slate.entity.healthy.border, THEMES.slate.state.healthy.border);
   assert.equal(slate.signal.healthy.fill, THEMES.slate.state.healthy.fill);
+
+  const openDiagram = getAhmPalette("open-diagram");
+  assert.equal(openDiagram.canvas.bg, "#FFFFFF");
+  assert.equal(openDiagram.entity.healthy.border, "#27323F");
+  assert.equal(openDiagram.entity.degraded.dash, "5 3.5");
+  assert.equal(openDiagram.entity.unhealthy.fill, "#FEF0EE");
+  assert.equal(openDiagram.entity.unknown.dash, "0.1 3.4");
+  assert.equal(openDiagram.entity.standby.accent, "#6B4FD8");
 });
 
 test("getAhmPalette supports validated color-only overrides", () => {
@@ -99,4 +107,3 @@ test("ahm.css stays scoped and matches generated token CSS", () => {
   assert.match(css, /\.ahm-root/);
   assert.equal(css, getAhmCss().trim());
 });
-

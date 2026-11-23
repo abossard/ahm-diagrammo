@@ -154,6 +154,7 @@ export function getAhmCss() {
   const midnight = getAhmPalette("midnight");
   const candy = getAhmPalette("candy");
   const slate = getAhmPalette("slate");
+  const openDiagram = getAhmPalette("open-diagram");
 
   return [
     ".ahm-root {",
@@ -167,6 +168,8 @@ export function getAhmCss() {
     cssBlock('.ahm-root[data-ahm-theme="candy"]', candy),
     "",
     cssBlock('.ahm-root[data-ahm-theme="slate"]', slate),
+    "",
+    cssBlock('.ahm-root[data-ahm-theme="open-diagram"]', openDiagram),
     "",
   ].join("\n");
 }

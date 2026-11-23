@@ -24,7 +24,7 @@ Run from a [repository checkout](../README.md#usage), not an unpublished npm pac
 node bin/diagrammo.mjs <file.md> [more.md ...] [options]
 
   -o, --out <dir>        output directory                    (default: ./diagrams)
-  -t, --theme <name>     portal | midnight | candy | slate   (default: portal)
+  -t, --theme <name>     portal | midnight | candy | slate | open-diagram   (default: portal)
   -r, --renderer <name>  auto | swimlane | pele | mermaid    (default: auto)
   -l, --list             list detected blocks and options, render nothing
   -v, --verbose          log every parsed node/edge/fold decision
@@ -299,14 +299,16 @@ unclosed fences; `docs.test.mjs` — all three channels live in `docs/gallery/so
 
 ## Themes
 
-Four built-in themes, shared by both renderers so a whole document matches:
+Five built-in themes, shared by both renderers so a whole document matches:
 **`portal`** (Azure portal light, default), **`midnight`** (dark), **`candy`** (warm pastel),
-**`slate`** (cool gray-blue). A theme defines background/band/ink/muted colors, the five state
-palettes (healthy, degraded, unhealthy, unknown-dashed, standby), pill colors, metric-bar colors,
-and the Pele theme variables used for non-health blocks. Degraded and unhealthy also carry a text
-color for signal values, highlighted signal names and Pele State cells: the dot's hue, adjusted to
-reach WCAG 4.5:1 on every state fill; dots, borders, edges and pills keep the dot color. The Pele AHM renderer maps the same four
-names onto its semantic tokens (`getAhmPalette()`).
+**`slate`** (cool gray-blue) and **`open-diagram`** (the neutral-and-status palette of
+[Open Diagram](https://github.com/lukendeasy/open-diagram)). A theme defines
+background/band/ink/muted colors, the five state palettes (healthy, degraded, unhealthy, unknown
+and standby), pill colors, metric-bar colors, and the Pele theme variables used for non-health
+blocks. Degraded and unhealthy also carry a text color for signal values, highlighted signal
+names and Pele State cells: the dot's hue, adjusted to reach WCAG 4.5:1 on every state fill; dots,
+borders, edges and pills keep the dot color. The Pele AHM renderer maps the same five names onto
+its semantic tokens (`getAhmPalette()`).
 
 *Verified by:* `swimlane.test.mjs` — "pill flood stays clean in every theme" renders the hardest
 fixture in all four; `mermaid.test.mjs` — themed diagrams in every theme; `themes.test.mjs`,
@@ -524,7 +526,8 @@ in-card Signal/Value/State tables, laid out by Pele, with the AHM legend footer.
 - Export path: `ahm-diagrammo/styles.css`
 - Root utility scope: `.ahm-root`
 - State utilities: `.state-healthy`, `.state-degraded`, `.state-unhealthy`, `.state-unknown`, `.state-standby`
-- Theme selection utilities: `.ahm-root[data-ahm-theme="portal"|"midnight"|"candy"|"slate"]`
+- Theme selection utilities:
+  `.ahm-root[data-ahm-theme="portal"|"midnight"|"candy"|"slate"|"open-diagram"]`
 - Token ownership: stylesheet utilities and `getAhmPalette()` share one token source (`src/ahm-tokens.mjs`)
 - Static-color boundary: saved SVG embeds concrete colors. Theme/color changes for static outputs require a new `renderAhm()` call with `theme`/`colors`; stylesheet utilities are not a contract to repaint immutable embedded SVG fills.
 

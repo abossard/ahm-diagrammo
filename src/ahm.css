@@ -81,3 +81,23 @@
 .ahm-root[data-ahm-theme="slate"] .state-standby {
   color: #7c3aed;
 }
+
+.ahm-root[data-ahm-theme="open-diagram"] .state-healthy {
+  color: #27323F;
+}
+
+.ahm-root[data-ahm-theme="open-diagram"] .state-degraded {
+  color: #B26B00;
+}
+
+.ahm-root[data-ahm-theme="open-diagram"] .state-unhealthy {
+  color: #B42318;
+}
+
+.ahm-root[data-ahm-theme="open-diagram"] .state-unknown {
+  color: #5C636B;
+}
+
+.ahm-root[data-ahm-theme="open-diagram"] .state-standby {
+  color: #6B4FD8;
+}

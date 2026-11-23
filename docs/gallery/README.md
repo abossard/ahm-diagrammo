@@ -12,7 +12,7 @@ SVGs in [svg/](svg/) are generated; `npm run gallery:check` fails when they are 
 
 - [Health models](#health-models): zero config, entity states, signal rows, relationships,
   qualifiers, deep models, labeled relationships, long text
-- [Themes](#themes): portal, midnight, candy, slate
+- [Themes](#themes): portal, midnight, candy, slate, open-diagram
 - [Options](#options): title and subtitle, lane names, legend, lane labels, plain Mermaid look
 - [Other Mermaid diagrams](#other-mermaid-diagrams): flowchart, sequence, state, ER, pie
 - [Pele library options](#pele-library-options): direction, table headers, colors, font size,
@@ -294,9 +294,10 @@ flowchart BT
 
 ## Themes
 
-Four themes, shared by both looks and by every other diagram type: `portal` (default),
-`midnight`, `candy` and `slate`. Set one per run with `-t` or per block, for example in the fence
-line: ` ```mermaid midnight `.
+Five themes, shared by both looks and by every other diagram type: `portal` (default),
+`midnight`, `candy`, `slate` and `open-diagram`. The last uses the neutral and status palette of
+[Open Diagram](https://github.com/lukendeasy/open-diagram). Set one per run with `-t` or per
+block, for example in the fence line: ` ```mermaid midnight `.
 
 ### Theme: portal
 
@@ -408,6 +409,38 @@ flowchart BT
 
 ````markdown
 ```mermaid slate
+flowchart BT
+    sigA["Availability = 99.9% (healthy)<br/>Latency = 420 ms (degraded)"] --> api["API service"]
+    sigB["Queue depth = 57 (unhealthy)"] --> queue["Order queue"]
+    api --> flow["Checkout flow"]
+    queue -. "limited propagation" .-> flow
+    standby["Secondary region"] --> root["Workload root"]
+    flow --> root
+    class sigA,sigB blue;
+    class api amber;
+    class queue red;
+    class flow amber;
+    class standby purple;
+    class root amber;
+```
+````
+
+</details>
+
+### Theme: open-diagram
+
+**Swimlane look (default)**
+
+![Theme: open-diagram, Swimlane look (default)](svg/theme-open-diagram.swimlane.svg)
+
+**Pele look (`-r pele`)**
+
+![Theme: open-diagram, Pele look (-r pele)](svg/theme-open-diagram.pele.svg)
+
+<details><summary>Source</summary>
+
+````markdown
+```mermaid open-diagram
 flowchart BT
     sigA["Availability = 99.9% (healthy)<br/>Latency = 420 ms (degraded)"] --> api["API service"]
     sigB["Queue depth = 57 (unhealthy)"] --> queue["Order queue"]
