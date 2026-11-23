@@ -99,7 +99,7 @@ flowchart BT
 | Key | What it does |
 |-----|--------------|
 | `renderer` | `auto`, `swimlane`, `pele` or `mermaid` |
-| `theme` | `portal` (default), `midnight`, `candy`, `slate` |
+| `theme` | `portal` (default), `midnight`, `candy`, `slate`, `open-diagram` |
 | `title` / `subtitle` | header text of the swimlane look (title defaults to the nearest heading) |
 | `lanes` | swimlane row names, top to bottom |
 | `legend` | `false` hides the legend (both looks) |
@@ -167,7 +167,7 @@ same two functions. ahm-diagrammo draws its own pipeline
 node bin/diagrammo.mjs <file.md> [more.md ...] [options]
 
   -o, --out <dir>          output directory (default: ./diagrams)
-  -t, --theme <name>       portal | midnight | candy | slate (default: portal)
+  -t, --theme <name>       portal | midnight | candy | slate | open-diagram (default: portal)
   -r, --renderer <name>    auto | swimlane | pele | mermaid (default: auto)
   -l, --list               show what each block becomes, write nothing
   -v, --verbose            log every parsed node, edge and signal fold

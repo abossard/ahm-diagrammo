@@ -38,6 +38,8 @@ const CHANNELS = [
     check: (b) => { assert.equal(looksLikeHealthModel(b.code), true); assert.deepEqual(b.options, {}); } },
   { name: "the fence line sets the theme", slug: "theme-midnight",
     check: (b) => assert.equal(b.options.theme, "midnight") },
+  { name: "the fence line accepts the open-diagram theme", slug: "theme-open-diagram",
+    check: (b) => assert.equal(b.options.theme, "open-diagram") },
   { name: "frontmatter sets title and subtitle", slug: "order-pipeline-health",
     check: (b) => { assert.equal(b.options.title, "Order pipeline health"); assert.equal(b.options.subtitle, "Measurements from the order collectors."); } },
   { name: "frontmatter sets lane names", slug: "lane-names",
