@@ -64,7 +64,23 @@ const slate = {
   metricBars: ["#a78bfa", "#60a5fa", "#2dd4bf"],
 };
 
-export const THEMES = { portal, midnight, candy, slate };
+const openDiagram = {
+  name: "open-diagram",
+  bg: "#FFFFFF", band: "#F7F7F8", ink: "#1F2328", muted: "#5E6874",
+  laneLabel: "#2B3036", hair: "#C5CCD3", pillFill: "#FFFFFF", pillStroke: "#2B3036",
+  shadowOpacity: 0.10,
+  state: {
+    healthy:   { border: "#27323F", fill: "#FFFFFF", dot: "#27323F" },
+    degraded:  { border: "#B26B00", fill: "#FFF5E5", dot: "#B26B00", text: "#8F5500", dash: "5 3.5" },
+    unhealthy: { border: "#B42318", fill: "#FEF0EE", dot: "#B42318", text: "#B42318" },
+    unknown:   { border: "#5C636B", fill: "#F1F2F4", dot: "#5C636B", dash: "1.5 3.5" },
+    alt:       { border: "#6B4FD8", fill: "#F4F1FE", dot: "#6B4FD8", dash: "5 3.5" },
+    signal:    { border: "#B26B00", fill: "#FFF8EC", dot: "#FFC83D" },
+  },
+  metricBars: ["#6B4FD8", "#FFC83D", "#97A3AB"],
+};
+
+export const THEMES = { portal, midnight, candy, slate, "open-diagram": openDiagram };
 export const THEME_NAMES = Object.keys(THEMES);
 
 export function getTheme(name) {
